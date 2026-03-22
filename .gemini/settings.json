@@ -1,0 +1,15 @@
+{
+  "ui": {
+    "footer": {
+      "hideSandboxStatus": false,
+      "hideContextPercentage": false
+    },
+    "showMemoryUsage": true,
+    "showModelInfoInChat": true,
+    "showCitations": true,
+    "errorVerbosity": "full"
+  },
+  "model": {
+    "name": ""
+  }
+}
