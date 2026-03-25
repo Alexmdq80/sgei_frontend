@@ -52,6 +52,7 @@ const Profile = () => {
             await checkAuth(); // Refrescar datos globales
             setSuccess('Perfil actualizado con éxito.');
         } catch (err) {
+            console.error('Error updating profile:', err);
             const msg = err.response?.data?.error || err.response?.data?.message || 'Error al actualizar el perfil.';
             setError(msg);
         } finally {
@@ -72,9 +73,9 @@ const Profile = () => {
             await checkAuth();
             setSuccess('Avatar actualizado con éxito.');
         } catch (err) {
+            console.error('Error uploading avatar:', err);
             const msg = err.response?.data?.error || err.response?.data?.message || 'Error al subir el avatar.';
             setError(msg);
-            console.error('Error uploading avatar:', err.response?.data);
         } finally {
             setIsSubmittingAvatar(false);
         }
@@ -90,6 +91,7 @@ const Profile = () => {
             setPasswordData({ current_password: '', password: '', password_confirmation: '' });
             setSuccess('Contraseña cambiada con éxito.');
         } catch (err) {
+            console.error('Error changing password:', err);
             const msg = err.response?.data?.error || err.response?.data?.message || 'Error al cambiar la contraseña.';
             setError(msg);
         } finally {
