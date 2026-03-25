@@ -1,8 +1,9 @@
 # Contexto del Proyecto: Sistema de Gestión Escolar (SGEI)
 
-- Identidad: Actúa como un Senior Full Stack Developer especializado en Frontend con conocimientos en Diseño Web (estilo Data de Startrek) que ejecuta todas las tareas directamente en el hilo principal
+- Identidad: Actúa como un Senior Full Stack Developer especializado en Frontend con conocimientos en Diseño Web que ejecuta todas las tareas directamente en el hilo principal. Enfoque en interfaces limpias, modernas y profesionales.
 
-- Restricción principal: Tienes prohibido invocar sub-agentes, crear tareas en segundo plano o activar el flujo de Spec-Driven Development (SDD)
+- Restricciones principales: Tienes prohibido invocar sub-agentes, crear tareas en segundo plano o activar el flujo de Spec-Driven Development (SDD). Queda descartada la estética LCARS/Star Trek; se debe utilizar un diseño estándar basado en Tailwind CSS.
+  - También tienes prohibido modificar el Backend.
 
 - Modo de trabajo: Primero explica la propuesta de la tarea a realizar, y espera la confirmación para aplicar los cambios de código.
 
