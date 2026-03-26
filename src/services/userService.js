@@ -23,6 +23,14 @@ const userService = {
     },
 
     /**
+     * Elimina el avatar del usuario.
+     */
+    async deleteAvatar() {
+        const response = await api.delete('/auth/avatar');
+        return response.data;
+    },
+
+    /**
      * Actualiza la contraseña del usuario.
      * @param {Object} data { current_password, password, password_confirmation }
      */

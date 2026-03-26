@@ -71,10 +71,31 @@ const Profile = () => {
             formData.append('avatar', avatar);
             await userService.updateAvatar(formData);
             await checkAuth();
+            setAvatar(null); // Reset file input
             setSuccess('Avatar actualizado con éxito.');
         } catch (err) {
             console.error('Error uploading avatar:', err);
             const msg = err.response?.data?.error || err.response?.data?.message || 'Error al subir el avatar.';
+            setError(msg);
+        } finally {
+            setIsSubmittingAvatar(false);
+        }
+    };
+
+    const handleAvatarDelete = async () => {
+        if (!window.confirm('¿Estás seguro de que quieres eliminar tu foto de perfil?')) return;
+        setError(null);
+        setSuccess(null);
+        setIsSubmittingAvatar(true);
+        try {
+            await userService.deleteAvatar();
+            await checkAuth();
+            setAvatar(null);
+            setPreview(null);
+            setSuccess('Avatar eliminado con éxito.');
+        } catch (err) {
+            console.error('Error deleting avatar:', err);
+            const msg = err.response?.data?.error || err.response?.data?.message || 'Error al eliminar el avatar.';
             setError(msg);
         } finally {
             setIsSubmittingAvatar(false);
@@ -92,8 +113,14 @@ const Profile = () => {
             setSuccess('Contraseña cambiada con éxito.');
         } catch (err) {
             console.error('Error changing password:', err);
-            const msg = err.response?.data?.error || err.response?.data?.message || 'Error al cambiar la contraseña.';
-            setError(msg);
+            if (err.response?.status === 422 && err.response?.data?.errors) {
+                // Extraer todos los mensajes de error de validación
+                const validationErrors = Object.values(err.response.data.errors).flat();
+                setError(validationErrors.join(' '));
+            } else {
+                const msg = err.response?.data?.error || err.response?.data?.message || 'Error al cambiar la contraseña.';
+                setError(msg);
+            }
         } finally {
             setIsSubmittingPassword(false);
         }
@@ -112,9 +139,9 @@ const Profile = () => {
                 {success && <div className="bg-green-100 border-l-4 border-green-500 p-4 text-green-700">{success}</div>}
                 {error && <div className="bg-red-100 border-l-4 border-red-500 p-4 text-red-700">{error}</div>}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
                     {/* Sección de Avatar */}
-                    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="md:col-span-5 lg:col-span-4 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                         <h2 className="text-xl font-semibold mb-4">Avatar</h2>
                         <form onSubmit={handleAvatarSubmit} className="flex flex-col items-center">
                             <div className="w-32 h-32 rounded-full overflow-hidden mb-4 border-2 border-gray-200">
@@ -124,19 +151,29 @@ const Profile = () => {
                                     <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">Sin foto</div>
                                 )}
                             </div>
-                            <input type="file" onChange={handleAvatarChange} accept="image/*" className="text-sm mb-4" />
+                            <input type="file" onChange={handleAvatarChange} accept="image/*" className="text-sm mb-4 w-full" />
                             <button
                                 type="submit"
                                 disabled={isSubmittingAvatar || !avatar}
-                                className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors mb-2"
                             >
                                 {isSubmittingAvatar ? 'Subiendo...' : 'Actualizar Foto'}
                             </button>
+                            {user?.avatar_url && (
+                                <button
+                                    type="button"
+                                    onClick={handleAvatarDelete}
+                                    disabled={isSubmittingAvatar}
+                                    className="w-full text-red-600 text-sm hover:underline disabled:opacity-50"
+                                >
+                                    Eliminar Foto
+                                </button>
+                            )}
                         </form>
                     </div>
 
                     {/* Sección de Información Básica */}
-                    <div className="md:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="md:col-span-7 lg:col-span-8 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                         <h2 className="text-xl font-semibold mb-4">Información General</h2>
                         <form onSubmit={handleProfileSubmit} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -185,7 +222,7 @@ const Profile = () => {
                     </div>
 
                     {/* Sección de Seguridad */}
-                    <div className="md:col-span-3 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="md:col-span-12 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                         <h2 className="text-xl font-semibold mb-4">Seguridad / Cambiar Contraseña</h2>
                         <form onSubmit={handlePasswordSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
@@ -209,6 +246,20 @@ const Profile = () => {
                                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                     required
                                 />
+                                <div className="mt-3 space-y-1">
+                                    {[
+                                        { label: 'Mínimo 10 caracteres', met: passwordData.password.length >= 10 },
+                                        { label: 'Al menos una mayúscula', met: /[A-Z]/.test(passwordData.password) },
+                                        { label: 'Al menos una minúscula', met: /[a-z]/.test(passwordData.password) },
+                                        { label: 'Al menos un número', met: /[0-9]/.test(passwordData.password) },
+                                        { label: 'Al menos un símbolo (!@#$%^&*)', met: /[^A-Za-z0-9]/.test(passwordData.password) },
+                                    ].map((req, i) => (
+                                        <div key={i} className={`flex items-center text-[11px] ${req.met ? 'text-green-600' : 'text-red-500'}`}>
+                                            <span className="mr-2">{req.met ? '✓' : '✕'}</span>
+                                            {req.label}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Confirmar Nueva Contraseña</label>
