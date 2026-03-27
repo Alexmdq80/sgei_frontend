@@ -1,14 +1,54 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import documentoTipoService from '../services/documentoTipoService';
 
+/**
+ * Página de Login con soporte para Email y Documento.
+ */
 const Login = () => {
-    const [credentials, setCredentials] = useState({ email: '', password: '' });
+    // Estados del formulario
+    const [loginMethod, setLoginMethod] = useState('email'); // 'email' o 'documento'
+    const [credentials, setCredentials] = useState({ 
+        email: '', 
+        documento_tipo_id: '', 
+        documento_numero: '', 
+        password: '' 
+    });
+    
+    // Estados de datos y UI
+    const [documentoTipos, setDocumentoTipos] = useState([]);
     const [error, setError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLoadingData, setIsLoadingData] = useState(false);
     
     const { login } = useAuth();
     const navigate = useNavigate();
+
+    /**
+     * Cargar tipos de documento al montar si se elige el método correspondiente.
+     */
+    useEffect(() => {
+        const fetchDocumentoTipos = async () => {
+            setIsLoadingData(true);
+            try {
+                const data = await documentoTipoService.getAll();
+                setDocumentoTipos(data);
+                if (data.length > 0) {
+                    setCredentials(prev => ({ ...prev, documento_tipo_id: data[0].id }));
+                }
+            } catch (err) {
+                console.error("Error cargando tipos de documento:", err);
+                setError("No se pudieron cargar los tipos de documento. Intente recargar la página.");
+            } finally {
+                setIsLoadingData(false);
+            }
+        };
+
+        if (loginMethod === 'documento' && documentoTipos.length === 0) {
+            fetchDocumentoTipos();
+        }
+    }, [loginMethod]);
 
     /**
      * Maneja el cambio en los campos del formulario.
@@ -26,11 +66,19 @@ const Login = () => {
         setError(null);
         setIsSubmitting(true);
 
+        // Preparar credenciales según el método
+        const loginData = loginMethod === 'email' 
+            ? { email: credentials.email, password: credentials.password }
+            : { 
+                documento_tipo_id: credentials.documento_tipo_id, 
+                documento_numero: credentials.documento_numero, 
+                password: credentials.password 
+              };
+
         try {
-            await login(credentials);
+            await login(loginData);
             navigate('/');
         } catch (err) {
-            // Se asume el formato de error del AGENT.md: { "error": "mensaje", "code": 400 }
             setError(err.response?.data?.error || 'Credenciales inválidas o error de conexión con el servidor.');
         } finally {
             setIsSubmitting(false);
@@ -38,52 +86,137 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-            <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
+        <div className="min-h-screen flex items-center justify-center bg-secondary-100 px-4 font-sans">
+            <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-secondary-200 p-8 md:p-10 transition-all">
+                
+                {/* Cabecera */}
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-800">SGEI</h1>
-                    <p className="text-gray-600 mt-2">Sistema de Gestión Escolar Integral</p>
+                    <div className="inline-block p-4 bg-primary-50 rounded-2xl mb-4 text-primary-600">
+                        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5S19.832 5.477 21 6.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                    </div>
+                    <h1 className="text-4xl font-extrabold text-secondary-900 tracking-tight">SGEI</h1>
+                    <p className="text-secondary-500 mt-1 font-medium italic">Acceso al Sistema</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Switcher de Método de Login */}
+                <div className="flex p-1 bg-secondary-100 rounded-lg mb-8">
+                    <button 
+                        onClick={() => setLoginMethod('email')}
+                        className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${loginMethod === 'email' ? 'bg-white text-primary-600 shadow-sm' : 'text-secondary-500 hover:text-secondary-700'}`}
+                    >
+                        Email
+                    </button>
+                    <button 
+                        onClick={() => setLoginMethod('documento')}
+                        className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${loginMethod === 'documento' ? 'bg-white text-primary-600 shadow-sm' : 'text-secondary-500 hover:text-secondary-700'}`}
+                    >
+                        Documento
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-5">
                     {error && (
-                        <div className="bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm animate-pulse">
-                            {error}
+                        <div className="bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded-r-lg animate-pulse">
+                            <div className="flex items-center">
+                                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                <span>{error}</span>
+                            </div>
                         </div>
                     )}
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Correo Electrónico</label>
-                        <input
-                            type="email"
-                            name="email"
-                            autoComplete="email"
-                            required
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="usuario@ejemplo.com"
-                            value={credentials.email}
-                            onChange={handleChange}
-                        />
-                    </div>
+                    {/* CAMPOS SEGÚN MÉTODO */}
+                    {loginMethod === 'email' ? (
+                        <div>
+                            <label className="block text-xs font-bold text-secondary-500 uppercase tracking-wider mb-1 ml-1">Correo Electrónico</label>
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206" />
+                                    </svg>
+                                </span>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    required
+                                    className="block w-full pl-10 pr-3 py-3 border border-secondary-300 rounded-lg bg-secondary-50 text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                                    placeholder="ejemplo@correo.com"
+                                    value={credentials.email}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-5 animate-fadeIn">
+                            <div>
+                                <label className="block text-xs font-bold text-secondary-500 uppercase tracking-wider mb-1 ml-1">Tipo de Documento</label>
+                                <select
+                                    name="documento_tipo_id"
+                                    required
+                                    disabled={isLoadingData}
+                                    className="block w-full px-3 py-3 border border-secondary-300 rounded-lg bg-secondary-50 text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all appearance-none"
+                                    value={credentials.documento_tipo_id}
+                                    onChange={handleChange}
+                                >
+                                    {isLoadingData ? (
+                                        <option>Cargando...</option>
+                                    ) : (
+                                        documentoTipos.map(tipo => (
+                                            <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
+                                        ))
+                                    )}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-secondary-500 uppercase tracking-wider mb-1 ml-1">Número de Documento</label>
+                                <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                    </span>
+                                    <input
+                                        type="text"
+                                        name="documento_numero"
+                                        required
+                                        className="block w-full pl-10 pr-3 py-3 border border-secondary-300 rounded-lg bg-secondary-50 text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                                        placeholder="Solo números"
+                                        value={credentials.documento_numero}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
+                    {/* CAMPO DE CONTRASEÑA COMÚN */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Contraseña</label>
-                        <input
-                            type="password"
-                            name="password"
-                            autoComplete="current-password"
-                            required
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="••••••••"
-                            value={credentials.password}
-                            onChange={handleChange}
-                        />
+                        <label className="block text-xs font-bold text-secondary-500 uppercase tracking-wider mb-1 ml-1">Contraseña</label>
+                        <div className="relative">
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </span>
+                            <input
+                                type="password"
+                                name="password"
+                                required
+                                className="block w-full pl-10 pr-3 py-3 border border-secondary-300 rounded-lg bg-secondary-50 text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                                placeholder="••••••••"
+                                value={credentials.password}
+                                onChange={handleChange}
+                            />
+                        </div>
                     </div>
 
                     <button
                         type="submit"
-                        disabled={isSubmitting}
-                        className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={isSubmitting || isLoadingData}
+                        className={`w-full flex justify-center py-3.5 px-4 rounded-lg shadow-lg text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 focus:outline-none transition-all active:scale-[0.98] ${isSubmitting ? 'opacity-70 cursor-not-allowed shadow-none' : ''}`}
                     >
                         {isSubmitting ? (
                             <span className="flex items-center">
@@ -91,14 +224,14 @@ const Login = () => {
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Verificando...
+                                Autenticando...
                             </span>
-                        ) : 'Ingresar al Sistema'}
+                        ) : 'Entrar al SGEI'}
                     </button>
                 </form>
 
-                <div className="mt-6 text-center text-xs text-gray-400">
-                    &copy; {new Date().getFullYear()} SGEI - Todos los derechos reservados.
+                <div className="mt-8 text-center text-xs text-secondary-400 font-bold uppercase tracking-widest">
+                    &copy; {new Date().getFullYear()} SGEI - Full Access
                 </div>
             </div>
         </div>

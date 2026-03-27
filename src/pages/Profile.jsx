@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/userService';
-import { Link } from 'react-router-dom';
 
+/**
+ * Página de gestión del perfil de usuario.
+ * Se renderiza dentro del Layout principal.
+ */
 const Profile = () => {
     const { user, checkAuth } = useAuth();
     const [profileData, setProfileData] = useState({ 
@@ -52,7 +55,6 @@ const Profile = () => {
             await checkAuth(); // Refrescar datos globales
             setSuccess('Perfil actualizado con éxito.');
         } catch (err) {
-            console.error('Error updating profile:', err);
             const msg = err.response?.data?.error || err.response?.data?.message || 'Error al actualizar el perfil.';
             setError(msg);
         } finally {
@@ -71,10 +73,9 @@ const Profile = () => {
             formData.append('avatar', avatar);
             await userService.updateAvatar(formData);
             await checkAuth();
-            setAvatar(null); // Reset file input
-            setSuccess('Avatar actualizado con éxito.');
+            setAvatar(null); 
+            setSuccess('Foto de perfil actualizada.');
         } catch (err) {
-            console.error('Error uploading avatar:', err);
             const msg = err.response?.data?.error || err.response?.data?.message || 'Error al subir el avatar.';
             setError(msg);
         } finally {
@@ -92,9 +93,8 @@ const Profile = () => {
             await checkAuth();
             setAvatar(null);
             setPreview(null);
-            setSuccess('Avatar eliminado con éxito.');
+            setSuccess('Foto de perfil eliminada.');
         } catch (err) {
-            console.error('Error deleting avatar:', err);
             const msg = err.response?.data?.error || err.response?.data?.message || 'Error al eliminar el avatar.';
             setError(msg);
         } finally {
@@ -112,9 +112,7 @@ const Profile = () => {
             setPasswordData({ current_password: '', password: '', password_confirmation: '' });
             setSuccess('Contraseña cambiada con éxito.');
         } catch (err) {
-            console.error('Error changing password:', err);
             if (err.response?.status === 422 && err.response?.data?.errors) {
-                // Extraer todos los mensajes de error de validación
                 const validationErrors = Object.values(err.response.data.errors).flat();
                 setError(validationErrors.join(' '));
             } else {
@@ -127,156 +125,190 @@ const Profile = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 py-10 px-4">
-            <div className="max-w-4xl mx-auto space-y-8">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-bold text-gray-900">Configuración de Perfil</h1>
-                    <Link to="/" className="text-blue-600 hover:text-blue-800 flex items-center gap-2">
-                        &larr; Volver al Dashboard
-                    </Link>
+        <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn">
+            {/* Mensajes de feedback */}
+            {success && (
+                <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg flex items-center shadow-sm">
+                    <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-green-700 font-medium">{success}</p>
                 </div>
+            )}
+            {error && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg flex items-center shadow-sm">
+                    <svg className="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-red-700 font-medium">{error}</p>
+                </div>
+            )}
 
-                {success && <div className="bg-green-100 border-l-4 border-green-500 p-4 text-green-700">{success}</div>}
-                {error && <div className="bg-red-100 border-l-4 border-red-500 p-4 text-red-700">{error}</div>}
-
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-                    {/* Sección de Avatar */}
-                    <div className="md:col-span-5 lg:col-span-4 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-semibold mb-4">Avatar</h2>
-                        <form onSubmit={handleAvatarSubmit} className="flex flex-col items-center">
-                            <div className="w-32 h-32 rounded-full overflow-hidden mb-4 border-2 border-gray-200">
-                                {preview ? (
-                                    <img src={preview} alt="Avatar Preview" className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">Sin foto</div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Columna Izquierda: Avatar */}
+                <div className="lg:col-span-1 space-y-6">
+                    <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
+                        <div className="p-6 border-b border-secondary-200 bg-secondary-50">
+                            <h2 className="font-bold text-secondary-900">Foto de Perfil</h2>
+                        </div>
+                        <div className="p-8 flex flex-col items-center">
+                            <div className="relative group">
+                                <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-secondary-200">
+                                    {preview ? (
+                                        <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-secondary-100 text-secondary-400 text-4xl font-bold uppercase">
+                                            {user?.nombre?.charAt(0)}{user?.apellido?.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                                <label className="absolute bottom-0 right-0 p-2 bg-primary-600 text-white rounded-full cursor-pointer shadow-lg hover:bg-primary-700 transition-colors">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <input type="file" className="hidden" onChange={handleAvatarChange} accept="image/*" />
+                                </label>
+                            </div>
+                            
+                            <p className="mt-4 text-xs text-secondary-500 text-center uppercase tracking-wider font-bold">Formatos: JPG, PNG o GIF</p>
+                            
+                            <div className="w-full mt-8 space-y-3">
+                                <button
+                                    onClick={handleAvatarSubmit}
+                                    disabled={isSubmittingAvatar || !avatar}
+                                    className="w-full bg-primary-600 text-white py-2.5 rounded-lg font-bold shadow-md hover:bg-primary-700 disabled:opacity-50 transition-all active:scale-95"
+                                >
+                                    {isSubmittingAvatar ? 'Subiendo...' : 'Subir Nueva Foto'}
+                                </button>
+                                {user?.avatar_url && (
+                                    <button
+                                        onClick={handleAvatarDelete}
+                                        disabled={isSubmittingAvatar}
+                                        className="w-full text-red-600 py-2.5 font-bold hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                    >
+                                        Eliminar Foto
+                                    </button>
                                 )}
                             </div>
-                            <input type="file" onChange={handleAvatarChange} accept="image/*" className="text-sm mb-4 w-full" />
-                            <button
-                                type="submit"
-                                disabled={isSubmittingAvatar || !avatar}
-                                className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors mb-2"
-                            >
-                                {isSubmittingAvatar ? 'Subiendo...' : 'Actualizar Foto'}
-                            </button>
-                            {user?.avatar_url && (
-                                <button
-                                    type="button"
-                                    onClick={handleAvatarDelete}
-                                    disabled={isSubmittingAvatar}
-                                    className="w-full text-red-600 text-sm hover:underline disabled:opacity-50"
-                                >
-                                    Eliminar Foto
-                                </button>
-                            )}
-                        </form>
+                        </div>
                     </div>
+                </div>
 
-                    {/* Sección de Información Básica */}
-                    <div className="md:col-span-7 lg:col-span-8 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-semibold mb-4">Información General</h2>
-                        <form onSubmit={handleProfileSubmit} className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Columna Derecha: Información y Seguridad */}
+                <div className="lg:col-span-2 space-y-8">
+                    {/* Información General */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
+                        <div className="p-6 border-b border-secondary-200 bg-secondary-50">
+                            <h2 className="font-bold text-secondary-900">Información de la Cuenta</h2>
+                        </div>
+                        <form onSubmit={handleProfileSubmit} className="p-8 space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Nombre</label>
+                                    <label className="block text-sm font-bold text-secondary-700 mb-2">Nombre</label>
                                     <input
                                         type="text"
                                         name="nombre"
                                         value={profileData.nombre}
                                         onChange={handleProfileChange}
-                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Apellido</label>
+                                    <label className="block text-sm font-bold text-secondary-700 mb-2">Apellido</label>
                                     <input
                                         type="text"
                                         name="apellido"
                                         value={profileData.apellido}
                                         onChange={handleProfileChange}
-                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
                                         required
                                     />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Correo Electrónico</label>
+                                <label className="block text-sm font-bold text-secondary-700 mb-2">Correo Electrónico</label>
                                 <input
                                     type="email"
                                     name="email"
                                     value={profileData.email}
                                     onChange={handleProfileChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
                                     required
                                 />
                             </div>
-                            <button
-                                type="submit"
-                                disabled={isSubmittingProfile}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-                            >
-                                {isSubmittingProfile ? 'Guardando...' : 'Guardar Cambios'}
-                            </button>
+                            <div className="flex justify-end pt-4">
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingProfile}
+                                    className="px-8 py-3 bg-secondary-900 text-white rounded-lg font-bold shadow-lg hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    {isSubmittingProfile ? 'Guardando...' : 'Guardar Cambios'}
+                                </button>
+                            </div>
                         </form>
                     </div>
 
-                    {/* Sección de Seguridad */}
-                    <div className="md:col-span-12 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-semibold mb-4">Seguridad / Cambiar Contraseña</h2>
-                        <form onSubmit={handlePasswordSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Seguridad */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
+                        <div className="p-6 border-b border-secondary-200 bg-secondary-50">
+                            <h2 className="font-bold text-secondary-900">Actualizar Contraseña</h2>
+                        </div>
+                        <form onSubmit={handlePasswordSubmit} className="p-8 space-y-6">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Contraseña Actual</label>
+                                <label className="block text-sm font-bold text-secondary-700 mb-2">Contraseña Actual</label>
                                 <input
                                     type="password"
                                     name="current_password"
                                     value={passwordData.current_password}
                                     onChange={handlePasswordChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
                                     required
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Nueva Contraseña</label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    value={passwordData.password}
-                                    onChange={handlePasswordChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                    required
-                                />
-                                <div className="mt-3 space-y-1">
-                                    {[
-                                        { label: 'Mínimo 10 caracteres', met: passwordData.password.length >= 10 },
-                                        { label: 'Al menos una mayúscula', met: /[A-Z]/.test(passwordData.password) },
-                                        { label: 'Al menos una minúscula', met: /[a-z]/.test(passwordData.password) },
-                                        { label: 'Al menos un número', met: /[0-9]/.test(passwordData.password) },
-                                        { label: 'Al menos un símbolo (!@#$%^&*)', met: /[^A-Za-z0-9]/.test(passwordData.password) },
-                                    ].map((req, i) => (
-                                        <div key={i} className={`flex items-center text-[11px] ${req.met ? 'text-green-600' : 'text-red-500'}`}>
-                                            <span className="mr-2">{req.met ? '✓' : '✕'}</span>
-                                            {req.label}
-                                        </div>
-                                    ))}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-bold text-secondary-700 mb-2">Nueva Contraseña</label>
+                                    <input
+                                        type="password"
+                                        name="password"
+                                        value={passwordData.password}
+                                        onChange={handlePasswordChange}
+                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                                        required
+                                    />
+                                    <div className="mt-4 grid grid-cols-1 gap-2">
+                                        {[
+                                            { label: '10+ caracteres', met: passwordData.password.length >= 10 },
+                                            { label: 'A-Z', met: /[A-Z]/.test(passwordData.password) },
+                                            { label: '0-9', met: /[0-9]/.test(passwordData.password) },
+                                            { label: 'Símbolo', met: /[^A-Za-z0-9]/.test(passwordData.password) },
+                                        ].map((req, i) => (
+                                            <div key={i} className={`flex items-center text-[10px] font-bold uppercase tracking-wider ${req.met ? 'text-green-600' : 'text-secondary-400'}`}>
+                                                <div className={`w-1.5 h-1.5 rounded-full mr-2 ${req.met ? 'bg-green-600' : 'bg-secondary-300'}`}></div>
+                                                {req.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-secondary-700 mb-2">Confirmar Contraseña</label>
+                                    <input
+                                        type="password"
+                                        name="password_confirmation"
+                                        value={passwordData.password_confirmation}
+                                        onChange={handlePasswordChange}
+                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                                        required
+                                    />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Confirmar Nueva Contraseña</label>
-                                <input
-                                    type="password"
-                                    name="password_confirmation"
-                                    value={passwordData.password_confirmation}
-                                    onChange={handlePasswordChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                    required
-                                />
-                            </div>
-                            <div className="md:col-span-3 flex justify-end">
+                            <div className="flex justify-end pt-4">
                                 <button
                                     type="submit"
                                     disabled={isSubmittingPassword}
-                                    className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+                                    className="px-8 py-3 bg-accent-600 text-white rounded-lg font-bold shadow-lg hover:bg-accent-700 transition-all active:scale-95 disabled:opacity-50"
                                 >
                                     {isSubmittingPassword ? 'Actualizando...' : 'Cambiar Contraseña'}
                                 </button>
