@@ -33,6 +33,27 @@ const authService = {
     async me() {
         const response = await api.get('/auth/me');
         return response.data;
+    },
+
+    /**
+     * Solicita el reenvío del correo de verificación.
+     * @param {string} email
+     */
+    async resendVerification(email) {
+        const response = await api.post('/auth/verify/resend', { email });
+        return response.data;
+    },
+
+    /**
+     * Verifica la dirección de correo electrónico con el token proporcionado.
+     * @param {string} email
+     * @param {string} token
+     */
+    async verifyEmail(email, token) {
+        const response = await api.get('/auth/verify', {
+            params: { email, token }
+        });
+        return response.data;
     }
 };
 

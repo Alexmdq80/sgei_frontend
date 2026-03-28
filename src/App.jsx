@@ -4,13 +4,16 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
+import VerifyEmail from './pages/VerifyEmail';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 
 /**
  * Componente para proteger rutas privadas.
  * Redirige al login si el usuario no está autenticado.
+ * Intercepta si el usuario requiere verificar su email.
  */
 const ProtectedRoute = ({ children }) => {
-    const { isAuthenticated, loading } = useAuth();
+    const { isAuthenticated, user, loading } = useAuth();
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-secondary-50">
@@ -25,6 +28,12 @@ const ProtectedRoute = ({ children }) => {
         return <Navigate to="/login" />;
     }
 
+    // Lógica de Verificación de Email
+    // Solo se obliga a usuarios normales (no administradores)
+    if (!user?.es_administrador && !user?.email_verified_at) {
+        return <VerifyEmail />;
+    }
+
     return <Layout>{children}</Layout>;
 };
 
@@ -35,6 +44,9 @@ function App() {
                 <Routes>
                     {/* Ruta de Login */}
                     <Route path="/login" element={<Login />} />
+
+                    {/* Ruta de Verificación de Email (Pública) */}
+                    <Route path="/verificar-email" element={<VerifyEmailPage />} />
 
                     {/* Rutas Protegidas (envueltas por ProtectedRoute que ahora incluye Layout) */}
                     <Route 

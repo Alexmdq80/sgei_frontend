@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import documentoTipoService from '../services/documentoTipoService';
+import authService from '../services/authService';
 
 /**
  * Página de Login con soporte para Email y Documento.
@@ -19,6 +20,7 @@ const Login = () => {
     // Estados de datos y UI
     const [documentoTipos, setDocumentoTipos] = useState([]);
     const [error, setError] = useState(null);
+    const [resendStatus, setResendStatus] = useState({ loading: false, success: false, message: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(false);
     
@@ -56,6 +58,38 @@ const Login = () => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setCredentials(prev => ({ ...prev, [name]: value }));
+        // Limpiar estados de error y reenvío al escribir
+        setError(null);
+        setResendStatus({ loading: false, success: false, message: '' });
+    };
+
+    /**
+     * Procesa el reenvío de la verificación de correo electrónico.
+     */
+    const handleResendVerification = async () => {
+        if (!credentials.email) {
+            setError("Por favor, ingrese su correo electrónico para reenviar la verificación.");
+            return;
+        }
+
+        setResendStatus({ loading: true, success: false, message: '' });
+        try {
+            await authService.resendVerification(credentials.email);
+            setResendStatus({ 
+                loading: false, 
+                success: true, 
+                message: 'Se ha enviado un nuevo enlace de verificación a su correo.' 
+            });
+            setError(null);
+        } catch (err) {
+            console.error("Error reenviando verificación:", err);
+            setResendStatus({ 
+                loading: false, 
+                success: false, 
+                message: '' 
+            });
+            setError(err.response?.data?.message || 'Error al reenviar la verificación. Intente más tarde.');
+        }
     };
 
     /**
@@ -64,6 +98,7 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(null);
+        setResendStatus({ loading: false, success: false, message: '' });
         setIsSubmitting(true);
 
         // Preparar credenciales según el método
@@ -79,7 +114,13 @@ const Login = () => {
             await login(loginData);
             navigate('/');
         } catch (err) {
-            setError(err.response?.data?.error || 'Credenciales inválidas o error de conexión con el servidor.');
+            // Manejar error específico de email no verificado
+            const errorData = err.response?.data;
+            if (errorData?.errors?.email_unverified) {
+                setError("Tu cuenta no está verificada. Revisa tu correo o solicita un nuevo enlace.");
+            } else {
+                setError(errorData?.error || 'Credenciales inválidas o error de conexión con el servidor.');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -117,13 +158,39 @@ const Login = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Alertas de Error */}
                     {error && (
-                        <div className="bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded-r-lg animate-pulse">
+                        <div className="bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded-r-lg animate-fadeIn">
+                            <div className="flex flex-col">
+                                <div className="flex items-center mb-2">
+                                    <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    </svg>
+                                    <span className="font-semibold">{error}</span>
+                                </div>
+                                
+                                {error.includes("verificada") && loginMethod === 'email' && (
+                                    <button
+                                        type="button"
+                                        onClick={handleResendVerification}
+                                        disabled={resendStatus.loading}
+                                        className="text-left text-xs text-red-800 font-bold underline hover:text-red-600 transition-colors ml-7"
+                                    >
+                                        {resendStatus.loading ? 'Enviando enlace...' : 'Reenviar enlace de verificación'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Alertas de Éxito (Reenvío) */}
+                    {resendStatus.success && (
+                        <div className="bg-green-50 border-l-4 border-green-500 p-4 text-green-700 text-sm rounded-r-lg animate-fadeIn">
                             <div className="flex items-center">
                                 <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                 </svg>
-                                <span>{error}</span>
+                                <span>{resendStatus.message}</span>
                             </div>
                         </div>
                     )}
