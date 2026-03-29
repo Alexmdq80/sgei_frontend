@@ -1,7 +1,10 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import Register from './pages/Register';
+import SelectSchool from './pages/SelectSchool';
+import PendingApproval from './pages/PendingApproval';
 import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
 import VerifyEmail from './pages/VerifyEmail';
@@ -14,6 +17,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
  */
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, user, loading } = useAuth();
+    const location = useLocation();
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-secondary-50">
@@ -28,10 +32,30 @@ const ProtectedRoute = ({ children }) => {
         return <Navigate to="/login" />;
     }
 
-    // Lógica de Verificación de Email
-    // Solo se obliga a usuarios normales (no administradores)
-    if (!user?.es_administrador && !user?.email_verified_at) {
+    // Admins saltan el flujo de aprobación escolar por ahora
+    if (user?.es_administrador) {
+        return <Layout>{children}</Layout>;
+    }
+
+    // 1. Verificación de Email (Bloqueante para todo el sistema)
+    if (!user?.email_verified_at) {
         return <VerifyEmail />;
+    }
+
+    // 2. Permitir siempre acceso al Perfil si está autenticado y verificado
+    if (location.pathname === '/profile') {
+        return <Layout>{children}</Layout>;
+    }
+
+    // 3. Rutas de flujo de selección/aprobación (se permiten a sí mismas)
+    if (location.pathname === '/select-school' || location.pathname === '/pending-approval') {
+        return <Layout>{children}</Layout>;
+    }
+
+    // 4. Restricción de Acceso para el resto de las rutas (ej: Dashboard)
+    // Si no está activo, lo mandamos al perfil para que vea su estado
+    if (user?.estado !== 'activo') {
+        return <Navigate to="/profile" replace />;
     }
 
     return <Layout>{children}</Layout>;
@@ -42,13 +66,32 @@ function App() {
         <AuthProvider>
             <Router>
                 <Routes>
-                    {/* Ruta de Login */}
+                    {/* Rutas Públicas */}
                     <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
 
                     {/* Ruta de Verificación de Email (Pública) */}
                     <Route path="/verificar-email" element={<VerifyEmailPage />} />
 
-                    {/* Rutas Protegidas (envueltas por ProtectedRoute que ahora incluye Layout) */}
+                    {/* Rutas de Flujo de Escuela (Envueltas en ProtectedRoute) */}
+                    <Route 
+                        path="/select-school" 
+                        element={
+                            <ProtectedRoute>
+                                <SelectSchool />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route 
+                        path="/pending-approval" 
+                        element={
+                            <ProtectedRoute>
+                                <PendingApproval />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    {/* Rutas Protegidas principales */}
                     <Route 
                         path="/" 
                         element={

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/userService';
 
@@ -10,7 +11,6 @@ const Profile = () => {
     const { user, checkAuth } = useAuth();
     const [profileData, setProfileData] = useState({ 
         nombre: user?.nombre || '', 
-        apellido: user?.apellido || '', 
         email: user?.email || '' 
     });
     const [passwordData, setPasswordData] = useState({ current_password: '', password: '', password_confirmation: '' });
@@ -27,7 +27,6 @@ const Profile = () => {
         if (user) {
             setProfileData({
                 nombre: user.nombre || '',
-                apellido: user.apellido || '',
                 email: user.email || ''
             });
             setPreview(user.avatar_url);
@@ -144,6 +143,41 @@ const Profile = () => {
                 </div>
             )}
 
+            {/* CARD DE ESTADO ESCOLAR (NUEVA) */}
+            {!user?.es_administrador && user?.estado !== 'activo' && (
+                <div className={`p-6 rounded-2xl shadow-sm border-2 flex flex-col md:flex-row items-center justify-between gap-6 ${user?.estado === 'espera_aprobacion' ? 'bg-yellow-50 border-yellow-200' : 'bg-primary-50 border-primary-200'}`}>
+                    <div className="flex items-center text-center md:text-left">
+                        <div className={`p-3 rounded-xl mr-5 ${user?.estado === 'espera_aprobacion' ? 'bg-yellow-100 text-yellow-600' : 'bg-primary-100 text-primary-600'}`}>
+                            {user?.estado === 'espera_aprobacion' ? (
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            ) : (
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            )}
+                        </div>
+                        <div>
+                            <h3 className={`text-lg font-bold ${user?.estado === 'espera_aprobacion' ? 'text-yellow-800' : 'text-primary-800'}`}>
+                                {user?.estado === 'espera_aprobacion' ? 'Solicitud en Revisión' : 'Paso Requerido: Vinculación Escolar'}
+                            </h3>
+                            <p className={`text-sm font-medium ${user?.estado === 'espera_aprobacion' ? 'text-yellow-600' : 'text-primary-600'}`}>
+                                {user?.estado === 'espera_aprobacion' 
+                                    ? 'Tu solicitud para unirte a la escuela está pendiente de aprobación por un administrador.' 
+                                    : 'Para acceder a todas las funciones del sistema, primero debes seleccionar tu institución educativa.'}
+                            </p>
+                        </div>
+                    </div>
+                    <Link 
+                        to={user?.estado === 'espera_aprobacion' ? '/pending-approval' : '/select-school'}
+                        className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 whitespace-nowrap ${user?.estado === 'espera_aprobacion' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-primary-600 hover:bg-primary-700'}`}
+                    >
+                        {user?.estado === 'espera_aprobacion' ? 'Ver Solicitud' : 'Seleccionar Escuela'}
+                    </Link>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Columna Izquierda: Avatar */}
                 <div className="lg:col-span-1 space-y-6">
@@ -158,7 +192,7 @@ const Profile = () => {
                                         <img src={preview} alt="Preview" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-secondary-100 text-secondary-400 text-4xl font-bold uppercase">
-                                            {user?.nombre?.charAt(0)}{user?.apellido?.charAt(0)}
+                                            {user?.nombre?.charAt(0)}
                                         </div>
                                     )}
                                 </div>
@@ -203,29 +237,17 @@ const Profile = () => {
                             <h2 className="font-bold text-secondary-900">Información de la Cuenta</h2>
                         </div>
                         <form onSubmit={handleProfileSubmit} className="p-8 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-bold text-secondary-700 mb-2">Nombre</label>
-                                    <input
-                                        type="text"
-                                        name="nombre"
-                                        value={profileData.nombre}
-                                        onChange={handleProfileChange}
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-secondary-700 mb-2">Apellido</label>
-                                    <input
-                                        type="text"
-                                        name="apellido"
-                                        value={profileData.apellido}
-                                        onChange={handleProfileChange}
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
-                                        required
-                                    />
-                                </div>
+                            <div>
+                                <label className="block text-sm font-bold text-secondary-700 mb-2">Nombre de Usuario (Alias)</label>
+                                <input
+                                    type="text"
+                                    name="nombre"
+                                    value={profileData.nombre}
+                                    onChange={handleProfileChange}
+                                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                                    required
+                                />
+                                <p className="mt-2 text-xs text-secondary-500 italic">Este es tu nombre de acceso al sistema.</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-secondary-700 mb-2">Correo Electrónico</label>

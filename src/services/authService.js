@@ -20,6 +20,18 @@ const authService = {
     },
 
     /**
+     * Registra un nuevo usuario en el sistema.
+     * @param {Object} userData { nombre, email, documento_tipo_id, documento_numero, password, password_confirmation }
+     */
+    async register(userData) {
+        // Asegurar CSRF antes de registrar
+        await api.get(`${BACKEND_URL}/sanctum/csrf-cookie`);
+        
+        const response = await api.post('/auth/register', userData);
+        return response.data;
+    },
+
+    /**
      * Cierra la sesión del usuario actual.
      */
     async logout() {

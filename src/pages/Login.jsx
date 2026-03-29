@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import documentoTipoService from '../services/documentoTipoService';
 import authService from '../services/authService';
@@ -295,6 +295,15 @@ const Login = () => {
                             </span>
                         ) : 'Entrar al SGEI'}
                     </button>
+
+                    <div className="pt-2 text-center">
+                        <p className="text-secondary-500 text-sm font-medium">
+                            ¿No tienes una cuenta? {' '}
+                            <Link to="/register" className="text-primary-600 font-bold hover:underline">
+                                Registrar Usuario
+                            </Link>
+                        </p>
+                    </div>
                 </form>
 
                 <div className="mt-8 text-center text-xs text-secondary-400 font-bold uppercase tracking-widest">
