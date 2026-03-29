@@ -5,13 +5,13 @@ import api from './api';
  */
 const escuelaService = {
     /**
-     * Busca escuelas por término y filtros geográficos.
+     * Busca escuelas por término y filtros.
      */
     async search(term = '', filters = {}) {
         const response = await api.get('/escuelas', {
             params: { 
                 search: term,
-                ...filters
+                ...filters // Esto ahora incluye sector_id si está presente
             }
         });
         return response.data;
@@ -22,6 +22,14 @@ const escuelaService = {
      */
     async getNiveles() {
         const response = await api.get('/niveles');
+        return response.data;
+    },
+
+    /**
+     * Obtiene el catálogo de sectores escolares.
+     */
+    async getSectores() {
+        const response = await api.get('/sectores');
         return response.data;
     },
 
@@ -39,10 +47,13 @@ const escuelaService = {
     /**
      * Cancela la solicitud actual de unión a escuela.
      */
-    async cancelJoin() {
-        const response = await api.post('/auth/escuelas/cancel-join');
+    async cancelJoin(escuelaId = null) {
+        const response = await api.post('/auth/escuelas/cancel-join', {
+            escuela_id: escuelaId
+        });
         return response.data;
     }
 };
 
 export default escuelaService;
+

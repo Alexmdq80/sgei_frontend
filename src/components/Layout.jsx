@@ -1,21 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 /**
  * Layout principal que envuelve las páginas protegidas.
- * Incluye un Sidebar para navegación y un Navbar superior.
+ * Incluye un Sidebar para navegación y un Navbar superior con menú de usuario.
  */
 const Layout = ({ children }) => {
     const { user, logout } = useAuth();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const userMenuRef = useRef(null);
     const location = useLocation();
     const navigate = useNavigate();
 
     const handleLogout = async () => {
+        setIsUserMenuOpen(false);
         await logout();
         navigate('/login');
     };
+
+    // Cerrar menú de usuario al hacer click fuera
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+                setIsUserMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const navItems = [
         { name: 'Dashboard', path: '/', icon: (
@@ -90,18 +104,59 @@ const Layout = ({ children }) => {
                         </h2>
                     </div>
                     
-                    <div className="flex items-center gap-4">
-                        <div className="text-right mr-2 hidden sm:block">
-                            <p className="text-sm font-medium text-secondary-900">{user?.nombre} {user?.apellido}</p>
-                            <p className="text-xs text-secondary-500">{user?.email}</p>
-                        </div>
-                        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-primary-200 overflow-hidden">
-                            {user?.avatar_url ? (
-                                <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                                <span>{user?.nombre?.charAt(0)}{user?.apellido?.charAt(0)}</span>
-                            )}
-                        </div>
+                    <div className="flex items-center gap-4 relative" ref={userMenuRef}>
+                        <button 
+                            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                            className="flex items-center gap-3 p-1.5 hover:bg-secondary-50 rounded-xl transition-all border border-transparent hover:border-secondary-200 group"
+                        >
+                            <div className="text-right hidden sm:block">
+                                <p className="text-sm font-bold text-secondary-900 group-hover:text-primary-600 transition-colors">{user?.nombre}</p>
+                                <p className="text-[10px] text-secondary-500 font-medium uppercase tracking-wider">{user?.email}</p>
+                            </div>
+                            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-primary-200 overflow-hidden shadow-sm group-hover:border-primary-400 transition-all">
+                                {user?.avatar_url ? (
+                                    <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span>{user?.nombre?.charAt(0)}</span>
+                                )}
+                            </div>
+                            <svg className={`w-4 h-4 text-secondary-400 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {isUserMenuOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-secondary-200 rounded-2xl shadow-2xl py-2 z-50 animate-fadeInUp animate-duration-200">
+                                <div className="px-4 py-3 border-b border-secondary-100 mb-1">
+                                    <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mb-1">Cuenta</p>
+                                    <p className="text-sm font-bold text-secondary-900 truncate">{user?.nombre}</p>
+                                </div>
+                                
+                                <Link 
+                                    to="/profile" 
+                                    onClick={() => setIsUserMenuOpen(false)}
+                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-secondary-700 hover:bg-primary-50 hover:text-primary-700 transition-colors font-medium"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    Mi Perfil
+                                </Link>
+
+                                <div className="border-t border-secondary-100 mt-1 pt-1">
+                                    <button 
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        </svg>
+                                        Cerrar Sesión
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </header>
 

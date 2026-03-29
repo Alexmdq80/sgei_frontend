@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import documentoTipoService from '../services/documentoTipoService';
 import authService from '../services/authService';
+import logoAjal from '../assets/logo.png';
 
 /**
  * Página de Login con soporte para Email y Documento.
@@ -23,6 +24,7 @@ const Login = () => {
     const [resendStatus, setResendStatus] = useState({ loading: false, success: false, message: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(false);
+    const [showAuthor, setShowAuthor] = useState(false);
     
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -306,8 +308,21 @@ const Login = () => {
                     </div>
                 </form>
 
-                <div className="mt-8 text-center text-xs text-secondary-400 font-bold uppercase tracking-widest">
-                    &copy; {new Date().getFullYear()} SGEI - Full Access
+                <div className="mt-8 flex flex-col items-center gap-2">
+                    <div className="text-xs text-secondary-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                        <span>&copy; {new Date().getFullYear()} SGEI - AJAL Software</span>
+                        <img 
+                            src={logoAjal} 
+                            alt="AJAL Logo" 
+                            className="h-4 w-auto grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-300 cursor-pointer active:scale-90" 
+                            onClick={() => setShowAuthor(!showAuthor)}
+                        />
+                    </div>
+                    {showAuthor && (
+                        <p className="text-[10px] text-primary-500 font-bold animate-fadeInUp">
+                            by Alex Javier Actis Lobos
+                        </p>
+                    )}
                 </div>
             </div>
         </div>

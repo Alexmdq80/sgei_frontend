@@ -150,8 +150,23 @@ const SearchableSelect = ({ options, value, onChange, name, placeholder = "Selec
                     autoComplete="off"
                 />
                 
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none z-20">
-                    <svg className={`w-5 h-5 text-secondary-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2 z-20">
+                    {value && !disabled && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelect({ id: '', nombre: '' });
+                            }}
+                            className="p-1 hover:bg-secondary-100 rounded-full text-secondary-400 hover:text-red-500 transition-colors mr-1"
+                            title="Limpiar"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    )}
+                    <svg className={`w-5 h-5 text-secondary-400 transition-transform ${isOpen ? 'rotate-180' : ''} pointer-events-none`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
                 </div>

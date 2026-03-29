@@ -38,7 +38,11 @@ export const AuthProvider = ({ children }) => {
             const data = await authService.me();
             setUser(data.user);
         } catch (error) {
-            setUser(null);
+            // Solo cerramos sesión si el error es 401 (No autorizado)
+            if (error.response?.status === 401) {
+                setUser(null);
+            }
+            console.error("Error en checkAuth:", error);
         } finally {
             setLoading(false);
         }

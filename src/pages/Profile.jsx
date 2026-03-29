@@ -231,6 +231,74 @@ const Profile = () => {
 
                 {/* Columna Derecha: Información y Seguridad */}
                 <div className="lg:col-span-2 space-y-8">
+                    {/* Vinculaciones Escolares */}
+                    {!user?.es_administrador && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
+                            <div className="p-6 border-b border-secondary-200 bg-secondary-50 flex items-center justify-between">
+                                <h2 className="font-bold text-secondary-900">Vinculaciones Escolares</h2>
+                                {user?.escuela_usuarios?.length === 0 && (
+                                    <Link to="/select-school" className="text-xs font-bold text-primary-600 hover:text-primary-700 uppercase tracking-wider">
+                                        + Vincular Nueva
+                                    </Link>
+                                )}
+                            </div>
+                            <div className="p-0">
+                                {user?.escuela_usuarios?.length > 0 ? (
+                                    <div className="divide-y divide-secondary-100">
+                                        {user.escuela_usuarios.map((vinculo) => (
+                                            <div key={vinculo.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h4 className="font-bold text-secondary-900">{vinculo.escuela?.nombre}</h4>
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                            vinculo.verified_at ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                                        }`}>
+                                                            {vinculo.verified_at ? 'Verificado' : 'Pendiente'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-x-4 text-xs text-secondary-500 font-medium">
+                                                        <p className="flex items-center">
+                                                            <svg className="w-3.5 h-3.5 mr-1 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                            </svg>
+                                                            Rol: {vinculo.rol_escolar?.nombre || 'No asignado'}
+                                                        </p>
+                                                        <p className="flex items-center">
+                                                            <svg className="w-3.5 h-3.5 mr-1 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                            </svg>
+                                                            Solicitado el: {new Date(vinculo.created_at).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                {!vinculo.verified_at && (
+                                                    <Link 
+                                                        to="/pending-approval" 
+                                                        className="text-xs font-bold text-secondary-400 hover:text-secondary-600 transition-colors uppercase tracking-widest"
+                                                    >
+                                                        Gestionar
+                                                    </Link>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-10 text-center">
+                                        <div className="w-16 h-16 bg-secondary-50 rounded-full flex items-center justify-center mx-auto mb-4 text-secondary-300">
+                                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-secondary-500 font-medium italic mb-4">No tienes vinculaciones activas ni pendientes.</p>
+                                        <Link to="/select-school" className="inline-flex px-6 py-2 bg-primary-600 text-white font-bold rounded-lg text-sm hover:bg-primary-700 transition-all shadow-md active:scale-95">
+                                            Buscar Institución
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Información General */}
                     <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
                         <div className="p-6 border-b border-secondary-200 bg-secondary-50">

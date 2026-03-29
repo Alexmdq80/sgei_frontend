@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import escuelaService from '../services/escuelaService';
 import geografiaService from '../services/geografiaService';
@@ -9,6 +10,7 @@ import SearchableSelect from '../components/SearchableSelect';
  */
 const SelectSchool = () => {
     const { logout, checkAuth } = useAuth();
+    const navigate = useNavigate();
     
     // Estados de búsqueda (Local para el input y Debounced para la API)
     const [inputValue, setInputValue] = useState('');
@@ -18,7 +20,8 @@ const SelectSchool = () => {
         provincia_id: '',
         departamento_id: '',
         localidad_id: '',
-        nivel_id: ''
+        nivel_id: '',
+        sector_id: ''
     });
 
     // Estados de catálogos
@@ -26,6 +29,7 @@ const SelectSchool = () => {
     const [departamentos, setDepartamentos] = useState([]);
     const [localidades, setLocalidades] = useState([]);
     const [niveles, setNiveles] = useState([]);
+    const [sectores, setSectores] = useState([]);
 
     // Estados de UI
     const [escuelas, setEscuelas] = useState([]);
@@ -39,12 +43,14 @@ const SelectSchool = () => {
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const [provinciasData, nivelesData] = await Promise.all([
+                const [provinciasData, nivelesData, sectoresData] = await Promise.all([
                     geografiaService.getProvincias(),
-                    escuelaService.getNiveles()
+                    escuelaService.getNiveles(),
+                    escuelaService.getSectores()
                 ]);
                 setProvincias(provinciasData);
                 setNiveles(nivelesData);
+                setSectores(sectoresData);
             } catch (err) {
                 console.error("Error cargando catálogos:", err);
             }
@@ -112,6 +118,7 @@ const SelectSchool = () => {
             if (filters.departamento_id) activeFilters.departamento_id = filters.departamento_id;
             if (filters.localidad_id) activeFilters.localidad_id = filters.localidad_id;
             if (filters.nivel_id) activeFilters.nivel_id = filters.nivel_id;
+            if (filters.sector_id) activeFilters.sector_id = filters.sector_id;
 
             const data = await escuelaService.search(searchTerm, activeFilters);
             setEscuelas(data);
@@ -127,9 +134,9 @@ const SelectSchool = () => {
      * Disparar búsqueda al cambiar searchTerm o filtros.
      */
     useEffect(() => {
-        if (searchTerm.length >= 3 || filters.provincia_id || filters.departamento_id || filters.localidad_id || filters.nivel_id) {
+        if (searchTerm.length >= 3 || filters.provincia_id || filters.departamento_id || filters.localidad_id || filters.nivel_id || filters.sector_id) {
             handleSearch();
-        } else if (searchTerm === '' && !filters.provincia_id && !filters.nivel_id) {
+        } else if (searchTerm === '' && !filters.provincia_id && !filters.nivel_id && !filters.sector_id) {
             setEscuelas([]);
         }
     }, [searchTerm, filters, handleSearch]);
@@ -137,7 +144,7 @@ const SelectSchool = () => {
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         if (name === 'provincia_id') {
-            setFilters({ provincia_id: value, departamento_id: '', localidad_id: '', nivel_id: filters.nivel_id });
+            setFilters({ provincia_id: value, departamento_id: '', localidad_id: '', nivel_id: filters.nivel_id, sector_id: filters.sector_id });
         } else if (name === 'departamento_id') {
             setFilters(prev => ({ ...prev, departamento_id: value, localidad_id: '' }));
         } else {
@@ -148,7 +155,7 @@ const SelectSchool = () => {
     const clearFilters = () => {
         setInputValue('');
         setSearchTerm('');
-        setFilters({ provincia_id: '', departamento_id: '', localidad_id: '', nivel_id: '' });
+        setFilters({ provincia_id: '', departamento_id: '', localidad_id: '', nivel_id: '', sector_id: '' });
         setEscuelas([]);
     };
 
@@ -160,6 +167,7 @@ const SelectSchool = () => {
         try {
             await escuelaService.requestJoin(escuelaId);
             await checkAuth();
+            navigate('/pending-approval');
         } catch (err) {
             console.error("Error al solicitar unión:", err);
             setError("No se pudo enviar la solicitud. Intente más tarde.");
@@ -183,7 +191,7 @@ const SelectSchool = () => {
             <div className="bg-white rounded-3xl shadow-xl border border-secondary-200 overflow-hidden">
                 {/* Panel de Filtros */}
                 <div className="bg-secondary-50 p-6 md:p-8 border-b border-secondary-100">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         {/* Provincia */}
                         <SearchableSelect
                             label="Provincia"
@@ -221,6 +229,15 @@ const SelectSchool = () => {
                             value={filters.nivel_id}
                             onChange={handleFilterChange}
                             placeholder="Ej: Secundario..."
+                        />
+                        {/* Sector */}
+                        <SearchableSelect
+                            label="Sector"
+                            name="sector_id"
+                            options={sectores}
+                            value={filters.sector_id}
+                            onChange={handleFilterChange}
+                            placeholder="Estatal/Privado..."
                         />
                     </div>
 
@@ -288,6 +305,15 @@ const SelectSchool = () => {
                                                 </svg>
                                                 CUE: {escuela.cue_anexo || 'N/A'}
                                             </p>
+                                            {escuela.sector && (
+                                                <p className="flex items-center">
+                                                    <span className={`ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                        escuela.sector.id === 1 ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                                                    }`}>
+                                                        {escuela.sector.nombre}
+                                                    </span>
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                     <button
