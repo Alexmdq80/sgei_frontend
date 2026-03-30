@@ -27,6 +27,9 @@ export const AuthProvider = ({ children }) => {
             console.warn('Sesión ya expirada o error en logout:', error);
         } finally {
             setUser(null);
+            // Limpiar explícitamente cualquier estado residual en el navegador si fuera necesario
+            // sessionStorage.clear(); // Opcional
+            window.location.href = '/login'; // Forzamos recarga para limpiar memoria React
         }
     };
 
