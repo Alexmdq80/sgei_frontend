@@ -91,7 +91,11 @@ const Login = () => {
                 success: false, 
                 message: '' 
             });
-            setError(err.response?.data?.message || 'Error al reenviar la verificación. Intente más tarde.');
+            if (err.response?.status === 429) {
+                setError('Demasiados intentos. Por favor, espera unos minutos antes de solicitar otro enlace.');
+            } else {
+                setError(err.response?.data?.error || err.response?.data?.message || 'Error al reenviar la verificación. Intente más tarde.');
+            }
         }
     };
 
@@ -252,10 +256,16 @@ const Login = () => {
                                         type="text"
                                         name="documento_numero"
                                         required
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         className="block w-full pl-10 pr-3 py-3 border border-secondary-300 rounded-lg bg-secondary-50 text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                        placeholder="Solo números"
+                                        placeholder="DNI (solo números)"
                                         value={credentials.documento_numero}
-                                        onChange={handleChange}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, '');
+                                            setCredentials(prev => ({ ...prev, documento_numero: value }));
+                                            setError(null);
+                                        }}
                                     />
                                 </div>
                             </div>

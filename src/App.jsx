@@ -37,12 +37,12 @@ const ProtectedRoute = ({ children }) => {
         return <Layout>{children}</Layout>;
     }
 
-    // 1. Verificación de Email (Bloqueante para todo el sistema)
-    if (!user?.email_verified_at) {
-        return <VerifyEmail />;
+    // 1. Verificación de Email (Redirigir al perfil si no está verificado)
+    if (!user?.email_verified_at && location.pathname !== '/profile') {
+        return <Navigate to="/profile" replace />;
     }
 
-    // 2. Permitir siempre acceso al Perfil si está autenticado y verificado
+    // 2. Permitir siempre acceso al Perfil si está autenticado
     if (location.pathname === '/profile') {
         return <Layout>{children}</Layout>;
     }

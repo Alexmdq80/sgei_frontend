@@ -6,6 +6,19 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: string }
+
+    /**
+     * Muestra una notificación temporal en el sistema.
+     */
+    const showNotification = (message, type = 'success', duration = 5000) => {
+        setNotification({ message, type });
+        if (duration) {
+            setTimeout(() => {
+                setNotification(null);
+            }, duration);
+        }
+    };
 
     /**
      * Inicia sesión con credenciales.
@@ -59,6 +72,9 @@ export const AuthProvider = ({ children }) => {
         user,
         isAuthenticated: !!user,
         loading,
+        notification,
+        showNotification,
+        clearNotification: () => setNotification(null),
         login,
         logout,
         checkAuth
