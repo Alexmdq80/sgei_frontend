@@ -186,6 +186,7 @@ const Register = () => {
                     </div>
 
                     {/* Contraseñas (Fila) */}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-secondary-500 uppercase tracking-wider mb-1 ml-1">Contraseña</label>
@@ -218,6 +219,7 @@ const Register = () => {
                                     )}
                                 </button>
                             </div>
+                            {validationErrors.password && <p className="text-red-500 text-xs mt-1 ml-1 font-medium">{validationErrors.password[0]}</p>}
                             
                             {/* Requisitos visuales (Estilo Profile) */}
                             <div className="mt-4 flex flex-col gap-y-3 ml-2">
@@ -234,7 +236,6 @@ const Register = () => {
                                 ))}
                             </div>
 
-                            {validationErrors.password && <p className="text-red-500 text-xs mt-1 ml-1 font-medium">{validationErrors.password[0]}</p>}
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-secondary-500 uppercase tracking-wider mb-1 ml-1">Confirmar</label>

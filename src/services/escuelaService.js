@@ -36,7 +36,7 @@ const escuelaService = {
     /**
      * Envía solicitud para unirse a una escuela.
      */
-    async requestJoin(escuelaId, rolEscolarId = 1) {
+    async requestJoin(escuelaId, rolEscolarId = 5) {
         const response = await api.post('/auth/escuelas/join', {
             escuela_id: escuelaId,
             rol_escolar_id: rolEscolarId
@@ -50,6 +50,32 @@ const escuelaService = {
     async cancelJoin(escuelaId = null) {
         const response = await api.post('/auth/escuelas/cancel-join', {
             escuela_id: escuelaId
+        });
+        return response.data;
+    },
+
+    /**
+     * [ADMIN] Obtiene la lista de solicitudes pendientes.
+     */
+    async getPendingRequests(params = {}) {
+        const response = await api.get('/admin/escuelas/pending', { params });
+        return response.data;
+    },
+
+    /**
+     * [ADMIN] Aprueba una solicitud.
+     */
+    async approveRequest(requestId) {
+        const response = await api.post(`/admin/escuelas/requests/${requestId}/approve`);
+        return response.data;
+    },
+
+    /**
+     * [ADMIN] Rechaza una solicitud.
+     */
+    async rejectRequest(requestId, reason = '') {
+        const response = await api.post(`/admin/escuelas/requests/${requestId}/reject`, {
+            motivo: reason
         });
         return response.data;
     }

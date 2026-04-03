@@ -25,6 +25,12 @@ export default defineConfig({
     hmr: {
       host: 'sgei.local',
       protocol: 'ws' // Fuerza el protocolo WebSocket estándar
-   }
-  }
-})
+    }
+    },
+    test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+    css: true,
+    }
+    })

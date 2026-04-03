@@ -68,6 +68,17 @@ export const AuthProvider = ({ children }) => {
         checkAuth();
     }, []);
 
+    /**
+     * Verifica si el usuario tiene un permiso específico.
+     * @param {string} permission 
+     * @returns {boolean}
+     */
+    const hasPermission = (permission) => {
+        if (!user) return false;
+        if (user.es_administrador) return true; // Super Admin bypass
+        return user.permissions?.includes(permission) || false;
+    };
+
     const value = {
         user,
         isAuthenticated: !!user,
@@ -77,7 +88,8 @@ export const AuthProvider = ({ children }) => {
         clearNotification: () => setNotification(null),
         login,
         logout,
-        checkAuth
+        checkAuth,
+        hasPermission
     };
 
     return (
