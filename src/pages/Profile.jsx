@@ -371,7 +371,7 @@ const Profile = () => {
                                     name="nombre"
                                     value={profileData.nombre}
                                     onChange={handleProfileChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none ${!user?.email_verified_at ? 'bg-secondary-200 cursor-not-allowed opacity-75' : 'bg-secondary-50 border-secondary-300'}`}
+                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none ${!user?.email_verified_at ? 'bg-secondary-50 border-secondary-200 cursor-not-allowed text-secondary-400' : 'bg-secondary-50 border-secondary-300'}`}
                                     required
                                     disabled={!user?.email_verified_at}
                                 />
@@ -384,13 +384,20 @@ const Profile = () => {
                                     name="email"
                                     value={profileData.email}
                                     onChange={handleProfileChange}
-                                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                                    className="w-full px-4 py-3 bg-white border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none shadow-sm font-medium"
                                     required
                                 />
-                                {!user?.email_verified_at && (
-                                    <p className="mt-2 text-[10px] text-red-500 font-bold uppercase tracking-wider animate-pulse">
-                                        Debes verificar este correo para desbloquear el resto del sistema.
-                                    </p>
+                                {!user?.email_verified_at ? (
+                                    <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-100 flex items-start gap-2">
+                                        <svg className="w-4 h-4 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <p className="text-[11px] text-red-600 font-bold leading-tight uppercase tracking-tight">
+                                            Si tu correo es incorrecto, corrígelo arriba y haz clic en "Actualizar" para recibir un nuevo enlace.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <p className="mt-2 text-xs text-secondary-500">Este correo se utiliza para notificaciones y recuperación de cuenta.</p>
                                 )}
                             </div>
                             <div className="flex justify-end pt-4">
@@ -399,7 +406,7 @@ const Profile = () => {
                                     disabled={isSubmittingProfile}
                                     className="px-8 py-3 bg-secondary-900 text-white rounded-lg font-bold shadow-lg hover:bg-black transition-all active:scale-95 disabled:opacity-50"
                                 >
-                                    {isSubmittingProfile ? 'Guardando...' : 'Actualizar'}
+                                    {isSubmittingProfile ? 'Guardando...' : (user?.email_verified_at ? 'Actualizar Perfil' : 'Corregir y Reenviar')}
                                 </button>
                             </div>
                         </form>

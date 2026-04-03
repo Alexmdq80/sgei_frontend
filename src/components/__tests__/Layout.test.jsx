@@ -33,7 +33,8 @@ describe('Layout Component', () => {
             user: mockUser,
             logout: mockLogout,
             notification: null,
-            clearNotification: mockClearNotification
+            clearNotification: mockClearNotification,
+            hasPermission: vi.fn().mockReturnValue(false)
         });
     });
 
@@ -109,7 +110,8 @@ describe('Layout Component', () => {
             user: mockUser,
             logout: mockLogout,
             notification: { type: 'success', message: 'Operación exitosa' },
-            clearNotification: mockClearNotification
+            clearNotification: mockClearNotification,
+            hasPermission: vi.fn().mockReturnValue(false)
         });
 
         render(

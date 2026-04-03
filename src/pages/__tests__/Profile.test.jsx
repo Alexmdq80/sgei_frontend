@@ -97,6 +97,35 @@ describe('Profile Component', () => {
         expect(screen.getByRole('button', { name: /Reenviar Verificación/i })).toBeInTheDocument();
     });
 
+    it('debe deshabilitar campos de nombre y contraseña si el email no está verificado', () => {
+        useAuth.mockReturnValue({
+            user: { ...mockUser, email_verified_at: null },
+            checkAuth: mockCheckAuth,
+            showNotification: mockShowNotification
+        });
+
+        const { container } = render(
+            <BrowserRouter>
+                <Profile />
+            </BrowserRouter>
+        );
+
+        // El campo nombre debe estar deshabilitado
+        const nombreInput = screen.getByDisplayValue('Alex');
+        expect(nombreInput).toBeDisabled();
+
+        // El campo email debe estar habilitado para correcciones
+        const emailInput = screen.getByDisplayValue('alex@example.com');
+        expect(emailInput).not.toBeDisabled();
+
+        // Los campos de contraseña deben estar deshabilitados
+        const currentPassInput = container.querySelector('input[name="current_password"]');
+        expect(currentPassInput).toBeDisabled();
+
+        // El botón de actualizar debe tener el texto de corrección
+        expect(screen.getByRole('button', { name: /Corregir y Reenviar/i })).toBeInTheDocument();
+    });
+
     it('debe llamar a updatePassword al enviar el formulario de contraseña', async () => {
         userService.updatePassword.mockResolvedValue({ message: 'Success' });
 

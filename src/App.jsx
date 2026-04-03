@@ -9,7 +9,7 @@ import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
 import VerifyEmail from './pages/VerifyEmail';
 import VerifyEmailPage from './pages/VerifyEmailPage';
-import JoinRequests from './pages/Admin/JoinRequests';
+import UserManagement from './pages/Admin/UserManagement';
 
 /**
  * Componente para proteger rutas privadas.
@@ -113,10 +113,10 @@ function App() {
 
                     {/* Rutas de Administración */}
                     <Route 
-                        path="/admin/join-requests" 
+                        path="/admin/usuarios" 
                         element={
                             <ProtectedRoute>
-                                <JoinRequests />
+                                <UserManagement />
                             </ProtectedRoute>
                         } 
                     />

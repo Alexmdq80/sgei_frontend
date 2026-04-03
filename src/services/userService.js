@@ -37,6 +37,40 @@ const userService = {
     async updatePassword(data) {
         const response = await api.put('/auth/password', data);
         return response.data;
+    },
+
+    // --- MÉTODOS ADMINISTRATIVOS ---
+
+    /**
+     * Obtiene todos los usuarios (paginado).
+     */
+    async getAll(params = {}) {
+        const response = await api.get('/admin/usuarios', { params });
+        return response.data;
+    },
+
+    /**
+     * Crea un nuevo usuario desde el panel administrativo.
+     */
+    async create(data) {
+        const response = await api.post('/admin/usuarios', data);
+        return response.data;
+    },
+
+    /**
+     * Actualiza un usuario específico.
+     */
+    async update(id, data) {
+        const response = await api.put(`/admin/usuarios/${id}`, data);
+        return response.data;
+    },
+
+    /**
+     * Elimina (soft delete) un usuario.
+     */
+    async delete(id) {
+        const response = await api.delete(`/admin/usuarios/${id}`);
+        return response.data;
     }
 };
 

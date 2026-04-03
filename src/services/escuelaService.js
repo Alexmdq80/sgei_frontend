@@ -64,9 +64,23 @@ const escuelaService = {
 
     /**
      * [ADMIN] Aprueba una solicitud.
+     * @param {string} requestId 
+     * @param {number} rolEscolarId Opcional: rol asignado por el admin
      */
-    async approveRequest(requestId) {
-        const response = await api.post(`/admin/escuelas/requests/${requestId}/approve`);
+    async approveRequest(requestId, rolEscolarId = null) {
+        const response = await api.post(`/admin/escuelas/requests/${requestId}/approve`, {
+            rol_escolar_id: rolEscolarId
+        });
+        return response.data;
+    },
+
+    /**
+     * [ADMIN] Actualiza el rol de una vinculación existente.
+     */
+    async updateLink(requestId, rolEscolarId) {
+        const response = await api.put(`/admin/escuelas/requests/${requestId}`, {
+            rol_escolar_id: rolEscolarId
+        });
         return response.data;
     },
 
