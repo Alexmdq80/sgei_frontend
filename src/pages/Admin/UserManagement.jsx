@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import userService from '../../services/userService';
 import escuelaService from '../../services/escuelaService';
 import documentoTipoService from '../../services/documentoTipoService';
-import rolEscolarService from '../../services/rolEscolarService';
+import roleService from '../../services/roleService';
 
 /**
  * Página de administración integral de usuarios.
@@ -17,6 +17,8 @@ const UserManagement = () => {
     const [users, setUsers] = useState([]);
     const [isUsersLoading, setIsUsersLoading] = useState(true);
     const [userSearch, setUserUsersSearch] = useState('');
+    const [filterCueAnexo, setFilterCueAnexo] = useState('');
+    const [filterVinculation, setFilterVinculation] = useState('all'); // 'all' | 'vinculated' | 'pending'
     const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
     
     // Estados para Solicitudes
@@ -27,6 +29,7 @@ const UserManagement = () => {
     // Catálogos
     const [docTipos, setDocTipos] = useState([]);
     const [rolEscolares, setRolEscolares] = useState([]);
+    const [escuelasCatalog, setEscuelasCatalog] = useState([]);
 
     // Estados para Formulario (Modal)
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -47,6 +50,8 @@ const UserManagement = () => {
             setIsUsersLoading(true);
             const response = await userService.getAll({ 
                 search: userSearch, 
+                cue_anexo: filterCueAnexo,
+                vinculation: filterVinculation,
                 page,
                 per_page: 10 
             });
@@ -67,7 +72,7 @@ const UserManagement = () => {
             // Añadir un estado local para el rol seleccionado en cada solicitud
             const requestsWithSelection = (response.data || []).map(r => ({
                 ...r,
-                selected_rol_id: r.rol_escolar?.id || 5
+                selected_role_id: r.role?.id || 5
             }));
             setRequests(requestsWithSelection);
         } catch (error) {
@@ -82,7 +87,7 @@ const UserManagement = () => {
         try {
             const [docs, roles] = await Promise.all([
                 documentoTipoService.getAll(),
-                rolEscolarService.getAll()
+                roleService.getAll()
             ]);
             setDocTipos(docs);
             setRolEscolares(roles);
@@ -92,9 +97,19 @@ const UserManagement = () => {
     };
 
     useEffect(() => {
-        if (activeTab === 'users') fetchUsers();
+        // Evitamos parpadeo y peticiones innecesarias: 
+        // Solo filtramos si el CUE está vacío o si tiene la longitud completa (9 dígitos)
+        const isCueEmpty = filterCueAnexo.length === 0;
+        const isCueComplete = filterCueAnexo.length === 9;
+
+        if (activeTab === 'users') {
+            if (isCueEmpty || isCueComplete) {
+                fetchUsers(1);
+            }
+        }
+        
         if (activeTab === 'requests') fetchRequests();
-    }, [activeTab]);
+    }, [activeTab, filterCueAnexo, filterVinculation]);
 
     useEffect(() => {
         fetchCatalogs();
@@ -171,10 +186,10 @@ const UserManagement = () => {
         }
     };
 
-    const handleUpdateUserLink = async (requestId, rolId) => {
+    const handleUpdateUserLink = async (requestId, roleId) => {
         try {
             setProcessingId(requestId);
-            await escuelaService.updateLink(requestId, rolId);
+            await escuelaService.updateLink(requestId, roleId);
             showNotification('Rol institucional actualizado.', 'success');
             // Refrescar usuario editando si es necesario
             if (editingUser) {
@@ -183,7 +198,7 @@ const UserManagement = () => {
                         return {
                             ...u,
                             escuela_usuarios: u.escuela_usuarios.map(l => 
-                                l.id === requestId ? { ...l, rol_escolar_id: rolId, rol_escolar: rolEscolares.find(r => r.id == rolId) } : l
+                                l.id === requestId ? { ...l, role_id: roleId, role: rolEscolares.find(r => r.id == roleId) } : l
                             )
                         };
                     }
@@ -201,17 +216,17 @@ const UserManagement = () => {
 
     // --- ACCIONES DE SOLICITUDES (JOIN REQUESTS) ---
 
-    const handleRequestRolChange = (requestId, rolId) => {
+    const handleRequestRolChange = (requestId, roleId) => {
         setRequests(requests.map(r => 
-            r.id === requestId ? { ...r, selected_rol_id: parseInt(rolId) } : r
+            r.id === requestId ? { ...r, selected_role_id: parseInt(roleId) } : r
         ));
     };
 
     const handleApprove = async (request) => {
-        if (!window.confirm(`¿Aprobar el acceso de ${request.usuario.nombre} como ${rolEscolares.find(r => r.id === request.selected_rol_id)?.nombre}?`)) return;
+        if (!window.confirm(`¿Aprobar el acceso de ${request.usuario.nombre} como ${rolEscolares.find(r => r.id === request.selected_role_id)?.name}?`)) return;
         try {
             setProcessingId(request.id);
-            await escuelaService.approveRequest(request.id, request.selected_rol_id);
+            await escuelaService.approveRequest(request.id, request.selected_role_id);
             showNotification('Solicitud aprobada con éxito.', 'success');
             setRequests(requests.filter(r => r.id !== request.id));
         } catch (error) {
@@ -285,27 +300,77 @@ const UserManagement = () => {
             {/* Contenido: Listado de Usuarios */}
             {activeTab === 'users' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
-                    {/* Buscador */}
-                    <div className="p-6 border-b border-secondary-100 bg-secondary-50/50">
-                        <form onSubmit={handleSearch} className="flex gap-3 max-w-md">
-                            <div className="relative flex-1">
-                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </span>
-                                <input
-                                    type="text"
-                                    placeholder="Buscar por nombre, email o DNI..."
-                                    className="w-full pl-10 pr-4 py-2 bg-white border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all text-sm"
-                                    value={userSearch}
-                                    onChange={(e) => setUserUsersSearch(e.target.value)}
-                                />
+                    {/* Filtros */}
+                    <div className="p-6 border-b border-secondary-100 bg-secondary-50/50 space-y-4">
+                        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+                            {/* Buscador */}
+                            <form onSubmit={handleSearch} className="flex gap-3 w-full lg:max-w-sm">
+                                <div className="relative flex-1">
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                    </span>
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar por nombre, email o DNI..."
+                                        className="w-full pl-10 pr-4 py-2 bg-white border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all text-sm font-medium"
+                                        value={userSearch}
+                                        onChange={(e) => setUserUsersSearch(e.target.value)}
+                                    />
+                                </div>
+                                <button type="submit" className="px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors shadow-sm">
+                                    Buscar
+                                </button>
+                            </form>
+
+                            {/* Selectores Adicionales */}
+                            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                                {/* Filtro por CUE */}
+                                <div className="flex-1 lg:flex-none relative">
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                        </svg>
+                                    </span>
+                                    <input
+                                        type="text"
+                                        placeholder="CUE Escuela..."
+                                        className="w-full lg:w-48 pl-9 pr-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                                        value={filterCueAnexo}
+                                        onChange={(e) => setFilterCueAnexo(e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Toggle de Vinculación */}
+                                <div className="flex p-1 bg-secondary-200 rounded-xl w-full lg:w-auto">
+                                    <button
+                                        onClick={() => setFilterVinculation('all')}
+                                        className={`flex-1 lg:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            filterVinculation === 'all' ? 'bg-white text-secondary-900 shadow-sm' : 'text-secondary-500 hover:text-secondary-700'
+                                        }`}
+                                    >
+                                        Ambas
+                                    </button>
+                                    <button
+                                        onClick={() => setFilterVinculation('vinculated')}
+                                        className={`flex-1 lg:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            filterVinculation === 'vinculated' ? 'bg-white text-primary-600 shadow-sm' : 'text-secondary-500 hover:text-secondary-700'
+                                        }`}
+                                    >
+                                        Vinculadas
+                                    </button>
+                                    <button
+                                        onClick={() => setFilterVinculation('pending')}
+                                        className={`flex-1 lg:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            filterVinculation === 'pending' ? 'bg-white text-orange-600 shadow-sm' : 'text-secondary-500 hover:text-secondary-700'
+                                        }`}
+                                    >
+                                        Pendientes
+                                    </button>
+                                </div>
                             </div>
-                            <button type="submit" className="px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors">
-                                Buscar
-                            </button>
-                        </form>
+                        </div>
                     </div>
 
                     {isUsersLoading ? (
@@ -357,15 +422,36 @@ const UserManagement = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 {user.escuela_usuarios?.length > 0 ? (
-                                                    <div className="flex flex-wrap gap-1">
+                                                    <div className="flex flex-col gap-2">
                                                         {user.escuela_usuarios.map(link => (
-                                                            <span key={link.id} className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold uppercase border border-blue-100">
-                                                                {link.escuela.numero} - {link.rol_escolar.nombre}
-                                                            </span>
+                                                            <div key={link.id} className="flex flex-col p-2 rounded-xl bg-secondary-50 border border-secondary-200">
+                                                                <div className="flex items-center justify-between gap-2 mb-1">
+                                                                    <span className="text-[10px] font-black text-secondary-900 uppercase truncate max-w-[120px]">
+                                                                        {link.escuela.nombre}
+                                                                    </span>
+                                                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase ${
+                                                                        link.verified_at ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                                                                    }`}>
+                                                                        {link.verified_at ? 'Activo' : 'Pendiente'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center justify-between text-[9px] font-bold">
+                                                                    <span className="text-secondary-500">CUE: {link.escuela.cue_anexo}</span>
+                                                                    <span className="text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded border border-primary-100 uppercase">
+                                                                        {link.role?.name || 'S/R'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
                                                         ))}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[10px] text-secondary-400 italic">Sin vincular</span>
+                                                    <div className="flex items-center gap-2 text-secondary-400 italic">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 015.656 0l4 4a4 4 0 01-5.656 5.656l-1.102-1.101" />
+                                                        </svg>
+                                                        <span className="text-[10px] font-medium">Sin vinculación</span>
+                                                    </div>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 text-right">
@@ -469,11 +555,11 @@ const UserManagement = () => {
                                             <td className="px-6 py-4">
                                                 <select
                                                     className="px-3 py-1.5 bg-secondary-50 border border-secondary-300 rounded-lg text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500"
-                                                    value={request.selected_rol_id}
+                                                    value={request.selected_role_id}
                                                     onChange={(e) => handleRequestRolChange(request.id, e.target.value)}
                                                 >
                                                     {rolEscolares.map(rol => (
-                                                        <option key={rol.id} value={rol.id}>{rol.nombre}</option>
+                                                        <option key={rol.id} value={rol.id}>{rol.name}</option>
                                                     ))}
                                                 </select>
                                             </td>
@@ -646,12 +732,12 @@ const UserManagement = () => {
                                                         <div className="flex items-center gap-2">
                                                             <select
                                                                 className="px-3 py-1.5 bg-white border border-secondary-300 rounded-lg text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500"
-                                                                value={link.rol_escolar_id}
+                                                                value={link.role_id}
                                                                 onChange={(e) => handleUpdateUserLink(link.id, e.target.value)}
                                                                 disabled={processingId === link.id}
                                                             >
                                                                 {rolEscolares.map(rol => (
-                                                                    <option key={rol.id} value={rol.id}>{rol.nombre}</option>
+                                                                    <option key={rol.id} value={rol.id}>{rol.name}</option>
                                                                 ))}
                                                             </select>
                                                             {processingId === link.id && (
