@@ -41,8 +41,7 @@ const UserManagement = () => {
         email: '',
         password: '',
         documento_tipo_id: '',
-        documento_numero: '',
-        es_administrador: false
+        documento_numero: ''
     });
 
     // Estados para el Modal de Confirmación Global
@@ -162,35 +161,18 @@ const UserManagement = () => {
         }
     }, [user, rolEscolares]);
 
-    // --- ACCIONES DE USUARIOS (CRUD) ---
+    // --- ACCIONES DE USUARIOS (GESTIÓN) ---
 
     const handleSearch = (e) => {
         e.preventDefault();
         fetchUsers(1);
     };
 
-    const openCreateModal = () => {
-        setEditingUser(null);
-        setFormData({
-            nombre: '',
-            email: '',
-            password: '',
-            documento_tipo_id: '',
-            documento_numero: '',
-            es_administrador: false
-        });
-        setIsModalOpen(true);
-    };
-
     const openEditModal = (user) => {
         setEditingUser(user);
         setFormData({
             nombre: user.nombre || '',
-            email: user.email || '',
-            password: '', 
-            documento_tipo_id: user.documento_tipo_id || '',
-            documento_numero: user.documento_numero || '',
-            es_administrador: !!user.es_administrador
+            email: user.email || ''
         });
         setIsModalOpen(true);
     };
@@ -205,18 +187,15 @@ const UserManagement = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!editingUser) return;
+
         try {
-            if (editingUser) {
-                await userService.update(editingUser.id, formData);
-                showNotification('Usuario actualizado con éxito.', 'success');
-            } else {
-                await userService.create(formData);
-                showNotification('Usuario creado con éxito.', 'success');
-            }
+            await userService.update(editingUser.id, formData);
+            showNotification('Usuario actualizado con éxito.', 'success');
             setIsModalOpen(false);
             fetchUsers(pagination.current_page);
         } catch (error) {
-            console.error('Error en el formulario de usuario:', error);
+            console.error('Error al actualizar usuario:', error);
             const msg = error.response?.data?.error || error.response?.data?.message || 'Ocurrió un error al procesar el usuario.';
             showNotification(msg, 'error');
         }
@@ -335,17 +314,6 @@ const UserManagement = () => {
                     <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Gestión de Usuarios</h1>
                     <p className="text-secondary-500 mt-1 font-medium">Panel integral para la administración de cuentas y roles institucionales</p>
                 </div>
-                {activeTab === 'users' && (
-                    <button 
-                        onClick={openCreateModal}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-bold shadow-lg hover:bg-primary-700 transition-all active:scale-95"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        Nuevo Usuario
-                    </button>
-                )}
             </div>
 
             {/* Selector de Pestañas */}
@@ -489,12 +457,22 @@ const UserManagement = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <p className="text-sm font-bold text-secondary-800">
-                                                    {user.documento_numero || 'Sin DNI'}
-                                                </p>
-                                                <p className="text-[10px] text-secondary-500 font-medium">
-                                                    {user.documento_tipo?.sigla || 'No especificado'}
-                                                </p>
+                                                {user.documento_numero && user.documento_numero !== '00000000' ? (
+                                                    <>
+                                                        <p className="text-sm font-bold text-secondary-800">
+                                                            {user.documento_numero}
+                                                        </p>
+                                                        {user.documento_tipo?.sigla && (
+                                                            <p className="text-[10px] text-secondary-500 font-medium">
+                                                                {user.documento_tipo.sigla}
+                                                            </p>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-secondary-400 font-medium italic">
+                                                        No especificado
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
                                                 {user.escuela_usuarios?.length > 0 ? (
@@ -692,7 +670,7 @@ const UserManagement = () => {
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col">
                         <div className="p-6 border-b border-secondary-100 flex items-center justify-between bg-secondary-50">
                             <h2 className="text-xl font-black text-secondary-900">
-                                {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
+                                Información del Usuario
                             </h2>
                             <button onClick={() => setIsModalOpen(false)} className="text-secondary-400 hover:text-secondary-600 transition-colors">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -702,153 +680,86 @@ const UserManagement = () => {
                         </div>
                         
                         <div className="overflow-y-auto flex-1">
-                            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                                {/* Datos Básicos */}
+                            <div className="p-8 space-y-8">
+                                {/* Datos de Identidad y Cuenta */}
                                 <div className="space-y-4">
-                                    <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2">Información de Cuenta</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        <div className="space-y-1.5">
-                                            <label htmlFor="nombre" className="text-xs font-black text-secondary-500 uppercase tracking-wider">Nombre de Usuario (Alias)</label>
-                                            <input
-                                                id="nombre"
-                                                type="text"
-                                                name="nombre"
-                                                required
-                                                className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-bold text-secondary-800"
-                                                value={formData.nombre}
-                                                onChange={handleFormChange}
-                                            />
+                                    <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2">Datos de Cuenta e Identidad</h3>
+                                    
+                                    {/* Bloque 1: Cuenta */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 bg-secondary-50 border border-secondary-200 rounded-2xl">
+                                        <div className="space-y-0.5">
+                                            <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Nombre de Usuario (Alias)</p>
+                                            <p className="text-sm font-bold text-secondary-900">{editingUser?.nombre || 'No especificado'}</p>
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <label htmlFor="email" className="text-xs font-black text-secondary-500 uppercase tracking-wider">Email</label>
-                                            <input
-                                                id="email"
-                                                type="email"
-                                                name="email"
-                                                required
-                                                className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-bold text-secondary-800"
-                                                value={formData.email}
-                                                onChange={handleFormChange}
-                                            />
+                                        <div className="space-y-0.5 border-t md:border-t-0 md:border-l border-secondary-200 pt-3 md:pt-0 md:pl-5">
+                                            <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Email Registrado</p>
+                                            <p className="text-sm font-bold text-secondary-900">{editingUser?.email}</p>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        <div className="space-y-1.5">
-                                            <label htmlFor="documento_tipo_id" className="text-xs font-black text-secondary-500 uppercase tracking-wider">Tipo Documento</label>
-                                            <select
-                                                id="documento_tipo_id"
-                                                name="documento_tipo_id"
-                                                className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-bold text-secondary-800"
-                                                value={formData.documento_tipo_id}
-                                                onChange={handleFormChange}
-                                            >
-                                                <option value="">Seleccionar...</option>
-                                                {docTipos.map(t => (
-                                                    <option key={t.id} value={t.id}>{t.nombre}</option>
-                                                ))}
-                                            </select>
+                                    {/* Bloque 2: Identidad */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 bg-secondary-50 border border-secondary-200 rounded-2xl">
+                                        <div className="space-y-0.5">
+                                            <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Tipo de Documento</p>
+                                            <p className="text-sm font-bold text-secondary-700">
+                                                {docTipos.find(t => t.id == editingUser?.documento_tipo_id)?.nombre || 'No especificado'}
+                                            </p>
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <label htmlFor="documento_numero" className="text-xs font-black text-secondary-500 uppercase tracking-wider">Número Documento</label>
-                                            <input
-                                                id="documento_numero"
-                                                type="text"
-                                                name="documento_numero"
-                                                className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-bold text-secondary-800"
-                                                value={formData.documento_numero}
-                                                onChange={handleFormChange}
-                                            />
+                                        <div className="space-y-0.5 border-t md:border-t-0 md:border-l border-secondary-200 pt-3 md:pt-0 md:pl-5">
+                                            <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Número de Documento</p>
+                                            <p className="text-sm font-bold text-secondary-900 tracking-wider">
+                                                {editingUser?.documento_numero || 'Sin número registrado'}
+                                            </p>
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div className="space-y-1.5">
-                                        <label htmlFor="password" title="password-label" className="text-xs font-black text-secondary-500 uppercase tracking-wider">
-                                            Contraseña {editingUser && '(Opcional)'}
-                                        </label>
-                                        <input
-                                            id="password"
-                                            type="password"
-                                            name="password"
-                                            required={!editingUser}
-                                            placeholder={editingUser ? 'Dejar en blanco para no cambiar' : ''}
-                                            className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-bold text-secondary-800"
-                                            value={formData.password}
-                                            onChange={handleFormChange}
-                                        />
-                                    </div>
-
-                                    {user?.es_administrador && (
-                                        <div className="flex items-center gap-3 p-4 bg-primary-50 rounded-2xl border border-primary-100">
-                                            <input
-                                                type="checkbox"
-                                                name="es_administrador"
-                                                id="es_administrador"
-                                                className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500 cursor-pointer"
-                                                checked={formData.es_administrador}
-                                                onChange={handleFormChange}
-                                            />
-                                            <label htmlFor="es_administrador" className="text-sm font-bold text-primary-800 cursor-pointer">
-                                                Asignar permisos de administrador (Superuser)
-                                            </label>
+                                {/* Vinculaciones Institucionales */}
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2">Roles Institucionales</h3>
+                                    {editingUser?.escuela_usuarios?.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {editingUser.escuela_usuarios.map(link => (
+                                                <div key={link.id} className="flex items-center justify-between p-4 bg-white border border-secondary-200 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-secondary-900">{link.escuela.nombre}</span>
+                                                        <span className="text-xs text-secondary-500 font-medium">CUE: {link.escuela.cue_anexo}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <select
+                                                            className="px-4 py-2 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                                                            value={link.role_id}
+                                                            onChange={(e) => handleUpdateUserLink(link.id, e.target.value)}
+                                                            disabled={processingId === link.id}
+                                                        >
+                                                            {filteredRoles.map(rol => (
+                                                                <option key={rol.id} value={rol.id}>{rol.name}</option>
+                                                            ))}
+                                                        </select>
+                                                        {processingId === link.id && (
+                                                            <div className="w-5 h-5 border-3 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="p-6 bg-secondary-50 rounded-2xl border border-secondary-100 text-center">
+                                            <p className="text-sm text-secondary-400 font-medium italic">El usuario no tiene vinculaciones escolares activas.</p>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Vinculaciones Institucionales (Solo Edición) */}
-                                {editingUser && (
-                                    <div className="space-y-4 pt-4">
-                                        <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2">Roles Institucionales</h3>
-                                        {editingUser.escuela_usuarios?.length > 0 ? (
-                                            <div className="space-y-3">
-                                                {editingUser.escuela_usuarios.map(link => (
-                                                    <div key={link.id} className="flex items-center justify-between p-3 bg-secondary-50 border border-secondary-200 rounded-xl">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-bold text-secondary-900">{link.escuela.nombre}</span>
-                                                            <span className="text-xs text-secondary-500 italic">CUE: {link.escuela.cue_anexo}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <select
-                                                                className="px-3 py-1.5 bg-white border border-secondary-300 rounded-lg text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500"
-                                                                value={link.role_id}
-                                                                onChange={(e) => handleUpdateUserLink(link.id, e.target.value)}
-                                                                disabled={processingId === link.id}
-                                                            >
-                                                                {filteredRoles.map(rol => (
-                                                                    <option key={rol.id} value={rol.id}>{rol.name}</option>
-                                                                ))}
-                                                            </select>
-                                                            {processingId === link.id && (
-                                                                <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="p-4 bg-secondary-50 rounded-xl border border-secondary-100 text-center">
-                                                <p className="text-xs text-secondary-400 font-medium italic">El usuario no tiene vinculaciones escolares activas.</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                <div className="flex gap-3 pt-6">
+                                <div className="pt-4">
                                     <button
                                         type="button"
                                         onClick={() => setIsModalOpen(false)}
-                                        className="flex-1 px-6 py-3 bg-secondary-100 text-secondary-600 rounded-xl font-bold hover:bg-secondary-200 transition-colors"
+                                        className="w-full px-6 py-4 bg-secondary-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-all active:scale-[0.98] shadow-lg"
                                     >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-xl font-bold shadow-lg hover:bg-primary-700 transition-all active:scale-95"
-                                    >
-                                        {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
+                                        Cerrar Vista
                                     </button>
                                 </div>
-                            </form>
+                            </div>
                         </div>
                     </div>
                 </div>

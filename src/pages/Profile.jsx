@@ -154,6 +154,39 @@ const Profile = () => {
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn">
+            {/* Cabecera con botón de refresco */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Mi Perfil</h1>
+                    <p className="text-secondary-500 mt-1 font-medium italic">Gestiona tu información personal y seguridad</p>
+                </div>
+                <button 
+                    onClick={async () => {
+                        setIsSubmittingProfile(true); // Usamos este estado temporalmente para el spin
+                        try {
+                            await checkAuth();
+                            showNotification('Datos actualizados.', 'success');
+                        } catch (err) {
+                            showNotification('Error al refrescar datos.', 'error');
+                        } finally {
+                            setIsSubmittingProfile(false);
+                        }
+                    }}
+                    disabled={isSubmittingProfile}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-secondary-200 text-secondary-600 rounded-xl font-bold shadow-sm hover:bg-secondary-50 hover:text-primary-600 transition-all active:scale-95 disabled:opacity-50 group"
+                >
+                    <svg 
+                        className={`w-4 h-4 transition-transform duration-500 ${isSubmittingProfile ? 'animate-spin' : 'group-hover:rotate-180'}`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refrescar Datos
+                </button>
+            </div>
+
             {/* CARD DE VERIFICACIÓN DE EMAIL (NUEVA) */}
             {!user?.email_verified_at && (
                 <div className="p-6 rounded-2xl shadow-sm border-2 flex flex-col md:flex-row items-center justify-between gap-6 bg-red-50 border-red-200 animate-pulse-once">

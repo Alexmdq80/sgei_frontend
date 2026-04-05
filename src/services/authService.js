@@ -66,6 +66,26 @@ const authService = {
             params: { email, token }
         });
         return response.data;
+    },
+
+    /**
+     * Solicita un enlace de restablecimiento de contraseña.
+     * @param {string} email 
+     */
+    async forgotPassword(email) {
+        await api.get(`${BACKEND_URL}/sanctum/csrf-cookie`);
+        const response = await api.post('/auth/forgot-password', { email });
+        return response.data;
+    },
+
+    /**
+     * Restablece la contraseña con el token proporcionado.
+     * @param {Object} data { email, token, password, password_confirmation }
+     */
+    async resetPassword(data) {
+        await api.get(`${BACKEND_URL}/sanctum/csrf-cookie`);
+        const response = await api.post('/auth/reset-password', data);
+        return response.data;
     }
 };
 

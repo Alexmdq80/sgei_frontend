@@ -10,6 +10,8 @@ import Dashboard from './pages/Dashboard';
 import VerifyEmail from './pages/VerifyEmail';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import UserManagement from './pages/Admin/UserManagement';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 /**
  * Componente para proteger rutas privadas.
@@ -70,6 +72,8 @@ function App() {
                     {/* Rutas Públicas */}
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
 
                     {/* Ruta de Verificación de Email (Pública) */}
                     <Route path="/verificar-email" element={<VerifyEmailPage />} />
