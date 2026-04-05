@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import userService from '../../services/userService';
 import escuelaService from '../../services/escuelaService';
@@ -12,7 +12,7 @@ import ConfirmationModal from '../../components/ConfirmationModal';
  * Incluye el listado/CRUD de usuarios y la gestión de solicitudes de unión con asignación de roles.
  */
 const UserManagement = () => {
-    const { showNotification } = useAuth();
+    const { user, showNotification } = useAuth();
     const [activeTab, setActiveTab] = useState('users'); // 'users' | 'requests'
     
     // Estados para Usuarios
@@ -145,6 +145,22 @@ const UserManagement = () => {
     useEffect(() => {
         fetchCatalogs();
     }, []);
+
+    // --- LÓGICA DE FILTRADO DE ROLES ---
+    
+    const filteredRoles = useMemo(() => {
+        const hierarchicalRoleNames = ['director', 'vicedirector', 'secretario', 'prosecretario'];
+        
+        if (!user) return [];
+        
+        if (user.es_administrador) {
+            // El Super Admin solo gestiona roles jerárquicos
+            return rolEscolares.filter(r => hierarchicalRoleNames.includes(r.name));
+        } else {
+            // Los directivos de escuela solo gestionan roles operativos
+            return rolEscolares.filter(r => !hierarchicalRoleNames.includes(r.name));
+        }
+    }, [user, rolEscolares]);
 
     // --- ACCIONES DE USUARIOS (CRUD) ---
 
@@ -618,7 +634,7 @@ const UserManagement = () => {
                                                     value={request.selected_role_id}
                                                     onChange={(e) => handleRequestRolChange(request.id, e.target.value)}
                                                 >
-                                                    {rolEscolares.map(rol => (
+                                                    {filteredRoles.map(rol => (
                                                         <option key={rol.id} value={rol.id}>{rol.name}</option>
                                                     ))}
                                                 </select>
@@ -762,19 +778,21 @@ const UserManagement = () => {
                                         />
                                     </div>
 
-                                    <div className="flex items-center gap-3 p-4 bg-primary-50 rounded-2xl border border-primary-100">
-                                        <input
-                                            type="checkbox"
-                                            name="es_administrador"
-                                            id="es_administrador"
-                                            className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500 cursor-pointer"
-                                            checked={formData.es_administrador}
-                                            onChange={handleFormChange}
-                                        />
-                                        <label htmlFor="es_administrador" className="text-sm font-bold text-primary-800 cursor-pointer">
-                                            Asignar permisos de administrador (Superuser)
-                                        </label>
-                                    </div>
+                                    {user?.es_administrador && (
+                                        <div className="flex items-center gap-3 p-4 bg-primary-50 rounded-2xl border border-primary-100">
+                                            <input
+                                                type="checkbox"
+                                                name="es_administrador"
+                                                id="es_administrador"
+                                                className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500 cursor-pointer"
+                                                checked={formData.es_administrador}
+                                                onChange={handleFormChange}
+                                            />
+                                            <label htmlFor="es_administrador" className="text-sm font-bold text-primary-800 cursor-pointer">
+                                                Asignar permisos de administrador (Superuser)
+                                            </label>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Vinculaciones Institucionales (Solo Edición) */}
@@ -796,7 +814,7 @@ const UserManagement = () => {
                                                                 onChange={(e) => handleUpdateUserLink(link.id, e.target.value)}
                                                                 disabled={processingId === link.id}
                                                             >
-                                                                {rolEscolares.map(rol => (
+                                                                {filteredRoles.map(rol => (
                                                                     <option key={rol.id} value={rol.id}>{rol.name}</option>
                                                                 ))}
                                                             </select>
