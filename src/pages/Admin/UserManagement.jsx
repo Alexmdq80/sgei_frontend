@@ -4,6 +4,8 @@ import userService from '../../services/userService';
 import escuelaService from '../../services/escuelaService';
 import documentoTipoService from '../../services/documentoTipoService';
 import roleService from '../../services/roleService';
+import SearchableSelect from '../../components/SearchableSelect';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 /**
  * Página de administración integral de usuarios.
@@ -42,6 +44,35 @@ const UserManagement = () => {
         documento_numero: '',
         es_administrador: false
     });
+
+    // Estados para el Modal de Confirmación Global
+    const [confirmConfig, setConfirmConfig] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        confirmText: 'Confirmar',
+        variant: 'primary',
+        onConfirm: () => {},
+        showInput: false,
+        inputPlaceholder: '',
+        isLoading: false
+    });
+
+    const closeConfirm = () => setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+
+    const openConfirm = (config) => {
+        setConfirmConfig({
+            isOpen: true,
+            title: config.title || '¿Estás seguro?',
+            message: config.message || '',
+            confirmText: config.confirmText || 'Confirmar',
+            variant: config.variant || 'primary',
+            onConfirm: config.onConfirm,
+            showInput: config.showInput || false,
+            inputPlaceholder: config.inputPlaceholder || '',
+            isLoading: false
+        });
+    };
 
     // --- CARGA DE DATOS ---
 
@@ -176,14 +207,25 @@ const UserManagement = () => {
     };
 
     const handleDeleteUser = async (id) => {
-        if (!window.confirm('¿Estás seguro de que deseas eliminar este usuario? (Soft Delete)')) return;
-        try {
-            await userService.delete(id);
-            showNotification('Usuario eliminado con éxito.', 'success');
-            fetchUsers(pagination.current_page);
-        } catch (error) {
-            showNotification('Error al eliminar el usuario.', 'error');
-        }
+        openConfirm({
+            title: '¿Eliminar usuario?',
+            message: 'Esta acción aplicará un Soft Delete. El usuario podrá ser recuperado posteriormente por un administrador de base de datos.',
+            confirmText: 'Eliminar',
+            variant: 'danger',
+            onConfirm: async () => {
+                try {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: true }));
+                    await userService.delete(id);
+                    showNotification('Usuario eliminado con éxito.', 'success');
+                    fetchUsers(pagination.current_page);
+                    closeConfirm();
+                } catch (error) {
+                    showNotification('Error al eliminar el usuario.', 'error');
+                } finally {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: false }));
+                }
+            }
+        });
     };
 
     const handleUpdateUserLink = async (requestId, roleId) => {
@@ -222,33 +264,51 @@ const UserManagement = () => {
         ));
     };
 
-    const handleApprove = async (request) => {
-        if (!window.confirm(`¿Aprobar el acceso de ${request.usuario.nombre} como ${rolEscolares.find(r => r.id === request.selected_role_id)?.name}?`)) return;
-        try {
-            setProcessingId(request.id);
-            await escuelaService.approveRequest(request.id, request.selected_role_id);
-            showNotification('Solicitud aprobada con éxito.', 'success');
-            setRequests(requests.filter(r => r.id !== request.id));
-        } catch (error) {
-            showNotification('Error al procesar la aprobación.', 'error');
-        } finally {
-            setProcessingId(null);
-        }
+    const handleApprove = (request) => {
+        const roleName = rolEscolares.find(r => r.id === request.selected_role_id)?.name;
+        openConfirm({
+            title: 'Aprobar Acceso',
+            message: `¿Confirmas el acceso de ${request.usuario.nombre} como ${roleName}?`,
+            confirmText: 'Aprobar Acceso',
+            variant: 'success',
+            onConfirm: async () => {
+                try {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: true }));
+                    await escuelaService.approveRequest(request.id, request.selected_role_id);
+                    showNotification('Solicitud aprobada con éxito.', 'success');
+                    setRequests(requests.filter(r => r.id !== request.id));
+                    closeConfirm();
+                } catch (error) {
+                    showNotification('Error al procesar la aprobación.', 'error');
+                } finally {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: false }));
+                }
+            }
+        });
     };
 
-    const handleReject = async (id) => {
-        const reason = window.prompt('Por favor, indica el motivo del rechazo (opcional):');
-        if (reason === null) return;
-        try {
-            setProcessingId(id);
-            await escuelaService.rejectRequest(id, reason);
-            showNotification('Solicitud rechazada.', 'info');
-            setRequests(requests.filter(r => r.id !== id));
-        } catch (error) {
-            showNotification('Error al procesar el rechazo.', 'error');
-        } finally {
-            setProcessingId(null);
-        }
+    const handleReject = (id) => {
+        openConfirm({
+            title: 'Rechazar Solicitud',
+            message: 'Por favor, indica el motivo del rechazo para informar al usuario.',
+            confirmText: 'Rechazar',
+            variant: 'danger',
+            showInput: true,
+            inputPlaceholder: 'Ej: La documentación adjunta no es legible...',
+            onConfirm: async (reason) => {
+                try {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: true }));
+                    await escuelaService.rejectRequest(id, reason);
+                    showNotification('Solicitud rechazada.', 'info');
+                    setRequests(requests.filter(r => r.id !== id));
+                    closeConfirm();
+                } catch (error) {
+                    showNotification('Error al procesar el rechazo.', 'error');
+                } finally {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: false }));
+                }
+            }
+        });
     };
 
     return (
@@ -775,6 +835,20 @@ const UserManagement = () => {
                     </div>
                 </div>
             )}
+
+            {/* MODAL DE CONFIRMACIÓN GLOBAL */}
+            <ConfirmationModal
+                isOpen={confirmConfig.isOpen}
+                onClose={closeConfirm}
+                onConfirm={confirmConfig.onConfirm}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                confirmText={confirmConfig.confirmText}
+                variant={confirmConfig.variant}
+                showInput={confirmConfig.showInput}
+                inputPlaceholder={confirmConfig.inputPlaceholder}
+                isLoading={confirmConfig.isLoading}
+            />
         </div>
     );
 };

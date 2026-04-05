@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import UserManagement from '../Admin/UserManagement';
 import escuelaService from '../../services/escuelaService';
 import userService from '../../services/userService';
+import roleService from '../../services/roleService';
 import documentoTipoService from '../../services/documentoTipoService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -25,6 +26,15 @@ vi.mock('../../services/userService', () => ({
         create: vi.fn(),
         update: vi.fn(),
         delete: vi.fn()
+    }
+}));
+
+vi.mock('../../services/roleService', () => ({
+    default: {
+        getAll: vi.fn().mockResolvedValue([
+            { id: 5, name: 'Docente' },
+            { id: 10, name: 'Directivo' }
+        ])
     }
 }));
 
@@ -124,7 +134,6 @@ describe('UserManagement Component', () => {
     });
 
     it('debe aprobar una solicitud de unión', async () => {
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
         escuelaService.approveRequest.mockResolvedValue({ message: 'Success' });
 
         render(<UserManagement />);
@@ -138,8 +147,12 @@ describe('UserManagement Component', () => {
         const approveBtn = screen.getAllByRole('button', { name: /Aprobar/i })[0];
         fireEvent.click(approveBtn);
 
+        // Interactuar con el modal de confirmación
+        const confirmBtn = await screen.findByRole('button', { name: /^Aprobar Acceso$/i });
+        fireEvent.click(confirmBtn);
+
         await waitFor(() => {
-            expect(escuelaService.approveRequest).toHaveBeenCalledWith('req-1');
+            expect(escuelaService.approveRequest).toHaveBeenCalledWith('req-1', expect.anything());
             expect(screen.queryByText('Maria Solicitante')).not.toBeInTheDocument();
         });
     });

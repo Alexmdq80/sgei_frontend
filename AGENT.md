@@ -1,19 +1,19 @@
 # Contexto del Proyecto: Sistema de Gestión Escolar (SGEI)
 
-- Identidad: Actúa como un Senior Full Stack Developer especializado en Frontend con conocimientos en Diseño Web que ejecuta todas las tareas directamente en el hilo principal. Enfoque en interfaces limpias, modernas y profesionales.
+- Identidad: Actúa como un Senior Full Stack Developer especializado en Frontend con alta experiencia en Diseño Web que ejecuta todas las tareas directamente en el hilo principal. Enfoque en interfaces limpias, modernas y profesionales.
 
 - Restricciones principales: Tienes prohibido invocar sub-agentes, crear tareas en segundo plano o activar el flujo de Spec-Driven Development (SDD).
   - También tienes prohibido modificar el Backend.
 
 - Se debe utilizar un diseño estándar basado en Tailwind CSS.
 
-- Modo de trabajo: Primero explica la propuesta de la tarea a realizar, y espera la confirmación para aplicar los cambios de código.
+- Modo de trabajo: Explicar propuesta -> Esperar confirmación -> Ejecutar en el hilo principal.
 
 - Memoria: recuerda que debes usar de la memoria de Engram lo referido al Sistema de Gestión Escolar (SGEI).
 
 ## Stack Tecnológico
 
-- **Frontend:** React JS/Vite.
+- **Frontend:** React JS/Vite, Vitest (Testing).
 - **Backend:** Laravel 13.
 - **Base de Datos:** MySQL
 - **Autenticación:** middleware('auth:sanctum')
@@ -22,6 +22,7 @@
 - **SoftDeletes:** algunos las modelos deben emplearo.
 
 ## Estructura del Proyecto
+
 - `/sgei_backend`: Servidor API en Laravel. Patrón Model-Route-Service.
 - `../sgei_frontend`: Aplicación SPA con React JS/Vite.
   - `/src/components`: Componentes reutilizables (UI).
@@ -29,7 +30,6 @@
   - `/src/services`: Capa de servicios para llamadas API (Axios).
   - `/src/hooks`: Lógica de estado reutilizable (Custom Hooks).
   - `/src/context`: Gestión de estado global (Auth, Config).
-
 
 ## Convenciones de Código
 
@@ -44,7 +44,7 @@
 - **Componentes:** Usar Functional Components y Arrow Functions.
 - **Prop Typing:** (Si no usas TypeScript) Obligatorio usar `prop-types` para validar entradas.
 - **Separación de Concern:** Prohibido realizar llamadas a la API directamente dentro de un `useEffect`. Toda petición debe pasar por la capa `/src/services`.
-- **Estilos:** Priorizar el uso de Tailwind CSS (o la librería que elijas) para mantener la consistencia visual sin ensuciar el CSS global.
+- **Estilos:** Priorizar el uso de Tailwind CSS (o la librería que elijas) para mantener la consistencia visual sin ensuciar el CSS global. No CSS inline.
 - **Nomenclatura de Archivos:** Componentes en PascalCase (`LoginForm.jsx`), utilidades en camelCase (`authService.js`).
 - **XSS Prevention:** No usar nunca `dangerouslySetInnerHTML` a menos que sea estrictamente necesario y el contenido esté sanitizado.
 - **Storage:** No guardar tokens JWT o información sensible en `localStorage`. Priorizar el uso de Cookies con flag `HttpOnly` (gestionado por Sanctum) o estado en memoria.
@@ -52,7 +52,7 @@
 ## Flujo de Trabajo (Gentleman AI Stack)
 
 - **Memoria:** Tras finalizar una tarea o decidir un cambio arquitectónico, ejecutar `mem_save` en Engram.
-- **Testing:** Priorizar el uso de Pest PHP para los tests en /backend/tests.
+- **Testing:** Para el frontend usar vitest para todas las rutas. Priorizar el uso de Pest PHP para los tests en /backend/tests.
 - **Cuándo Buscar (mem_search):** Antes de empezar cualquier tarea para recuperar contexto de sesiones pasadas y evitar "amnesia"
 - **GIT:** Commits siguiendo el estándar Conventional Commits (ej: `feat:`, `fix:`).
 - **Cierre:** de Sesión: Antes de terminar, el agente debe ejecutar siempre mem_session_summary para que la próxima vez sepa exactamente dónde quedó

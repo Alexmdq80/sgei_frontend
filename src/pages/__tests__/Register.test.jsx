@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Register from '../Register';
 import { BrowserRouter } from 'react-router-dom';
@@ -122,7 +122,7 @@ describe('Register Component', () => {
         });
     });
 
-    it('debe actualizar los indicadores de requisitos de contraseña', () => {
+    it('debe actualizar los indicadores de requisitos de contraseña', async () => {
         render(
             <BrowserRouter>
                 <Register />
@@ -135,7 +135,9 @@ describe('Register Component', () => {
         // Pero al menos verificamos que los textos existen
         expect(screen.getByText('10+ caracteres')).toBeInTheDocument();
         
-        fireEvent.change(passwordInput, { target: { value: 'Pass1!' } });
+        await act(async () => {
+            fireEvent.change(passwordInput, { target: { value: 'Pass1!' } });
+        });
         
         // Aquí podríamos verificar clases de Tailwind si quisiéramos ser muy específicos,
         // pero con React Testing Library solemos centrarnos en el comportamiento.
