@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import VerifyEmail from './pages/VerifyEmail';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import UserManagement from './pages/Admin/UserManagement';
+import PlanManagement from './pages/Academic/PlanManagement';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 
@@ -124,8 +125,18 @@ function App() {
                             </ProtectedRoute>
                         } 
                     />
-   
-                    {/* Redirección por defecto */} 
+
+                    {/* Rutas de Gestión Académica */}
+                    <Route 
+                        path="/academic/planes" 
+                        element={
+                            <ProtectedRoute>
+                                <PlanManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    {/* Redirección por defecto */}
                     <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
             </Router>

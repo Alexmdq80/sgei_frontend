@@ -71,6 +71,14 @@ const userService = {
     async delete(id) {
         const response = await api.delete(`/admin/usuarios/${id}`);
         return response.data;
+    },
+
+    /**
+     * Alterna el rol de Supervisor Curricular para un usuario.
+     */
+    async toggleSupervisorRole(id) {
+        const response = await api.post(`/admin/usuarios/${id}/toggle-supervisor`);
+        return response.data;
     }
 };
 

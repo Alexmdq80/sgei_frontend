@@ -12,13 +12,14 @@ import ConfirmationModal from '../../components/ConfirmationModal';
  * Incluye el listado/CRUD de usuarios y la gestión de solicitudes de unión con asignación de roles.
  */
 const UserManagement = () => {
-    const { user, showNotification } = useAuth();
+    const { user, showNotification, hasPermission } = useAuth();
     const [activeTab, setActiveTab] = useState('users'); // 'users' | 'requests'
     
     // Estados para Usuarios
     const [users, setUsers] = useState([]);
     const [isUsersLoading, setIsUsersLoading] = useState(true);
-    const [userSearch, setUserUsersSearch] = useState('');
+    const [isUpdatingRole, setIsUpdatingRole] = useState(null); // Nuevo estado
+    const [userSearch, setUserSearch] = useState('');
     const [filterCueAnexo, setFilterCueAnexo] = useState('');
     const [filterVinculation, setFilterVinculation] = useState('all'); // 'all' | 'vinculated' | 'pending'
     const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
@@ -221,6 +222,19 @@ const UserManagement = () => {
                 }
             }
         });
+    };
+
+    const handleToggleSupervisor = async (id) => {
+        try {
+            setIsUpdatingRole(id);
+            const response = await userService.toggleSupervisorRole(id);
+            showNotification(response.message, 'success');
+            fetchUsers(pagination.current_page);
+        } catch (error) {
+            showNotification('No se pudo cambiar el rol del usuario.', 'error');
+        } finally {
+            setIsUpdatingRole(null);
+        }
     };
 
     const handleUpdateUserLink = async (requestId, roleId) => {
@@ -510,6 +524,26 @@ const UserManagement = () => {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-2">
+                                                    {hasPermission('sistema.roles') && (
+                                                        <button
+                                                            onClick={() => handleToggleSupervisor(user.id)}
+                                                            disabled={isUpdatingRole === user.id}
+                                                            className={`p-2 rounded-lg transition-all ${
+                                                                user.roles?.some(r => r.name === 'supervisor_curricular')
+                                                                ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 shadow-sm border border-amber-200'
+                                                                : 'text-secondary-400 hover:text-indigo-600 hover:bg-indigo-50'
+                                                            }`}
+                                                            title={user.roles?.some(r => r.name === 'supervisor_curricular') ? "Revocar Supervisor Curricular" : "Hacer Supervisor Curricular"}
+                                                        >
+                                                            {isUpdatingRole === user.id ? (
+                                                                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                                            ) : (
+                                                                <svg className="w-5 h-5" fill={user.roles?.some(r => r.name === 'supervisor_curricular') ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                                                </svg>
+                                                            )}
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => openEditModal(user)}
                                                         className="p-2 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
