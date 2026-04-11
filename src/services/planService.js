@@ -1,13 +1,11 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+import api from './api';
 
 const planService = {
   /**
    * Obtiene todos los planes de estudio.
    */
   getAllPlans: async () => {
-    const response = await axios.get(`${API_URL}/planes`, { withCredentials: true });
+    const response = await api.get('/planes');
     return response.data;
   },
 
@@ -15,7 +13,7 @@ const planService = {
    * Obtiene un plan por ID.
    */
   getPlanById: async (id) => {
-    const response = await axios.get(`${API_URL}/planes/${id}`, { withCredentials: true });
+    const response = await api.get(`/planes/${id}`);
     return response.data;
   },
 
@@ -23,7 +21,7 @@ const planService = {
    * Obtiene los ciclos disponibles para los planes.
    */
   getPlanCiclos: async () => {
-    const response = await axios.get(`${API_URL}/planes-ciclos`, { withCredentials: true });
+    const response = await api.get('/planes-ciclos');
     return response.data;
   },
 
@@ -31,7 +29,7 @@ const planService = {
    * Crea un nuevo plan de estudio.
    */
   createPlan: async (data) => {
-    const response = await axios.post(`${API_URL}/planes`, data, { withCredentials: true });
+    const response = await api.post('/planes', data);
     return response.data;
   },
 
@@ -39,7 +37,7 @@ const planService = {
    * Actualiza un plan existente.
    */
   updatePlan: async (id, data) => {
-    const response = await axios.put(`${API_URL}/planes/${id}`, data, { withCredentials: true });
+    const response = await api.put(`/planes/${id}`, data);
     return response.data;
   },
 
@@ -47,7 +45,7 @@ const planService = {
    * Elimina un plan de estudio.
    */
   deletePlan: async (id) => {
-    const response = await axios.delete(`${API_URL}/planes/${id}`, { withCredentials: true });
+    const response = await api.delete(`/planes/${id}`);
     return response.data;
   }
 };

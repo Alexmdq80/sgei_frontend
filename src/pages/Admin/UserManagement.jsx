@@ -374,7 +374,7 @@ const UserManagement = () => {
                                         placeholder="Buscar por nombre, email o DNI..."
                                         className="w-full pl-10 pr-4 py-2 bg-white border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all text-sm font-medium"
                                         value={userSearch}
-                                        onChange={(e) => setUserUsersSearch(e.target.value)}
+                                        onChange={(e) => setUserSearch(e.target.value)}
                                     />
                                 </div>
                                 <button type="submit" className="px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors shadow-sm">

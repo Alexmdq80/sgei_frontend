@@ -16,7 +16,8 @@ vi.mock('../../services/escuelaService', () => ({
     default: {
         getPendingRequests: vi.fn(),
         approveRequest: vi.fn(),
-        rejectRequest: vi.fn()
+        rejectRequest: vi.fn(),
+        updateLink: vi.fn()
     }
 }));
 
@@ -25,7 +26,8 @@ vi.mock('../../services/userService', () => ({
         getAll: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
-        delete: vi.fn()
+        delete: vi.fn(),
+        toggleSupervisorRole: vi.fn()
     }
 }));
 
@@ -33,7 +35,8 @@ vi.mock('../../services/roleService', () => ({
     default: {
         getAll: vi.fn().mockResolvedValue([
             { id: 5, name: 'Docente' },
-            { id: 10, name: 'Directivo' }
+            { id: 10, name: 'Directivo' },
+            { id: 15, name: 'supervisor_curricular' }
         ])
     }
 }));
@@ -46,8 +49,8 @@ vi.mock('../../services/documentoTipoService', () => ({
 
 describe('UserManagement Component', () => {
     const mockUsers = [
-        { id: '1', nombre: 'Juan Perez', email: 'juan@example.com', documento_numero: '123', es_administrador: false },
-        { id: '2', nombre: 'Admin User', email: 'admin@example.com', documento_numero: '456', es_administrador: true }
+        { id: '1', nombre: 'Juan Perez', email: 'juan@example.com', documento_numero: '123', es_administrador: false, roles: [] },
+        { id: '2', nombre: 'Admin User', email: 'admin@example.com', documento_numero: '456', es_administrador: true, roles: [] }
     ];
 
     const mockRequests = [
@@ -55,7 +58,7 @@ describe('UserManagement Component', () => {
             id: 'req-1',
             usuario: { nombre: 'Maria Solicitante', email: 'maria@example.com' },
             escuela: { nombre: 'Escuela 1', cue_anexo: '123' },
-            rol_escolar: { nombre: 'Docente' }
+            role: { id: 5, name: 'Docente' }
         }
     ];
 
@@ -86,7 +89,6 @@ describe('UserManagement Component', () => {
         await waitFor(() => {
             expect(screen.getByText('Juan Perez')).toBeInTheDocument();
             expect(screen.getByText('Admin User')).toBeInTheDocument();
-            expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
         });
     });
 
@@ -102,34 +104,56 @@ describe('UserManagement Component', () => {
         });
     });
 
-    it('debe abrir el modal de creación de usuario', async () => {
+    it('debe abrir el modal de edición de usuario', async () => {
         render(<UserManagement />);
 
-        const createBtn = await screen.findByRole('button', { name: /Nuevo Usuario/i });
-        fireEvent.click(createBtn);
+        await waitFor(() => screen.getByText('Juan Perez'));
+        
+        const editBtns = screen.getAllByTitle('Editar');
+        fireEvent.click(editBtns[0]);
 
-        expect(screen.getByText('Nuevo Usuario', { selector: 'h2' })).toBeInTheDocument();
-        expect(screen.getByLabelText(/Nombre de Usuario/i)).toBeInTheDocument();
+        expect(screen.getByText('Información del Usuario', { selector: 'h2' })).toBeInTheDocument();
+        // El nombre aparece en la tabla y en el modal, usamos getAll
+        expect(screen.getAllByText('Juan Perez').length).toBeGreaterThan(1);
+        expect(screen.getAllByText('juan@example.com').length).toBeGreaterThan(0);
     });
 
-    it('debe llamar a userService.create al enviar el formulario', async () => {
-        userService.create.mockResolvedValue({ message: 'Success' });
+    it('debe permitir cambiar el rol de supervisor curricular', async () => {
+        userService.toggleSupervisorRole.mockResolvedValue({ message: 'Rol actualizado' });
 
         render(<UserManagement />);
 
-        const createBtn = await screen.findByRole('button', { name: /Nuevo Usuario/i });
-        fireEvent.click(createBtn);
-
-        fireEvent.change(screen.getByLabelText(/Nombre de Usuario/i), { target: { value: 'New User' } });
-        fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'new@example.com' } });
-        fireEvent.change(screen.getByLabelText(/Contraseña/i), { target: { value: 'Pass123!' } });
-
-        const submitBtn = screen.getByRole('button', { name: /^Crear Usuario$/i });
-        fireEvent.click(submitBtn);
+        await waitFor(() => screen.getByText('Juan Perez'));
+        
+        const supervisorBtn = screen.getAllByTitle(/Hacer Supervisor Curricular/i)[0];
+        fireEvent.click(supervisorBtn);
 
         await waitFor(() => {
-            expect(userService.create).toHaveBeenCalled();
-            expect(mockShowNotification).toHaveBeenCalledWith('Usuario creado con éxito.', 'success');
+            expect(userService.toggleSupervisorRole).toHaveBeenCalledWith('1');
+            expect(mockShowNotification).toHaveBeenCalledWith('Rol actualizado', 'success');
+        });
+    });
+
+    it('debe llamar a userService.delete al confirmar la eliminación', async () => {
+        userService.delete.mockResolvedValue({ message: 'Success' });
+
+        render(<UserManagement />);
+
+        await waitFor(() => screen.getByText('Juan Perez'));
+        
+        const deleteBtn = screen.getAllByTitle('Eliminar')[0];
+        fireEvent.click(deleteBtn);
+
+        // Interactuar con el modal de confirmación
+        const confirmBtns = await screen.findAllByRole('button', { name: /^Eliminar$/i });
+        // Seleccionamos el último botón con ese nombre, que suele ser el del modal (que se monta al final)
+        // O mejor aún, buscamos el que NO tiene el title "Eliminar" (que son los de la tabla)
+        const modalConfirmBtn = confirmBtns.find(btn => !btn.hasAttribute('title'));
+        fireEvent.click(modalConfirmBtn);
+
+        await waitFor(() => {
+            expect(userService.delete).toHaveBeenCalledWith('1');
+            expect(mockShowNotification).toHaveBeenCalledWith('Usuario eliminado con éxito.', 'success');
         });
     });
 

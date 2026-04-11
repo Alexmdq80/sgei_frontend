@@ -36,28 +36,31 @@ const ProtectedRoute = ({ children }) => {
         return <Navigate to="/login" />;
     }
 
-    // Admins saltan el flujo de aprobación escolar por ahora
-    if (user?.es_administrador) {
-        return <Layout>{children}</Layout>;
-    }
-
-    // 1. Verificación de Email (Redirigir al perfil si no está verificado)
+    // 1. Verificación de Email (OBLIGATORIO PARA TODOS)
+    // Redirigir al perfil si no está verificado (excepto si ya está en /profile)
     if (!user?.email_verified_at && location.pathname !== '/profile') {
         return <Navigate to="/profile" replace />;
     }
 
-    // 2. Permitir siempre acceso al Perfil si está autenticado
+    // 2. Usuarios Especiales (Bypass de Vinculación Escolar)
+    // Una vez verificado el email, los Admins y Supervisores Curriculares tienen acceso total
+    const isSpecialUser = user?.es_administrador || user?.roles?.some(r => r.name === 'supervisor_curricular');
+    if (isSpecialUser) {
+        return <Layout>{children}</Layout>;
+    }
+
+    // 3. Permitir siempre acceso al Perfil si está autenticado y verificado
     if (location.pathname === '/profile') {
         return <Layout>{children}</Layout>;
     }
 
-    // 3. Rutas de flujo de selección/aprobación (se permiten a sí mismas)
+    // 4. Rutas de flujo de selección/aprobación (se permiten a sí mismas para usuarios regulares)
     if (location.pathname === '/select-school' || location.pathname === '/pending-approval') {
         return <Layout>{children}</Layout>;
     }
 
-    // 4. Restricción de Acceso para el resto de las rutas (ej: Dashboard)
-    // Si no está activo, lo mandamos al perfil para que vea su estado
+    // 5. Restricción de Acceso para el resto de las rutas (Usuarios Regulares)
+    // Si no está activo (vinculado y aprobado), lo mandamos al perfil para ver su estado
     if (user?.estado !== 'activo') {
         return <Navigate to="/profile" replace />;
     }
