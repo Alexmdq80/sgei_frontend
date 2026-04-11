@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import VerifyEmail from './pages/VerifyEmail';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import UserManagement from './pages/Admin/UserManagement';
+import CupofManagement from './pages/Admin/CupofManagement';
 import PlanManagement from './pages/Academic/PlanManagement';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -125,6 +126,15 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <UserManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    
+                    <Route 
+                        path="/admin/cupofs" 
+                        element={
+                            <ProtectedRoute>
+                                <CupofManagement />
                             </ProtectedRoute>
                         } 
                     />
