@@ -224,7 +224,9 @@ const Profile = () => {
             )}
 
             {/* CARD DE ESTADO ESCOLAR (NUEVA) */}
-            {!user?.es_administrador && user?.estado !== 'activo' && (
+            {!user?.es_administrador && 
+             !user?.roles?.some(r => r.name === 'supervisor_curricular' || r.name === 'jefe_distrital' || r.name === 'superuser') && 
+             user?.estado !== 'activo' && (
                 <div className={`p-6 rounded-2xl shadow-sm border-2 flex flex-col md:flex-row items-center justify-between gap-6 ${user?.estado === 'espera_aprobacion' ? 'bg-yellow-50 border-yellow-200' : 'bg-primary-50 border-primary-200'}`}>
                     <div className="flex items-center text-center md:text-left">
                         <div className={`p-3 rounded-xl mr-5 ${user?.estado === 'espera_aprobacion' ? 'bg-yellow-100 text-yellow-600' : 'bg-primary-100 text-primary-600'}`}>
@@ -319,7 +321,7 @@ const Profile = () => {
                 {/* Columna Derecha: Información y Seguridad */}
                 <div className="lg:col-span-2 space-y-8">
                     {/* Vinculaciones Escolares */}
-                    {!user?.es_administrador && (
+                    {!(user?.es_administrador || user?.roles?.some(r => r.name === 'superuser')) && (
                         <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
                             <div className="p-6 border-b border-secondary-200 bg-secondary-50 flex items-center justify-between">
                                 <h2 className="font-bold text-secondary-900">Vinculaciones Escolares</h2>
@@ -330,7 +332,8 @@ const Profile = () => {
                                 )}
                             </div>
                             <div className="p-0 relative">
-                                {!user?.email_verified_at && (
+                                {!user?.email_verified_at && 
+                                 !user?.roles?.some(r => r.name === 'supervisor_curricular' || r.name === 'jefe_distrital') && (
                                     <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
                                         <span className="bg-secondary-900 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-lg">Función Bloqueada</span>
                                     </div>

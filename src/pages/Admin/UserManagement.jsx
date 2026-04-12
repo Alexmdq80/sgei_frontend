@@ -14,6 +14,9 @@ import ConfirmationModal from '../../components/ConfirmationModal';
 const UserManagement = () => {
     const { user, showNotification, hasPermission } = useAuth();
     const [activeTab, setActiveTab] = useState('users'); // 'users' | 'requests'
+
+    const isSuperUser = user?.es_administrador || user?.roles?.some(r => r.name === 'superuser');
+    const isReadOnlyUser = user?.roles?.some(r => r.name === 'supervisor_curricular' || r.name === 'jefe_distrital');
     
     // Estados para Usuarios
     const [users, setUsers] = useState([]);
@@ -173,7 +176,9 @@ const UserManagement = () => {
         setEditingUser(user);
         setFormData({
             nombre: user.nombre || '',
-            email: user.email || ''
+            email: user.email || '',
+            documento_tipo_id: user.documento_tipo_id || '',
+            documento_numero: user.documento_numero || ''
         });
         setIsModalOpen(true);
     };
@@ -228,6 +233,19 @@ const UserManagement = () => {
         try {
             setIsUpdatingRole(id);
             const response = await userService.toggleSupervisorRole(id);
+            showNotification(response.message, 'success');
+            fetchUsers(pagination.current_page);
+        } catch (error) {
+            showNotification('No se pudo cambiar el rol del usuario.', 'error');
+        } finally {
+            setIsUpdatingRole(null);
+        }
+    };
+
+    const handleToggleJefeDistrital = async (id) => {
+        try {
+            setIsUpdatingRole(id);
+            const response = await userService.toggleJefeDistritalRole(id);
             showNotification(response.message, 'success');
             fetchUsers(pagination.current_page);
         } catch (error) {
@@ -340,19 +358,21 @@ const UserManagement = () => {
                 >
                     Todos los Usuarios
                 </button>
-                <button
-                    onClick={() => setActiveTab('requests')}
-                    className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                        activeTab === 'requests' ? 'bg-white text-primary-600 shadow-sm' : 'text-secondary-500 hover:text-secondary-700'
-                    }`}
-                >
-                    Solicitudes de Unión
-                    {requests.length > 0 && (
-                        <span className="bg-primary-100 text-primary-600 text-[10px] px-1.5 py-0.5 rounded-full">
-                            {requests.length}
-                        </span>
-                    )}
-                </button>
+                {!isSuperUser && (
+                    <button
+                        onClick={() => setActiveTab('requests')}
+                        className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                            activeTab === 'requests' ? 'bg-white text-primary-600 shadow-sm' : 'text-secondary-500 hover:text-secondary-700'
+                        }`}
+                    >
+                        Solicitudes de Unión
+                        {requests.length > 0 && (
+                            <span className="bg-primary-100 text-primary-600 text-[10px] px-1.5 py-0.5 rounded-full">
+                                {requests.length}
+                            </span>
+                        )}
+                    </button>
+                )}
             </div>
 
             {/* Contenido: Listado de Usuarios */}
@@ -505,9 +525,15 @@ const UserManagement = () => {
                                                                 </div>
                                                                 <div className="flex items-center justify-between text-[9px] font-bold">
                                                                     <span className="text-secondary-500">CUE: {link.escuela.cue_anexo}</span>
-                                                                    <span className="text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded border border-primary-100 uppercase">
-                                                                        {link.role?.name || 'S/R'}
-                                                                    </span>
+                                                                    {link.verified_at ? (
+                                                                        <span className="text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded border border-primary-100 uppercase">
+                                                                            {link.role?.name || 'S/R'}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100 uppercase italic">
+                                                                            Por Asignar
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -524,44 +550,78 @@ const UserManagement = () => {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    {hasPermission('sistema.roles') && (
-                                                        <button
-                                                            onClick={() => handleToggleSupervisor(user.id)}
-                                                            disabled={isUpdatingRole === user.id}
-                                                            className={`p-2 rounded-lg transition-all ${
-                                                                user.roles?.some(r => r.name === 'supervisor_curricular')
-                                                                ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 shadow-sm border border-amber-200'
-                                                                : 'text-secondary-400 hover:text-indigo-600 hover:bg-indigo-50'
-                                                            }`}
-                                                            title={user.roles?.some(r => r.name === 'supervisor_curricular') ? "Revocar Supervisor Curricular" : "Hacer Supervisor Curricular"}
-                                                        >
-                                                            {isUpdatingRole === user.id ? (
-                                                                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                                            ) : (
-                                                                <svg className="w-5 h-5" fill={user.roles?.some(r => r.name === 'supervisor_curricular') ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                                                                </svg>
-                                                            )}
-                                                        </button>
+                                                    {hasPermission('sistema.roles') && !isReadOnlyUser && !user.es_administrador && !user.roles?.some(r => r.name === 'superuser') && (
+                                                        <div className="flex gap-1">
+                                                            {/* Botón Supervisor */}
+                                                            <button
+                                                                onClick={() => handleToggleSupervisor(user.id)}
+                                                                disabled={isUpdatingRole === user.id}
+                                                                className={`p-2 rounded-lg transition-all ${
+                                                                    user.roles?.some(r => r.name === 'supervisor_curricular')
+                                                                    ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 shadow-sm border border-amber-200'
+                                                                    : 'text-secondary-400 hover:text-indigo-600 hover:bg-indigo-50'
+                                                                }`}
+                                                                title={user.roles?.some(r => r.name === 'supervisor_curricular') ? "Revocar Supervisor Curricular" : "Hacer Supervisor Curricular"}
+                                                            >
+                                                                {isUpdatingRole === user.id ? (
+                                                                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                                                ) : (
+                                                                    <svg className="w-5 h-5" fill={user.roles?.some(r => r.name === 'supervisor_curricular') ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                                                    </svg>
+                                                                )}
+                                                            </button>
+                                                            
+                                                            {/* Botón Jefe Distrital */}
+                                                            <button
+                                                                onClick={() => handleToggleJefeDistrital(user.id)}
+                                                                disabled={isUpdatingRole === user.id}
+                                                                className={`p-2 rounded-lg transition-all ${
+                                                                    user.roles?.some(r => r.name === 'jefe_distrital')
+                                                                    ? 'text-blue-600 bg-blue-50 hover:bg-blue-100 shadow-sm border border-blue-200'
+                                                                    : 'text-secondary-400 hover:text-blue-600 hover:bg-blue-50'
+                                                                }`}
+                                                                title={user.roles?.some(r => r.name === 'jefe_distrital') ? "Revocar Jefe Distrital" : "Hacer Jefe Distrital"}
+                                                            >
+                                                                {isUpdatingRole === user.id ? (
+                                                                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                                                ) : (
+                                                                    <svg className="w-5 h-5" fill={user.roles?.some(r => r.name === 'jefe_distrital') ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                    </svg>
+                                                                )}
+                                                            </button>
+                                                        </div>
                                                     )}
-                                                    <button
-                                                        onClick={() => openEditModal(user)}
-                                                        className="p-2 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                                        title="Editar"
-                                                    >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteUser(user.id)}
-                                                        className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="Eliminar"
-                                                    >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
+                                                    {/* Botones de Editar y Eliminar (SOLO SI NO ES SUPERUSUARIO Y NO ES SOLO LECTURA) */}
+                                                    {!isReadOnlyUser && !(user.es_administrador || user.roles?.some(r => r.name === 'superuser')) ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => openEditModal(user)}
+                                                                className="p-2 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                                                title="Editar"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                </svg>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteUser(user.id)}
+                                                                className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                title="Eliminar"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        (user.es_administrador || user.roles?.some(r => r.name === 'superuser')) && (
+                                                            <div className="p-2 text-secondary-300 italic text-[10px] font-bold uppercase tracking-widest">
+                                                                Protegido
+                                                            </div>
+                                                        )
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

@@ -9,9 +9,12 @@ import SearchableSelect from '../components/SearchableSelect';
  * Vista para que el usuario seleccione su escuela con filtros geográficos.
  */
 const SelectSchool = () => {
-    const { logout, checkAuth } = useAuth();
+    const { user, logout, checkAuth, selectProfile } = useAuth();
     const navigate = useNavigate();
     
+    // Si es superusuario, no necesita perfiles específicos (tiene acceso global)
+    const isSuperUser = user?.es_administrador || user?.roles?.some(r => r.name === 'superuser');
+
     // Estados de búsqueda (Local para el input y Debounced para la API)
     const [inputValue, setInputValue] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
@@ -175,6 +178,13 @@ const SelectSchool = () => {
         }
     };
 
+    const handleSelectProfile = (link) => {
+        selectProfile(link);
+        navigate('/dashboard');
+    };
+
+    const activeLinks = user?.escuela_usuarios?.filter(link => link.verified_at) || [];
+
     return (
         <div className="max-w-4xl mx-auto py-8 px-4 font-sans animate-fadeIn">
             {/* Cabecera */}
@@ -184,8 +194,65 @@ const SelectSchool = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                 </div>
-                <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Vincular con Institución</h1>
-                <p className="text-secondary-500 mt-2 font-medium">Filtra por geografía para encontrar tu escuela más rápido</p>
+                <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">
+                    {isSuperUser ? 'Vincular Nueva Escuela' : 'Seleccionar Escuela'}
+                </h1>
+                <p className="text-secondary-500 mt-2 font-medium">
+                    {isSuperUser 
+                        ? 'Como Administrador puedes buscar cualquier escuela del sistema federal' 
+                        : 'Elige la institución y el perfil con el que deseas trabajar hoy'
+                    }
+                </p>
+            </div>
+
+            {/* Mis Perfiles Activos (Solo para usuarios no-SuperAdmin) */}
+            {!isSuperUser && activeLinks.length > 0 && (
+                <div className="mb-12">
+                    <h2 className="text-sm font-black text-secondary-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        Mis Perfiles Verificados
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {activeLinks.map((link) => (
+                            <button
+                                key={link.id}
+                                onClick={() => handleSelectProfile(link)}
+                                className="group relative bg-white p-6 rounded-3xl border-2 border-secondary-100 shadow-sm hover:border-primary-500 hover:shadow-xl transition-all text-left overflow-hidden active:scale-[0.98]"
+                            >
+                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-100 group-hover:text-primary-600 transition-opacity">
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div className="flex flex-col h-full justify-between gap-4">
+                                    <div>
+                                        <h3 className="font-black text-secondary-900 text-lg leading-tight group-hover:text-primary-700 transition-colors">
+                                            {link.escuela.nombre}
+                                        </h3>
+                                        <p className="text-xs font-bold text-secondary-400 uppercase mt-1">CUE: {link.escuela.cue_anexo}</p>
+                                    </div>
+                                    <div className="flex items-center justify-between mt-2 pt-4 border-t border-secondary-50">
+                                        <span className="px-3 py-1 bg-primary-50 text-primary-600 rounded-xl text-xs font-black uppercase tracking-wider">
+                                            {link.role?.name || 'Personal'}
+                                        </span>
+                                        <span className="text-primary-500 font-bold text-xs flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                            Ingresar <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                                        </span>
+                                    </div>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div className="relative mb-8">
+                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div className="w-full border-t border-secondary-200"></div>
+                </div>
+                <div className="relative flex justify-center">
+                    <span className="px-4 bg-secondary-50 text-xs font-black text-secondary-400 uppercase tracking-widest">O vincular nueva institución</span>
+                </div>
             </div>
 
             <div className="bg-white rounded-3xl shadow-xl border border-secondary-200 overflow-hidden">

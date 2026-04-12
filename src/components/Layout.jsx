@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
  * Incluye un Sidebar para navegación y un Navbar superior con menú de usuario.
  */
 const Layout = ({ children }) => {
-    const { user, logout, notification, clearNotification } = useAuth();
+    const { user, logout, notification, clearNotification, activeProfile, selectProfile } = useAuth();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const userMenuRef = useRef(null);
@@ -18,6 +18,11 @@ const Layout = ({ children }) => {
         setIsUserMenuOpen(false);
         await logout();
         navigate('/login');
+    };
+
+    const handleSwitchProfile = () => {
+        setIsUserMenuOpen(false);
+        navigate('/select-school');
     };
 
     // Cerrar menú de usuario al hacer click fuera
@@ -158,6 +163,13 @@ const Layout = ({ children }) => {
                 </nav>
 
                 <div className="p-4 border-t border-secondary-800">
+                    {isSidebarOpen && activeProfile && (
+                        <div className="mb-4 px-3 py-2 bg-secondary-800/50 rounded-xl border border-secondary-700/50">
+                            <p className="text-[9px] font-black text-secondary-500 uppercase tracking-widest">Contexto Activo</p>
+                            <p className="text-xs font-bold text-primary-400 truncate mt-1">{activeProfile.escuela.nombre}</p>
+                            <p className="text-[10px] font-medium text-secondary-300 mt-0.5">{activeProfile.role?.name}</p>
+                        </div>
+                    )}
                     <button 
                         onClick={handleLogout}
                         className="w-full flex items-center p-3 text-red-400 hover:bg-red-900/20 hover:text-red-300 rounded-lg transition-colors"
@@ -187,7 +199,15 @@ const Layout = ({ children }) => {
                         >
                             <div className="text-right hidden sm:block">
                                 <p className="text-sm font-bold text-secondary-900 group-hover:text-primary-600 transition-colors">{user?.nombre}</p>
-                                <p className="text-[12px] text-secondary-500 font-medium tracking-wider">{user?.email}</p>
+                                {activeProfile ? (
+                                    <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest flex items-center justify-end gap-1">
+                                        <span className="truncate max-w-[150px]">{activeProfile.escuela.nombre}</span>
+                                        <span className="w-1 h-1 bg-secondary-300 rounded-full"></span>
+                                        <span className="text-secondary-500">{activeProfile.role?.name}</span>
+                                    </p>
+                                ) : (
+                                    <p className="text-[12px] text-secondary-500 font-medium tracking-wider">{user?.email}</p>
+                                )}
                             </div>
                             <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-primary-200 overflow-hidden shadow-sm group-hover:border-primary-400 transition-all">
                                 {user?.avatar_url ? (
@@ -203,10 +223,16 @@ const Layout = ({ children }) => {
 
                         {/* Dropdown Menu */}
                         {isUserMenuOpen && (
-                            <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-secondary-200 rounded-2xl shadow-2xl py-2 z-50 animate-fadeInUp animate-duration-200">
+                            <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-secondary-200 rounded-2xl shadow-2xl py-2 z-50 animate-fadeInUp animate-duration-200">
                                 <div className="px-4 py-3 border-b border-secondary-100 mb-1">
-                                    <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mb-1">Cuenta</p>
+                                    <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mb-1">Sesión Activa</p>
                                     <p className="text-sm font-bold text-secondary-900 truncate">{user?.nombre}</p>
+                                    {activeProfile && (
+                                        <div className="mt-2 p-2 bg-primary-50 rounded-xl border border-primary-100">
+                                            <p className="text-[10px] font-black text-primary-700 uppercase leading-tight">{activeProfile.escuela.nombre}</p>
+                                            <p className="text-[9px] font-bold text-primary-500 uppercase mt-0.5">{activeProfile.role?.name}</p>
+                                        </div>
+                                    )}
                                 </div>
                                 
                                 <Link 
@@ -219,6 +245,19 @@ const Layout = ({ children }) => {
                                     </svg>
                                     Mi Perfil
                                 </Link>
+
+                                {!(user?.es_administrador || user?.roles?.some(r => r.name === 'superuser')) && 
+                                 (user?.escuela_usuarios?.filter(l => l.verified_at).length > 1) && (
+                                    <button 
+                                        onClick={handleSwitchProfile}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-secondary-700 hover:bg-primary-50 hover:text-primary-700 transition-colors font-medium"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                        </svg>
+                                        Cambiar Institución/Rol
+                                    </button>
+                                )}
 
                                 <div className="border-t border-secondary-100 mt-1 pt-1">
                                     <button 

@@ -37,15 +37,22 @@ const ProtectedRoute = ({ children }) => {
         return <Navigate to="/login" />;
     }
 
-    // 1. Verificación de Email (OBLIGATORIO PARA TODOS)
-    // Redirigir al perfil si no está verificado (excepto si ya está en /profile)
+    // 1. Bypass de Seguridad (Superusuario tiene acceso total inmediato)
+    const isSuperUser = user?.es_administrador || user?.roles?.some(r => r.name === 'superuser');
+    if (isSuperUser) {
+        return <Layout>{children}</Layout>;
+    }
+
+    // 2. Verificación de Email (OBLIGATORIO PARA EL RESTO)
+    // Redirigir al perfil si no está verificado (excepto si ya está en /profile o /select-school/pending)
+    // Nota: El Jefe Distrital y el Supervisor Curricular TAMBIÉN deben verificar su email.
     if (!user?.email_verified_at && location.pathname !== '/profile') {
         return <Navigate to="/profile" replace />;
     }
 
-    // 2. Usuarios Especiales (Bypass de Vinculación Escolar)
-    // Una vez verificado el email, los Admins y Supervisores Curriculares tienen acceso total
-    const isSpecialUser = user?.es_administrador || user?.roles?.some(r => r.name === 'supervisor_curricular');
+    // 3. Usuarios Especiales (Bypass de Vinculación Escolar Post-Verificación)
+    // Una vez verificado el email, los Supervisores Curriculares y Jefe Distrital tienen acceso total
+    const isSpecialUser = user?.roles?.some(r => r.name === 'supervisor_curricular' || r.name === 'jefe_distrital');
     if (isSpecialUser) {
         return <Layout>{children}</Layout>;
     }

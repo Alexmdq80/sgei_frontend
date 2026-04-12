@@ -5,8 +5,12 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    const [activeProfile, setActiveProfile] = useState(() => {
+        const saved = localStorage.getItem('activeProfile');
+        return saved ? JSON.parse(saved) : null;
+    });
     const [loading, setLoading] = useState(true);
-    const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: string }
+    const [notification, setNotification] = useState(null);
 
     /**
      * Muestra una notificación temporal en el sistema.
@@ -21,12 +25,42 @@ export const AuthProvider = ({ children }) => {
     };
 
     /**
+     * Selecciona el perfil activo (Escuela + Rol) para la sesión.
+     */
+    const selectProfile = (profile) => {
+        setActiveProfile(profile);
+        if (profile) {
+            localStorage.setItem('activeProfile', JSON.stringify(profile));
+            // Opcional: Recargar permisos del usuario basados en este perfil si el backend lo requiere
+        } else {
+            localStorage.removeItem('activeProfile');
+        }
+    };
+
+    /**
+     * Verifica si el usuario tiene un permiso en el contexto del perfil activo.
+     */
+    const hasPermission = (permission) => {
+        if (!user) return false;
+        if (user.es_administrador || user.roles?.some(r => r.name === 'superuser')) return true;
+        
+        // Si hay un perfil activo, verificar los permisos de ese rol específico
+        if (activeProfile?.role?.permissions) {
+            return activeProfile.role.permissions.includes(permission);
+        }
+
+        // Fallback a permisos globales si no hay perfil (ej. gestión de cuenta propia)
+        return user.permissions?.includes(permission) || false;
+    };
+
+    /**
      * Inicia sesión con credenciales.
-     * @param {Object} credentials { email, password }
      */
     const login = async (credentials) => {
         const data = await authService.login(credentials);
         setUser(data.user);
+        // Al loguear, reseteamos el perfil activo para obligar a seleccionar uno
+        selectProfile(null);
         return data;
     };
 
@@ -37,28 +71,32 @@ export const AuthProvider = ({ children }) => {
         try {
             await authService.logout();
         } catch (error) {
-            console.warn('Sesión ya expirada o error en logout:', error);
+            console.warn('Sesión ya expirada:', error);
         } finally {
             setUser(null);
-            // Limpiar explícitamente cualquier estado residual en el navegador si fuera necesario
-            // sessionStorage.clear(); // Opcional
-            window.location.href = '/login'; // Forzamos recarga para limpiar memoria React
+            selectProfile(null);
+            window.location.href = '/login';
         }
     };
 
-    /**
-     * Verifica el estado actual del usuario al cargar la aplicación.
-     */
     const checkAuth = async () => {
         try {
             const data = await authService.me();
             setUser(data.user);
+            
+            // Si el perfil guardado ya no es válido para este usuario, limpiarlo
+            if (activeProfile && !data.user.escuela_usuarios?.some(link => 
+                link.escuela_id === activeProfile.escuela_id && 
+                link.role_id === activeProfile.role_id && 
+                link.verified_at
+            )) {
+                selectProfile(null);
+            }
         } catch (error) {
-            // Solo cerramos sesión si el error es 401 (No autorizado)
             if (error.response?.status === 401) {
                 setUser(null);
+                selectProfile(null);
             }
-            console.error("Error en checkAuth:", error);
         } finally {
             setLoading(false);
         }
@@ -68,19 +106,10 @@ export const AuthProvider = ({ children }) => {
         checkAuth();
     }, []);
 
-    /**
-     * Verifica si el usuario tiene un permiso específico.
-     * @param {string} permission 
-     * @returns {boolean}
-     */
-    const hasPermission = (permission) => {
-        if (!user) return false;
-        if (user.es_administrador) return true; // Super Admin bypass
-        return user.permissions?.includes(permission) || false;
-    };
-
     const value = {
         user,
+        activeProfile,
+        selectProfile,
         isAuthenticated: !!user,
         loading,
         notification,
