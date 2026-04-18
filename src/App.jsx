@@ -4,13 +4,13 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import SelectSchool from './pages/SelectSchool';
-import PendingApproval from './pages/PendingApproval';
 import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
 import VerifyEmail from './pages/VerifyEmail';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import UserManagement from './pages/Admin/UserManagement';
 import CupofManagement from './pages/Admin/CupofManagement';
+import PersonaManagement from './pages/Admin/PersonaManagement';
 import PlanManagement from './pages/Academic/PlanManagement';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -44,8 +44,7 @@ const ProtectedRoute = ({ children }) => {
     }
 
     // 2. Verificación de Email (OBLIGATORIO PARA EL RESTO)
-    // Redirigir al perfil si no está verificado (excepto si ya está en /profile o /select-school/pending)
-    // Nota: El Jefe Distrital y el Supervisor Curricular TAMBIÉN deben verificar su email.
+    // Redirigir al perfil si no está verificado
     if (!user?.email_verified_at && location.pathname !== '/profile') {
         return <Navigate to="/profile" replace />;
     }
@@ -62,15 +61,16 @@ const ProtectedRoute = ({ children }) => {
         return <Layout>{children}</Layout>;
     }
 
-    // 4. Rutas de flujo de selección/aprobación (se permiten a sí mismas para usuarios regulares)
-    if (location.pathname === '/select-school' || location.pathname === '/pending-approval') {
+    // 4. Rutas de flujo de selección (se permite a sí misma para usuarios regulares)
+    if (location.pathname === '/select-school') {
         return <Layout>{children}</Layout>;
     }
 
     // 5. Restricción de Acceso para el resto de las rutas (Usuarios Regulares)
-    // Si no está activo (vinculado y aprobado), lo mandamos al perfil para ver su estado
-    if (user?.estado !== 'activo') {
-        return <Navigate to="/profile" replace />;
+    // Si no tiene perfil activo (contexto institucional), lo mandamos a seleccionar uno
+    const activeLinks = user?.escuela_usuarios?.filter(l => l.verified_at) || [];
+    if (activeLinks.length > 0 && !localStorage.getItem('activeProfile')) {
+        return <Navigate to="/select-school" replace />;
     }
 
     return <Layout>{children}</Layout>;
@@ -96,14 +96,6 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <SelectSchool />
-                            </ProtectedRoute>
-                        } 
-                    />
-                    <Route 
-                        path="/pending-approval" 
-                        element={
-                            <ProtectedRoute>
-                                <PendingApproval />
                             </ProtectedRoute>
                         } 
                     />
@@ -142,6 +134,15 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <CupofManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/personas" 
+                        element={
+                            <ProtectedRoute>
+                                <PersonaManagement />
                             </ProtectedRoute>
                         } 
                     />

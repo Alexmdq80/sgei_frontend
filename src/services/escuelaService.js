@@ -11,7 +11,7 @@ const escuelaService = {
         const response = await api.get('/escuelas', {
             params: { 
                 search: term,
-                ...filters // Esto ahora incluye sector_id si está presente
+                ...filters
             }
         });
         return response.data;
@@ -34,41 +34,20 @@ const escuelaService = {
     },
 
     /**
-     * Envía solicitud para unirse a una escuela.
+     * [ADMIN] Obtiene la lista de vinculaciones escolares.
      */
-    async requestJoin(escuelaId, rolEscolarId = 5) {
-        const response = await api.post('/auth/escuelas/join', {
+    async getAllLinks(params = {}) {
+        const response = await api.get('/admin/escuela-usuarios', { params });
+        return response.data;
+    },
+
+    /**
+     * [ADMIN] Asigna directamente un usuario a una escuela con un rol específico.
+     */
+    async assignDirect(usuarioId, escuelaId, roleId) {
+        const response = await api.post('/admin/escuela-usuarios', {
+            usuario_id: usuarioId,
             escuela_id: escuelaId,
-            rol_escolar_id: rolEscolarId
-        });
-        return response.data;
-    },
-
-    /**
-     * Cancela la solicitud actual de unión a escuela.
-     */
-    async cancelJoin(escuelaId = null) {
-        const response = await api.post('/auth/escuelas/cancel-join', {
-            escuela_id: escuelaId
-        });
-        return response.data;
-    },
-
-    /**
-     * [ADMIN] Obtiene la lista de solicitudes pendientes.
-     */
-    async getPendingRequests(params = {}) {
-        const response = await api.get('/admin/escuelas/pending', { params });
-        return response.data;
-    },
-
-    /**
-     * [ADMIN] Aprueba una solicitud.
-     * @param {string} requestId 
-     * @param {number} roleId Opcional: rol asignado por el admin
-     */
-    async approveRequest(requestId, roleId = null) {
-        const response = await api.post(`/admin/escuelas/requests/${requestId}/approve`, {
             role_id: roleId
         });
         return response.data;
@@ -77,23 +56,20 @@ const escuelaService = {
     /**
      * [ADMIN] Actualiza el rol de una vinculación existente.
      */
-    async updateLink(requestId, roleId) {
-        const response = await api.put(`/admin/escuelas/requests/${requestId}`, {
+    async updateLink(id, roleId) {
+        const response = await api.put(`/admin/escuela-usuarios/${id}`, {
             role_id: roleId
         });
         return response.data;
     },
 
     /**
-     * [ADMIN] Rechaza una solicitud.
+     * [ADMIN] Elimina una vinculación.
      */
-    async rejectRequest(requestId, reason = '') {
-        const response = await api.post(`/admin/escuelas/requests/${requestId}/reject`, {
-            motivo: reason
-        });
+    async deleteLink(id) {
+        const response = await api.delete(`/admin/escuela-usuarios/${id}`);
         return response.data;
     }
 };
 
 export default escuelaService;
-

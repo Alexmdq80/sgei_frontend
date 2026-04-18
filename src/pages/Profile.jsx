@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/userService';
+import documentoTipoService from '../services/documentoTipoService';
 
 /**
  * Página de gestión del perfil de usuario.
  * Se renderiza dentro del Layout principal.
+ * Muestra información personal, seguridad y vinculaciones institucionales (CUPOF).
  */
 const Profile = () => {
     const { user, checkAuth, showNotification } = useAuth();
     const [profileData, setProfileData] = useState({ 
         nombre: user?.nombre || '', 
-        email: user?.email || '' 
+        email: user?.email || '',
+        documento_tipo_id: user?.documento_tipo_id || '',
+        documento_numero: user?.documento_numero || ''
     });
+    const [documentoTipos, setDocumentoTipos] = useState([]);
     const [passwordData, setPasswordData] = useState({ current_password: '', password: '', password_confirmation: '' });
     const [avatar, setAvatar] = useState(null);
     const [preview, setPreview] = useState(user?.avatar_url || null);
@@ -30,11 +34,26 @@ const Profile = () => {
         if (user) {
             setProfileData({
                 nombre: user.nombre || '',
-                email: user.email || ''
+                email: user.email || '',
+                documento_tipo_id: user.documento_tipo_id || '',
+                documento_numero: user.documento_numero || ''
             });
             setPreview(user.avatar_url);
         }
     }, [user]);
+
+    // Cargar tipos de documentos
+    useEffect(() => {
+        const fetchDocumentoTipos = async () => {
+            try {
+                const data = await documentoTipoService.getAll();
+                setDocumentoTipos(data);
+            } catch (err) {
+                console.error('Error al cargar tipos de documento:', err);
+            }
+        };
+        fetchDocumentoTipos();
+    }, []);
 
     const handleProfileChange = (e) => setProfileData({ ...profileData, [e.target.name]: e.target.value });
     const handlePasswordChange = (e) => setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
@@ -152,6 +171,9 @@ const Profile = () => {
         }
     };
 
+    // Filtrar vinculaciones verificadas (las que vienen del CUPOF)
+    const verifiedLinks = user?.escuela_usuarios?.filter(link => link.verified_at) || [];
+
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn">
             {/* Cabecera con botón de refresco */}
@@ -162,7 +184,7 @@ const Profile = () => {
                 </div>
                 <button 
                     onClick={async () => {
-                        setIsSubmittingProfile(true); // Usamos este estado temporalmente para el spin
+                        setIsSubmittingProfile(true);
                         try {
                             await checkAuth();
                             showNotification('Datos actualizados.', 'success');
@@ -187,7 +209,7 @@ const Profile = () => {
                 </button>
             </div>
 
-            {/* CARD DE VERIFICACIÓN DE EMAIL (NUEVA) */}
+            {/* CARD DE VERIFICACIÓN DE EMAIL */}
             {!user?.email_verified_at && (
                 <div className="p-6 rounded-2xl shadow-sm border-2 flex flex-col md:flex-row items-center justify-between gap-6 bg-red-50 border-red-200 animate-pulse-once">
                     <div className="flex items-center text-center md:text-left">
@@ -203,14 +225,6 @@ const Profile = () => {
                             <p className="text-sm font-medium text-red-600">
                                 Tu acceso está limitado hasta que verifiques tu cuenta en <span className="font-bold">{user?.email}</span>.
                             </p>
-                            {resendStatus.success && (
-                                <p className="text-xs font-bold text-green-600 mt-2 uppercase tracking-wider flex items-center">
-                                    <svg className="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                    </svg>
-                                    {resendStatus.message}
-                                </p>
-                            )}
                         </div>
                     </div>
                     <button 
@@ -223,46 +237,10 @@ const Profile = () => {
                 </div>
             )}
 
-            {/* CARD DE ESTADO ESCOLAR (NUEVA) */}
-            {!user?.es_administrador && 
-             !user?.roles?.some(r => r.name === 'supervisor_curricular' || r.name === 'jefe_distrital' || r.name === 'superuser') && 
-             user?.estado !== 'activo' && (
-                <div className={`p-6 rounded-2xl shadow-sm border-2 flex flex-col md:flex-row items-center justify-between gap-6 ${user?.estado === 'espera_aprobacion' ? 'bg-yellow-50 border-yellow-200' : 'bg-primary-50 border-primary-200'}`}>
-                    <div className="flex items-center text-center md:text-left">
-                        <div className={`p-3 rounded-xl mr-5 ${user?.estado === 'espera_aprobacion' ? 'bg-yellow-100 text-yellow-600' : 'bg-primary-100 text-primary-600'}`}>
-                            {user?.estado === 'espera_aprobacion' ? (
-                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            ) : (
-                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                            )}
-                        </div>
-                        <div>
-                            <h3 className={`text-lg font-bold ${user?.estado === 'espera_aprobacion' ? 'text-yellow-800' : 'text-primary-800'}`}>
-                                {user?.estado === 'espera_aprobacion' ? 'Solicitud en Revisión' : 'Paso Requerido: Vinculación Escolar'}
-                            </h3>
-                            <p className={`text-sm font-medium ${user?.estado === 'espera_aprobacion' ? 'text-yellow-600' : 'text-primary-600'}`}>
-                                {user?.estado === 'espera_aprobacion' 
-                                    ? 'Tu solicitud para unirte a la escuela está pendiente de aprobación por un administrador.' 
-                                    : 'Para acceder a todas las funciones del sistema, primero debes seleccionar tu institución educativa.'}
-                            </p>
-                        </div>
-                    </div>
-                    <Link 
-                        to={user?.estado === 'espera_aprobacion' ? '/pending-approval' : '/select-school'}
-                        className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 whitespace-nowrap ${user?.estado === 'espera_aprobacion' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-primary-600 hover:bg-primary-700'}`}
-                    >
-                        {user?.estado === 'espera_aprobacion' ? 'Ver Solicitud' : 'Seleccionar Escuela'}
-                    </Link>
-                </div>
-            )}
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Columna Izquierda: Avatar */}
+                {/* Columna Izquierda: Avatar e Info Institucional */}
                 <div className="lg:col-span-1 space-y-6">
+                    {/* Avatar */}
                     <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
                         <div className="p-6 border-b border-secondary-200 bg-secondary-50">
                             <h2 className="font-bold text-secondary-900">Foto de Perfil</h2>
@@ -294,8 +272,6 @@ const Profile = () => {
                                 )}
                             </div>
                             
-                            <p className="mt-4 text-xs text-secondary-500 text-center uppercase tracking-wider font-bold">Formatos: JPG, PNG o GIF</p>
-                            
                             <div className="w-full mt-8 space-y-3">
                                 <button
                                     onClick={handleAvatarSubmit}
@@ -316,133 +292,137 @@ const Profile = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Vinculaciones Institucionales (CUPOF) */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
+                        <div className="p-6 border-b border-secondary-200 bg-secondary-50">
+                            <h2 className="font-bold text-secondary-900">Instituciones y Roles</h2>
+                            <p className="text-[10px] text-secondary-500 font-bold uppercase tracking-wider mt-1">Asignaciones vía CUPOF</p>
+                        </div>
+                        <div className="p-0">
+                            {verifiedLinks.length > 0 ? (
+                                <div className="divide-y divide-secondary-100">
+                                    {verifiedLinks.map((vinculo) => (
+                                        <div key={vinculo.id} className="p-4 bg-white hover:bg-secondary-50 transition-colors">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center text-primary-600">
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                    </svg>
+                                                </div>
+                                                <div className="flex-1 overflow-hidden">
+                                                    <p className="text-xs font-black text-secondary-900 truncate uppercase">{vinculo.escuela?.nombre}</p>
+                                                    <p className="text-[10px] font-bold text-primary-600 uppercase tracking-widest">{vinculo.role?.name}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[9px] font-black uppercase rounded">Activo</span>
+                                                <span className="text-[9px] text-secondary-400 font-medium">Desde {new Date(vinculo.verified_at).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-8 text-center">
+                                    <div className="w-12 h-12 bg-secondary-50 rounded-full flex items-center justify-center mx-auto mb-3 text-secondary-300">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-xs text-secondary-500 font-bold italic px-4">
+                                        No se registran cargos activos en el sistema. La vinculación se realiza automáticamente vía CUPOF.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Columna Derecha: Información y Seguridad */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Vinculaciones Escolares */}
-                    {!(user?.es_administrador || user?.roles?.some(r => r.name === 'superuser')) && (
-                        <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
-                            <div className="p-6 border-b border-secondary-200 bg-secondary-50 flex items-center justify-between">
-                                <h2 className="font-bold text-secondary-900">Vinculaciones Escolares</h2>
-                                {user?.escuela_usuarios?.length === 0 && user?.email_verified_at && (
-                                    <Link to="/select-school" className="text-xs font-bold text-primary-600 hover:text-primary-700 uppercase tracking-wider">
-                                        + Vincular Nueva
-                                    </Link>
-                                )}
-                            </div>
-                            <div className="p-0 relative">
-                                {!user?.email_verified_at && 
-                                 !user?.roles?.some(r => r.name === 'supervisor_curricular' || r.name === 'jefe_distrital') && (
-                                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
-                                        <span className="bg-secondary-900 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-lg">Función Bloqueada</span>
-                                    </div>
-                                )}
-                                {user?.escuela_usuarios?.length > 0 ? (
-                                    <div className="divide-y divide-secondary-100">
-                                        {user.escuela_usuarios.map((vinculo) => (
-                                            <div key={vinculo.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <h4 className="font-bold text-secondary-900">{vinculo.escuela?.nombre}</h4>
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                                            vinculo.verified_at ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                                        }`}>
-                                                            {vinculo.verified_at ? 'Verificado' : 'Pendiente'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-x-4 text-xs text-secondary-500 font-medium">
-                                                        <p className="flex items-center">
-                                                            <svg className="w-3.5 h-3.5 mr-1 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                            </svg>
-                                                            Rol: {vinculo.rol_escolar?.nombre || 'No asignado'}
-                                                        </p>
-                                                        <p className="flex items-center">
-                                                            <svg className="w-3.5 h-3.5 mr-1 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                            </svg>
-                                                            Solicitado el: {new Date(vinculo.created_at).toLocaleDateString()}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                {!vinculo.verified_at && (
-                                                    <Link 
-                                                        to="/pending-approval" 
-                                                        className="text-xs font-bold text-secondary-400 hover:text-secondary-600 transition-colors uppercase tracking-widest"
-                                                    >
-                                                        Gestionar
-                                                    </Link>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="p-10 text-center">
-                                        <div className="w-16 h-16 bg-secondary-50 rounded-full flex items-center justify-center mx-auto mb-4 text-secondary-300">
-                                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                            </svg>
-                                        </div>
-                                        <p className="text-secondary-500 font-medium italic mb-4">No tienes vinculaciones activas ni pendientes.</p>
-                                        <Link to="/select-school" className="inline-flex px-6 py-2 bg-primary-600 text-white font-bold rounded-lg text-sm hover:bg-primary-700 transition-all shadow-md active:scale-95">
-                                            Buscar Institución
-                                        </Link>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
                     {/* Información General */}
                     <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
                         <div className="p-6 border-b border-secondary-200 bg-secondary-50">
                             <h2 className="font-bold text-secondary-900">Información de la Cuenta</h2>
                         </div>
                         <form onSubmit={handleProfileSubmit} className="p-8 space-y-6">
-                            <div>
-                                <label className="block text-sm font-bold text-secondary-700 mb-2">Nombre de Usuario (Alias)</label>
-                                <input
-                                    type="text"
-                                    name="nombre"
-                                    value={profileData.nombre}
-                                    onChange={handleProfileChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none ${!user?.email_verified_at ? 'bg-secondary-50 border-secondary-200 cursor-not-allowed text-secondary-400' : 'bg-secondary-50 border-secondary-300'}`}
-                                    required
-                                    disabled={!user?.email_verified_at}
-                                />
-                                <p className="mt-2 text-xs text-secondary-500 italic">Este es tu nombre de acceso al sistema.</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-black text-secondary-400 uppercase mb-2">Nombre de Usuario (Alias)</label>
+                                    <input
+                                        type="text"
+                                        name="nombre"
+                                        value={profileData.nombre}
+                                        onChange={handleProfileChange}
+                                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none font-bold ${!user?.email_verified_at ? 'bg-secondary-50 border-secondary-200 cursor-not-allowed text-secondary-400' : 'bg-secondary-50 border-secondary-300'}`}
+                                        required
+                                        disabled={!user?.email_verified_at}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-secondary-400 uppercase mb-2">Correo Electrónico</label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={profileData.email}
+                                        onChange={handleProfileChange}
+                                        className="w-full px-4 py-3 bg-white border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none shadow-sm font-bold"
+                                        required
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-bold text-secondary-700 mb-2">Correo Electrónico</label>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={profileData.email}
-                                    onChange={handleProfileChange}
-                                    className="w-full px-4 py-3 bg-white border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none shadow-sm font-medium"
-                                    required
-                                />
-                                {!user?.email_verified_at ? (
-                                    <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-100 flex items-start gap-2">
-                                        <svg className="w-4 h-4 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <p className="text-[11px] text-red-600 font-bold leading-tight uppercase tracking-tight">
-                                            Si tu correo es incorrecto, corrígelo arriba y haz clic en "Actualizar" para recibir un nuevo enlace.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <p className="mt-2 text-xs text-secondary-500">Este correo se utiliza para notificaciones y recuperación de cuenta.</p>
-                                )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-secondary-100">
+                                <div>
+                                    <label className="block text-xs font-black text-secondary-400 uppercase mb-2">Tipo de Documento</label>
+                                    <select
+                                        name="documento_tipo_id"
+                                        value={profileData.documento_tipo_id}
+                                        onChange={handleProfileChange}
+                                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none font-bold appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em] ${!user?.email_verified_at ? 'bg-secondary-50 border-secondary-200 cursor-not-allowed text-secondary-400' : 'bg-secondary-50 border-secondary-300'}`}
+                                        disabled={!user?.email_verified_at}
+                                        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236B7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")' }}
+                                    >
+                                        <option value="">Seleccionar Tipo</option>
+                                        {documentoTipos.map((tipo) => (
+                                            <option key={tipo.id} value={tipo.id}>
+                                                {tipo.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-secondary-400 uppercase mb-2">Número de Documento</label>
+                                    <input
+                                        type="text"
+                                        name="documento_numero"
+                                        value={profileData.documento_numero}
+                                        onChange={handleProfileChange}
+                                        placeholder="Ej: 30123456"
+                                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none font-bold ${!user?.email_verified_at ? 'bg-secondary-50 border-secondary-200 cursor-not-allowed text-secondary-400' : 'bg-secondary-50 border-secondary-300'}`}
+                                        disabled={!user?.email_verified_at}
+                                    />
+                                </div>
                             </div>
+                            
+                            <div className="flex items-center gap-4 p-4 bg-primary-50 rounded-2xl border border-primary-100">
+                                <div className="p-2 bg-primary-100 text-primary-600 rounded-lg">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p className="text-[11px] text-primary-700 font-bold leading-tight">
+                                    Tu información personal es validada contra el Padrón de Agentes. Cualquier discrepancia en tu DNI debe ser gestionada en la oficina de personal.
+                                </p>
+                            </div>
+
                             <div className="flex justify-end pt-4">
                                 <button
                                     type="submit"
                                     disabled={isSubmittingProfile}
-                                    className="px-8 py-3 bg-secondary-900 text-white rounded-lg font-bold shadow-lg hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+                                    className="px-10 py-4 bg-secondary-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-black transition-all active:scale-95 disabled:opacity-50"
                                 >
-                                    {isSubmittingProfile ? 'Guardando...' : (user?.email_verified_at ? 'Actualizar Perfil' : 'Corregir y Reenviar')}
+                                    {isSubmittingProfile ? 'Guardando...' : 'Actualizar Perfil'}
                                 </button>
                             </div>
                         </form>
@@ -460,14 +440,14 @@ const Profile = () => {
                         </div>
                         <form onSubmit={handlePasswordSubmit} className="p-8 space-y-6">
                             <div>
-                                <label className="block text-sm font-bold text-secondary-700 mb-2">Contraseña Actual</label>
+                                <label className="block text-xs font-black text-secondary-400 uppercase mb-2">Contraseña Actual</label>
                                 <div className="relative group">
                                     <input
                                         type={showCurrentPassword ? "text" : "password"}
                                         name="current_password"
                                         value={passwordData.current_password}
                                         onChange={handlePasswordChange}
-                                        className="w-full pl-4 pr-12 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                                        className="w-full pl-4 pr-12 py-3 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none font-bold"
                                         required
                                         disabled={!user?.email_verified_at}
                                     />
@@ -493,14 +473,14 @@ const Profile = () => {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-bold text-secondary-700 mb-2">Nueva Contraseña</label>
+                                    <label className="block text-xs font-black text-secondary-400 uppercase mb-2">Nueva Contraseña</label>
                                     <div className="relative group">
                                         <input
                                             type={showNewPassword ? "text" : "password"}
                                             name="password"
                                             value={passwordData.password}
                                             onChange={handlePasswordChange}
-                                            className="w-full pl-4 pr-12 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                                            className="w-full pl-4 pr-12 py-3 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none font-bold"
                                             required
                                             disabled={!user?.email_verified_at}
                                         />
@@ -523,30 +503,16 @@ const Profile = () => {
                                             )}
                                         </button>
                                     </div>
-
-                                    <div className="mt-4 grid grid-cols-1 gap-2">
-                                        {[
-                                            { label: '10+ caracteres', met: passwordData.password.length >= 10 },
-                                            { label: 'Mayús y Minús', met: /[a-z]/.test(passwordData.password) && /[A-Z]/.test(passwordData.password) },
-                                            { label: 'Números (0-9)', met: /[0-9]/.test(passwordData.password) },
-                                            { label: 'Símbolo (!@#$)', met: /[^A-Za-z0-9]/.test(passwordData.password) },
-                                        ].map((req, i) => (
-                                            <div key={i} className={`flex items-center text-[10px] font-bold uppercase tracking-wider ${req.met ? 'text-green-600' : 'text-secondary-400'}`}>
-                                                <div className={`w-1.5 h-1.5 rounded-full mr-2 ${req.met ? 'bg-green-600' : 'bg-secondary-300'}`}></div>
-                                                {req.label}
-                                            </div>
-                                        ))}
-                                    </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-secondary-700 mb-2">Confirmar Contraseña</label>
+                                    <label className="block text-xs font-black text-secondary-400 uppercase mb-2">Confirmar Contraseña</label>
                                     <div className="relative group">
                                         <input
                                             type={showConfirmPassword ? "text" : "password"}
                                             name="password_confirmation"
                                             value={passwordData.password_confirmation}
                                             onChange={handlePasswordChange}
-                                            className="w-full pl-4 pr-12 py-3 bg-secondary-50 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                                            className="w-full pl-4 pr-12 py-3 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none font-bold"
                                             required
                                             disabled={!user?.email_verified_at}
                                         />
@@ -575,7 +541,7 @@ const Profile = () => {
                                 <button
                                     type="submit"
                                     disabled={isSubmittingPassword || !user?.email_verified_at}
-                                    className="px-8 py-3 bg-accent-600 text-white rounded-lg font-bold shadow-lg hover:bg-accent-700 transition-all active:scale-95 disabled:opacity-50"
+                                    className="px-10 py-4 bg-accent-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-accent-700 transition-all active:scale-95 disabled:opacity-50"
                                 >
                                     {isSubmittingPassword ? 'Actualizando...' : 'Cambiar Contraseña'}
                                 </button>
