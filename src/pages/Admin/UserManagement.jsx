@@ -37,6 +37,13 @@ const UserManagement = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     
+    // Estado para Nueva Asignación
+    const [newAssignment, setNewAssignment] = useState({
+        escuela_id: '',
+        role_id: ''
+    });
+    const [isAssigning, setIsAssigning] = useState(false);
+
     const [formData, setFormData] = useState({
         nombre: '',
         email: '',
@@ -97,12 +104,17 @@ const UserManagement = () => {
 
     const fetchCatalogs = async () => {
         try {
-            const [docs, roles] = await Promise.all([
+            const [docs, roles, schools] = await Promise.all([
                 documentoTipoService.getAll(),
-                roleService.getAll()
+                roleService.getAll(),
+                escuelaService.search('') // Cargar escuelas iniciales
             ]);
             setDocTipos(docs);
             setRolEscolares(roles);
+            setEscuelasCatalog(schools.map(s => ({ 
+                id: s.id, 
+                nombre: `${s.numero} - ${s.nombre} (${s.cue_anexo})` 
+            })));
         } catch (error) {
             console.error('Error al cargar catálogos:', error);
         }
@@ -152,6 +164,7 @@ const UserManagement = () => {
             documento_tipo_id: user.documento_tipo_id || '',
             documento_numero: user.documento_numero || ''
         });
+        setNewAssignment({ escuela_id: '', role_id: '' });
         setIsModalOpen(true);
     };
 
@@ -161,6 +174,47 @@ const UserManagement = () => {
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+    };
+
+    const handleNewAssignment = async () => {
+        if (!newAssignment.escuela_id || !newAssignment.role_id) {
+            showNotification('Debes seleccionar una escuela y un cargo.', 'warning');
+            return;
+        }
+
+        try {
+            setIsAssigning(true);
+            const response = await escuelaService.assignDirect(
+                editingUser.id,
+                newAssignment.escuela_id,
+                newAssignment.role_id
+            );
+            
+            showNotification('Nuevo cargo asignado con éxito.', 'success');
+            
+            // Actualizar el estado local para reflejar el cambio inmediatamente
+            const updatedLink = response.data;
+            const updatedUsers = users.map(u => {
+                if (u.id === editingUser.id) {
+                    return {
+                        ...u,
+                        escuela_usuarios: [...(u.escuela_usuarios || []), updatedLink]
+                    };
+                }
+                return u;
+            });
+            
+            setUsers(updatedUsers);
+            setEditingUser(updatedUsers.find(u => u.id === editingUser.id));
+            setNewAssignment({ escuela_id: '', role_id: '' });
+            
+        } catch (error) {
+            console.error('Error al asignar cargo:', error);
+            const msg = error.response?.data?.error || 'No se pudo realizar la asignación.';
+            showNotification(msg, 'error');
+        } finally {
+            setIsAssigning(false);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -595,6 +649,62 @@ const UserManagement = () => {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Nueva Asignación (Solo Administradores/Jefes) */}
+                                {(isSuperUser || isJefeDistrital) && (
+                                    <div className="space-y-4 p-6 bg-primary-50/50 border border-primary-100 rounded-3xl">
+                                        <h3 className="text-xs font-black text-primary-700 uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            </svg>
+                                            Nueva Asignación de Cargo
+                                        </h3>
+                                        
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <SearchableSelect
+                                                label="Escuela / Institución"
+                                                options={escuelasCatalog}
+                                                value={newAssignment.escuela_id}
+                                                onChange={(e) => setNewAssignment(prev => ({ ...prev, escuela_id: e.target.value }))}
+                                                placeholder="Buscar por nombre o número..."
+                                            />
+                                            
+                                            <div className="space-y-2">
+                                                <label className="block text-xs font-bold text-secondary-500 uppercase tracking-wider ml-1">
+                                                    Cargo Jerárquico
+                                                </label>
+                                                <select
+                                                    className="w-full px-4 py-3 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all cursor-pointer"
+                                                    value={newAssignment.role_id}
+                                                    onChange={(e) => setNewAssignment(prev => ({ ...prev, role_id: e.target.value }))}
+                                                >
+                                                    <option value="">Seleccionar cargo...</option>
+                                                    {filteredRoles.map(rol => (
+                                                        <option key={rol.id} value={rol.id}>{rol.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleNewAssignment}
+                                                disabled={isAssigning || !newAssignment.escuela_id || !newAssignment.role_id}
+                                                className="w-full mt-2 px-6 py-3 bg-primary-600 text-white rounded-xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+                                            >
+                                                {isAssigning ? (
+                                                    <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                ) : (
+                                                    <>
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                        Asignar Cargo
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="pt-4">
                                     <button

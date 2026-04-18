@@ -42,6 +42,22 @@ const personaService = {
     async delete(id) {
         const response = await api.delete(`/admin/personas/${id}`);
         return response.data;
+    },
+
+    /**
+     * Intenta vincular un usuario a una persona existente por DNI.
+     */
+    async tryLinkUser(id) {
+        const response = await api.post(`/admin/personas/${id}/link-user`);
+        return response.data;
+    },
+
+    /**
+     * Desvincula el usuario de una persona.
+     */
+    async unlinkUser(id) {
+        const response = await api.post(`/admin/personas/${id}/unlink-user`);
+        return response.data;
     }
 };
 
