@@ -38,9 +38,11 @@ const PersonaManagement = () => {
         resolucion: ''
     });
 
-    // Estados para el Modal de Creación (Nueva Persona)
+    // Estados para el Modal de Creación / Edición (Persona)
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isSavingPersona, setIsSavingPersona] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingPersonaId, setEditingPersonaId] = useState(null);
     const [isLinkingUser, setIsLinkingUser] = useState(null); // ID de la persona siendo vinculada
     const [personaFormData, setPersonaFormData] = useState({
         apellido: '',
@@ -48,7 +50,8 @@ const PersonaManagement = () => {
         documento_tipo_id: '',
         documento_numero: '',
         nacimiento_fecha: '',
-        cuil: ''
+        cuil: '',
+        email: ''
     });
 
     const fetchPersonas = async (page = 1) => {
@@ -154,12 +157,47 @@ const PersonaManagement = () => {
         }
     };
 
+    const handleEditPersona = (persona) => {
+        setIsEditMode(true);
+        setEditingPersonaId(persona.id);
+        setPersonaFormData({
+            apellido: persona.apellido,
+            nombre: persona.nombre,
+            documento_tipo_id: persona.documento_tipo_id,
+            documento_numero: persona.documento_numero,
+            nacimiento_fecha: persona.nacimiento_fecha ? new Date(persona.nacimiento_fecha).toISOString().split('T')[0] : '',
+            cuil: persona.cuil || '',
+            email: persona.contacto?.email || persona.usuario_email || ''
+        });
+        setIsCreateModalOpen(true);
+    };
+
+    const handleCreatePersona = () => {
+        setIsEditMode(false);
+        setEditingPersonaId(null);
+        setPersonaFormData({
+            apellido: '',
+            nombre: '',
+            documento_tipo_id: '',
+            documento_numero: '',
+            nacimiento_fecha: '',
+            cuil: '',
+            email: ''
+        });
+        setIsCreateModalOpen(true);
+    };
+
     const handleSubmitPersona = async (e) => {
         e.preventDefault();
         try {
             setIsSavingPersona(true);
-            await personaService.create(personaFormData);
-            showNotification('Persona registrada con éxito en el padrón.', 'success');
+            if (isEditMode) {
+                await personaService.update(editingPersonaId, personaFormData);
+                showNotification('Registro de persona actualizado con éxito.', 'success');
+            } else {
+                await personaService.create(personaFormData);
+                showNotification('Persona registrada con éxito en el padrón.', 'success');
+            }
             setIsCreateModalOpen(false);
             setPersonaFormData({
                 apellido: '',
@@ -167,12 +205,13 @@ const PersonaManagement = () => {
                 documento_tipo_id: '',
                 documento_numero: '',
                 nacimiento_fecha: '',
-                cuil: ''
+                cuil: '',
+                email: ''
             });
-            fetchPersonas(1);
+            fetchPersonas(isEditMode ? pagination.current_page : 1);
         } catch (error) {
-            console.error('Error al crear persona:', error);
-            const msg = error.response?.data?.error || 'No se pudo registrar la persona. Verifica si el documento ya existe.';
+            console.error('Error al procesar persona:', error);
+            const msg = error.response?.data?.error || `No se pudo ${isEditMode ? 'actualizar' : 'registrar'} la persona.`;
             showNotification(msg, 'error');
         } finally {
             setIsSavingPersona(false);
@@ -226,7 +265,7 @@ const PersonaManagement = () => {
                     <p className="text-secondary-500 mt-1 font-medium italic">Administración del Padrón</p>
                 </div>
                 <button 
-                    onClick={() => setIsCreateModalOpen(true)}
+                    onClick={handleCreatePersona}
                     className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-primary-700 transition-all active:scale-95"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -328,7 +367,7 @@ const PersonaManagement = () => {
                                                         onClick={() => handleLinkUser(persona.id)}
                                                         disabled={isLinkingUser === persona.id}
                                                         className="p-1.5 bg-primary-50 text-primary-600 hover:bg-primary-600 hover:text-white rounded-lg transition-all border border-primary-100 group"
-                                                        title="Buscar y Vincular Usuario por DNI"
+                                                        title="Buscar y Vincular Usuario por DNI y Email"
                                                     >
                                                         {isLinkingUser === persona.id ? (
                                                             <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
@@ -358,7 +397,11 @@ const PersonaManagement = () => {
                                                         </svg>
                                                     )}
                                                 </button>
-                                                <button className="p-2 text-secondary-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar Registro">
+                                                <button 
+                                                    onClick={() => handleEditPersona(persona)}
+                                                    className="p-2 text-secondary-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" 
+                                                    title="Editar Registro"
+                                                >
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                     </svg>
@@ -565,10 +608,10 @@ const PersonaManagement = () => {
                         <div className="p-6 border-b border-secondary-100 flex items-center justify-between bg-primary-50">
                             <div>
                                 <h2 className="text-xl font-black text-primary-900 uppercase">
-                                    Registrar Nueva Persona
+                                    {isEditMode ? 'Modificar Registro de Persona' : 'Registrar Nueva Persona'}
                                 </h2>
                                 <p className="text-xs text-primary-600 font-bold tracking-widest mt-0.5 uppercase">
-                                    Alta en el Padrón
+                                    {isEditMode ? `ID: ${editingPersonaId}` : 'Alta en el Padrón'}
                                 </p>
                             </div>
                             <button onClick={() => setIsCreateModalOpen(false)} className="text-primary-400 hover:text-primary-600 transition-colors focus:outline-none">
@@ -652,6 +695,18 @@ const PersonaManagement = () => {
                                         onChange={(e) => setPersonaFormData(prev => ({ ...prev, nacimiento_fecha: e.target.value }))}
                                     />
                                 </div>
+                                {/* Email de Contacto */}
+                                <div className="space-y-1 md:col-span-2">
+                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Email de Contacto (Para vinculación de cuenta)</label>
+                                    <input 
+                                        type="email" 
+                                        className="w-full px-4 py-3 bg-indigo-50/30 border border-indigo-100 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                                        placeholder="correo@ejemplo.com"
+                                        value={personaFormData.email}
+                                        onChange={(e) => setPersonaFormData(prev => ({ ...prev, email: e.target.value }))}
+                                    />
+                                    <p className="text-[10px] text-secondary-400 mt-1 italic font-medium">Si el email coincide con un usuario registrado y verificado, la vinculación será automática.</p>
+                                </div>
                             </div>
 
                             <div className="pt-6 flex gap-3">
@@ -674,7 +729,7 @@ const PersonaManagement = () => {
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                                             </svg>
-                                            Registrar Persona
+                                            {isEditMode ? 'Guardar Cambios' : 'Registrar Persona'}
                                         </>
                                     )}
                                 </button>

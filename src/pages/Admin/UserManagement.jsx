@@ -283,6 +283,30 @@ const UserManagement = () => {
         }
     };
 
+    const handleConfirmVinculation = async (user) => {
+        openConfirm({
+            title: 'Confirmar Vinculación al Padrón',
+            message: `¿Confirmas que el usuario ${user.nombre} (${user.email}) coincide con el registro del padrón detectado automáticamente para el documento ${user.documento_numero}?`,
+            confirmText: 'Confirmar y Activar',
+            variant: 'primary',
+            onConfirm: async () => {
+                try {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: true }));
+                    const response = await userService.confirmPersona(user.id);
+                    showNotification(response.message, 'success');
+                    fetchUsers(pagination.current_page);
+                    closeConfirm();
+                } catch (error) {
+                    const msg = error.response?.data?.error || 'Error al confirmar la vinculación.';
+                    showNotification(msg, 'error');
+                    closeConfirm();
+                } finally {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: false }));
+                }
+            }
+        });
+    };
+
     const handleUpdateUserLink = async (requestId, roleId) => {
         try {
             setProcessingId(requestId);
@@ -394,8 +418,22 @@ const UserManagement = () => {
                                                 <div>
                                                     <p className="text-sm font-bold text-secondary-900">{user.nombre}</p>
                                                     <p className="text-xs text-secondary-500">{user.email}</p>
-                                                    {user.documento_numero && (
+                                                    {user.persona ? (
+                                                        <p className="text-[10px] text-green-600 font-bold mt-0.5 uppercase tracking-tighter flex items-center gap-1">
+                                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                            </svg>
+                                                            Padrón Vinculado
+                                                        </p>
+                                                    ) : user.documento_numero && (
                                                         <p className="text-[10px] text-primary-600 font-black mt-0.5">{user.documento_tipo?.nombre}: {user.documento_numero}</p>
+                                                    )}
+                                                    {user.estado === 'vinculacion_pendiente' && (
+                                                        <div className="mt-1">
+                                                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black uppercase rounded border border-amber-200 shadow-sm animate-pulse">
+                                                                Confirmación de Padrón Requerida
+                                                            </span>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
@@ -450,6 +488,20 @@ const UserManagement = () => {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
+                                                {/* Botón de Confirmar Vinculación Pendiente */}
+                                                {user.estado === 'vinculacion_pendiente' && (hasPermission('sistema.usuarios') || isSuperUser) && (
+                                                    <button
+                                                        onClick={() => handleConfirmVinculation(user)}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white text-[10px] font-black uppercase rounded-lg hover:bg-amber-700 transition-all shadow-md active:scale-95 animate-pulse"
+                                                        title="Confirmar Identidad en Padrón"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        Confirmar
+                                                    </button>
+                                                )}
+
                                                 {hasPermission('sistema.roles') && !isReadOnlyUser && !user.es_administrador && !user.roles?.some(r => r.name === 'superuser') && (
                                                     <div className="flex gap-1">
                                                         {/* Botón Supervisor */}

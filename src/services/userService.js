@@ -87,6 +87,14 @@ const userService = {
     async toggleJefeDistritalRole(id) {
         const response = await api.post(`/admin/usuarios/${id}/toggle-jefe-distrital`);
         return response.data;
+    },
+
+    /**
+     * Confirma la vinculación de un usuario con un registro del padrón.
+     */
+    async confirmPersona(id) {
+        const response = await api.post(`/admin/usuarios/${id}/confirm-persona`);
+        return response.data;
     }
 };
 
