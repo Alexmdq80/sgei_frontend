@@ -30,6 +30,9 @@ const CupofManagement = () => {
 
     // Catálogos
     const [escuelas, setEscuelas] = useState([]);
+    const [cueSearch, setCueSearch] = useState('');
+    const [foundEscuela, setFoundEscuela] = useState(null);
+    const [isSearchingEscuela, setIsSearchingEscuela] = useState(false);
 
     // Estados para Modales
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -40,8 +43,21 @@ const CupofManagement = () => {
         escuela_id: '',
         escalafon: 'docente',
         tipo_puesto: 'cargo',
+        nombre_cargo: '',
+        asignatura_id: '',
         cantidad: 1
     });
+
+    const CARGOS_OPCIONES = [
+        'Preceptor/a',
+        'EMATP',
+        'Bibliotecario/a',
+        'Secretario/a',
+        'Prosecretario/a',
+        'Vicedirector/a',
+        'Director/a',
+        'Jefe de Departamento'
+    ];
 
     const [assignData, setAssignData] = useState({
         persona_id: '',
@@ -79,7 +95,11 @@ const CupofManagement = () => {
     const fetchPersonas = async () => {
         try {
             setIsPersonasLoading(true);
-            const response = await personaService.getAll({ search: personaSearch });
+            const response = await personaService.getAll({ 
+                search: personaSearch,
+                only_agents: true, // IMPORTANT: Only people with CUPOF positions
+                escuela_id: filters.escuela_id // Reuse the school filter from the main component
+            });
             setPersonas(response.data || []);
         } catch (error) {
             showNotification('Error al cargar el padrón de personas.', 'error');
@@ -96,6 +116,39 @@ const CupofManagement = () => {
             console.error('Error al cargar escuelas');
         }
     };
+
+    // Búsqueda de escuela específica por CUE para el Modal
+    useEffect(() => {
+        const searchEscuelaByCue = async () => {
+            if (cueSearch.length < 7) {
+                setFoundEscuela(null);
+                setFormData(prev => ({ ...prev, escuela_id: '' }));
+                return;
+            }
+
+            try {
+                setIsSearchingEscuela(true);
+                const response = await escuelaService.search(cueSearch);
+                // Buscamos coincidencia exacta por CUE o el primer resultado
+                const match = response.data?.find(e => e.cue_anexo === cueSearch) || response.data?.[0];
+                
+                if (match) {
+                    setFoundEscuela(match);
+                    setFormData(prev => ({ ...prev, escuela_id: match.id }));
+                } else {
+                    setFoundEscuela(null);
+                    setFormData(prev => ({ ...prev, escuela_id: '' }));
+                }
+            } catch (error) {
+                console.error('Error buscando escuela por CUE');
+            } finally {
+                setIsSearchingEscuela(false);
+            }
+        };
+
+        const timer = setTimeout(searchEscuelaByCue, 500);
+        return () => clearTimeout(timer);
+    }, [cueSearch]);
 
     useEffect(() => {
         if (activeTab === 'pof') fetchCupofs();
@@ -272,7 +325,11 @@ const CupofManagement = () => {
                                                     <span className="text-[10px] px-2 py-0.5 bg-secondary-100 rounded text-secondary-600 font-bold">
                                                         {cupof.tipo_puesto}
                                                     </span>
-                                                    {cupof.asignatura && (
+                                                    {cupof.nombre_cargo ? (
+                                                        <span className="text-[10px] text-primary-600 font-black uppercase">
+                                                            {cupof.nombre_cargo}
+                                                        </span>
+                                                    ) : cupof.asignatura && (
                                                         <span className="text-[10px] text-primary-600 font-bold">
                                                             {cupof.asignatura.nombre}
                                                         </span>
@@ -467,17 +524,55 @@ const CupofManagement = () => {
                                         </select>
                                     </div>
                                 </div>
+
+                                {formData.tipo_puesto === 'cargo' && (
+                                    <div className="animate-slideDown">
+                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Nombre del Cargo</label>
+                                        <select 
+                                            required
+                                            className="w-full px-4 py-3 bg-white border-2 border-primary-100 rounded-xl font-bold text-primary-900 focus:border-primary-500 outline-none transition-all"
+                                            value={formData.nombre_cargo}
+                                            onChange={(e) => setFormData({...formData, nombre_cargo: e.target.value})}
+                                        >
+                                            <option value="">Seleccione Cargo...</option>
+                                            {CARGOS_OPCIONES.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+
                                 <div>
-                                    <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Institución</label>
-                                    <select 
-                                        required
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
-                                        value={formData.escuela_id}
-                                        onChange={(e) => setFormData({...formData, escuela_id: e.target.value})}
-                                    >
-                                        <option value="">Seleccionar Escuela</option>
-                                        {escuelas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                                    </select>
+                                    <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Institución (CUE_Anexo)</label>
+                                    <div className="relative">
+                                        <input 
+                                            type="text" required
+                                            className={`w-full px-4 py-3 border-2 rounded-xl font-black outline-none transition-all ${
+                                                foundEscuela ? 'bg-green-50 border-green-200 text-green-900' : 'bg-secondary-50 border-secondary-200 focus:border-primary-500'
+                                            }`}
+                                            placeholder="Ingrese CUE-Anexo (ej: 061495100)"
+                                            value={cueSearch}
+                                            onChange={(e) => setCueSearch(e.target.value)}
+                                        />
+                                        {isSearchingEscuela && (
+                                            <div className="absolute right-3 top-3.5">
+                                                <div className="w-5 h-5 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {foundEscuela ? (
+                                        <div className="mt-2 p-3 bg-green-100 border border-green-200 rounded-xl flex items-center gap-2 animate-fadeIn">
+                                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            <span className="text-[11px] font-black text-green-800 uppercase leading-tight">
+                                                {foundEscuela.nombre}
+                                            </span>
+                                        </div>
+                                    ) : cueSearch.length >= 7 && !isSearchingEscuela && (
+                                        <p className="mt-2 text-[10px] font-bold text-red-500 animate-pulse">
+                                            No se encontró ninguna institución con este CUE.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                             <div className="p-6 bg-secondary-50 border-t border-secondary-100">
