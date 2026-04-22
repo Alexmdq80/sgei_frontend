@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import cupofService from '../../services/cupofService';
 import personaService from '../../services/personaService';
 import escuelaService from '../../services/escuelaService';
+import cargoService from '../../services/cargoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
 /**
@@ -30,6 +31,7 @@ const CupofManagement = () => {
 
     // Catálogos
     const [escuelas, setEscuelas] = useState([]);
+    const [cargos, setCargos] = useState([]);
     const [cueSearch, setCueSearch] = useState('');
     const [foundEscuela, setFoundEscuela] = useState(null);
     const [isSearchingEscuela, setIsSearchingEscuela] = useState(false);
@@ -47,17 +49,6 @@ const CupofManagement = () => {
         asignatura_id: '',
         cantidad: 1
     });
-
-    const CARGOS_OPCIONES = [
-        'Preceptor/a',
-        'EMATP',
-        'Bibliotecario/a',
-        'Secretario/a',
-        'Prosecretario/a',
-        'Vicedirector/a',
-        'Director/a',
-        'Jefe de Departamento'
-    ];
 
     const [assignData, setAssignData] = useState({
         persona_id: '',
@@ -110,12 +101,29 @@ const CupofManagement = () => {
 
     const fetchEscuelas = async () => {
         try {
-            const response = await escuelaService.search();
-            setEscuelas(response.data || []);
+            const data = await escuelaService.search();
+            setEscuelas(data || []);
         } catch (error) {
             console.error('Error al cargar escuelas');
         }
     };
+
+    const fetchCargos = async () => {
+        try {
+            const data = await cargoService.getAll();
+            setCargos(data);
+        } catch (error) {
+            console.error('Error al cargar cargos');
+        }
+    };
+
+    // --- EFECTOS ---
+
+    // Carga de catálogos iniciales
+    useEffect(() => {
+        fetchEscuelas();
+        fetchCargos();
+    }, []);
 
     // Búsqueda de escuela específica por CUE para el Modal
     useEffect(() => {
@@ -128,9 +136,9 @@ const CupofManagement = () => {
 
             try {
                 setIsSearchingEscuela(true);
-                const response = await escuelaService.search(cueSearch);
-                // Buscamos coincidencia exacta por CUE o el primer resultado
-                const match = response.data?.find(e => e.cue_anexo === cueSearch) || response.data?.[0];
+                const data = await escuelaService.search(cueSearch);
+                // La respuesta ya es el array de escuelas según escuelaService.js
+                const match = data?.find(e => e.cue_anexo === cueSearch) || data?.[0];
                 
                 if (match) {
                     setFoundEscuela(match);
@@ -150,14 +158,11 @@ const CupofManagement = () => {
         return () => clearTimeout(timer);
     }, [cueSearch]);
 
+    // Recargar datos principales al cambiar filtros o tab
     useEffect(() => {
         if (activeTab === 'pof') fetchCupofs();
         if (activeTab === 'personas') fetchPersonas();
     }, [activeTab, filters.escuela_id, filters.estado_cupof, filters.escalafon]);
-
-    useEffect(() => {
-        fetchEscuelas();
-    }, []);
 
     // --- ACCIONES ---
 
@@ -219,7 +224,20 @@ const CupofManagement = () => {
                     <p className="text-secondary-500 mt-1 font-medium">Administración de la Planta Orgánica Funcional (POF)</p>
                 </div>
                 <button 
-                    onClick={() => setIsCreateModalOpen(true)}
+                    onClick={() => {
+                        setFormData({
+                            codigo_cupof: '',
+                            escuela_id: '',
+                            escalafon: 'docente',
+                            tipo_puesto: 'cargo',
+                            nombre_cargo: '',
+                            asignatura_id: '',
+                            cantidad: 1
+                        });
+                        setCueSearch('');
+                        setFoundEscuela(null);
+                        setIsCreateModalOpen(true);
+                    }}
                     className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold shadow-lg hover:bg-primary-700 transition-all active:scale-95"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -527,17 +545,21 @@ const CupofManagement = () => {
 
                                 {formData.tipo_puesto === 'cargo' && (
                                     <div className="animate-slideDown">
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Nombre del Cargo</label>
-                                        <select 
+                                        <label htmlFor="nombre_cargo" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Nombre del Cargo</label>
+                                        <select
+                                            id="nombre_cargo"
                                             required
                                             className="w-full px-4 py-3 bg-white border-2 border-primary-100 rounded-xl font-bold text-primary-900 focus:border-primary-500 outline-none transition-all"
                                             value={formData.nombre_cargo}
                                             onChange={(e) => setFormData({...formData, nombre_cargo: e.target.value})}
                                         >
                                             <option value="">Seleccione Cargo...</option>
-                                            {CARGOS_OPCIONES.map(c => <option key={c} value={c}>{c}</option>)}
-                                        </select>
-                                    </div>
+                                            {cargos.map(c => (
+                                                <option key={c.id} value={c.nombre}>
+                                                    {c.nombre}
+                                                </option>
+                                            ))}
+                                        </select>                                    </div>
                                 )}
 
                                 <div>

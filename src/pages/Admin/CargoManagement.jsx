@@ -1,0 +1,272 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import cargoService from '../../services/cargoService';
+import ConfirmationModal from '../../components/ConfirmationModal';
+
+/**
+ * Gestión Maestra de Cargos del Sistema.
+ * Exclusivo para Superusuarios.
+ */
+const CargoManagement = () => {
+    const { showNotification } = useAuth();
+    const [cargos, setCargos] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingCargo, setEditingCargo] = useState(null);
+    
+    const [formData, setFormData] = useState({
+        nombre: '',
+        requiere_cursos: false,
+        activo: true
+    });
+
+    const [confirmConfig, setConfirmConfig] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+        variant: 'primary'
+    });
+
+    const fetchCargos = async () => {
+        try {
+            setIsLoading(true);
+            const data = await cargoService.getAll(); // Cambiado para que traiga todos (backend admin) si es posible
+            setCargos(data);
+        } catch (error) {
+            showNotification('Error al cargar los cargos.', 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCargos();
+    }, []);
+
+    const handleOpenCreate = () => {
+        setEditingCargo(null);
+        setFormData({ nombre: '', requiere_cursos: false, activo: true });
+        setIsModalOpen(true);
+    };
+
+    const handleOpenEdit = (cargo) => {
+        setEditingCargo(cargo);
+        setFormData({
+            nombre: cargo.nombre,
+            requiere_cursos: !!cargo.requiere_cursos,
+            activo: !!cargo.activo
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            if (editingCargo) {
+                // El servicio cargoService debe extenderse para soportar update/store
+                // Por ahora asumimos que los métodos existen o los crearemos
+                await cargoService.update(editingCargo.id, formData);
+                showNotification('Cargo actualizado con éxito.', 'success');
+            } else {
+                await cargoService.create(formData);
+                showNotification('Cargo creado con éxito.', 'success');
+            }
+            setIsModalOpen(false);
+            fetchCargos();
+        } catch (error) {
+            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+        }
+    };
+
+    const handleDelete = (cargo) => {
+        setConfirmConfig({
+            isOpen: true,
+            title: 'Eliminar Cargo',
+            message: `¿Estás seguro de que deseas eliminar el cargo "${cargo.nombre}"? Esta acción no se puede deshacer.`,
+            variant: 'danger',
+            onConfirm: async () => {
+                try {
+                    await cargoService.delete(cargo.id);
+                    showNotification('Cargo eliminado con éxito.', 'success');
+                    fetchCargos();
+                    setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                } catch (error) {
+                    showNotification('Error al eliminar el cargo.', 'error');
+                }
+            }
+        });
+    };
+
+    return (
+        <div className="space-y-6 animate-fadeIn">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Maestro de Cargos</h1>
+                    <p className="text-secondary-500 mt-1 font-medium">Configuración global de cargos escolares del sistema</p>
+                </div>
+                <button 
+                    onClick={handleOpenCreate}
+                    className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold shadow-lg hover:bg-primary-700 transition-all active:scale-95"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Nuevo Cargo
+                </button>
+            </div>
+
+            <div className="bg-white rounded-3xl shadow-sm border border-secondary-200 overflow-hidden">
+                {isLoading ? (
+                    <div className="p-20 flex flex-col items-center justify-center">
+                        <div className="w-12 h-12 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin mb-4"></div>
+                        <p className="text-secondary-500 font-bold">Cargando cargos...</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-secondary-50 border-b border-secondary-200">
+                                <tr>
+                                    <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">ID</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Nombre</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-center">Requiere Cursos</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-center">Estado</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-secondary-100">
+                                {cargos.map((cargo) => (
+                                    <tr key={cargo.id} className="hover:bg-secondary-50 transition-colors group">
+                                        <td className="px-6 py-4 text-xs font-mono text-secondary-400">#{cargo.id}</td>
+                                        <td className="px-6 py-4">
+                                            <p className="text-sm font-black text-secondary-900 tracking-tight uppercase">{cargo.nombre}</p>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            {cargo.requiere_cursos ? (
+                                                <span className="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-black rounded-lg uppercase">Sí</span>
+                                            ) : (
+                                                <span className="px-2 py-1 bg-secondary-100 text-secondary-500 text-[10px] font-black rounded-lg uppercase">No</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className={`px-2 py-1 text-[10px] font-black rounded-lg uppercase ${
+                                                cargo.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                            }`}>
+                                                {cargo.activo ? 'Activo' : 'Inactivo'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    onClick={() => handleOpenEdit(cargo)}
+                                                    className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                                    title="Editar"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDelete(cargo)}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Eliminar"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* Modal: Crear/Editar */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn">
+                        <form onSubmit={handleSubmit}>
+                            <div className="p-6 border-b border-secondary-100 flex items-center justify-between bg-secondary-50">
+                                <h2 className="text-xl font-black text-secondary-900">
+                                    {editingCargo ? 'Editar Cargo' : 'Nuevo Cargo'}
+                                </h2>
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="text-secondary-400 hover:text-secondary-600">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div className="p-8 space-y-5">
+                                <div>
+                                    <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Nombre del Cargo</label>
+                                    <input 
+                                        type="text" required
+                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold focus:ring-2 focus:ring-primary-500 outline-none uppercase"
+                                        placeholder="Ej: DIRECTOR/A"
+                                        value={formData.nombre}
+                                        onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                                    />
+                                </div>
+                                
+                                <div className="flex items-center justify-between p-4 bg-secondary-50 rounded-2xl border border-secondary-200">
+                                    <div>
+                                        <p className="text-xs font-black text-secondary-700 uppercase">Requiere Cursos</p>
+                                        <p className="text-[10px] text-secondary-500 font-medium">Habilitar validación de cursos para este cargo</p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            className="sr-only peer"
+                                            checked={formData.requiere_cursos}
+                                            onChange={(e) => setFormData({...formData, requiere_cursos: e.target.checked})}
+                                        />
+                                        <div className="w-11 h-6 bg-secondary-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                                    </label>
+                                </div>
+
+                                <div className="flex items-center justify-between p-4 bg-secondary-50 rounded-2xl border border-secondary-200">
+                                    <div>
+                                        <p className="text-xs font-black text-secondary-700 uppercase">Estado Activo</p>
+                                        <p className="text-[10px] text-secondary-500 font-medium">Determina si se muestra en los selectores del sistema</p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            className="sr-only peer"
+                                            checked={formData.activo}
+                                            onChange={(e) => setFormData({...formData, activo: e.target.checked})}
+                                        />
+                                        <div className="w-11 h-6 bg-secondary-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="p-6 bg-secondary-50 border-t border-secondary-100 flex gap-3">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3.5 bg-white border border-secondary-300 text-secondary-700 rounded-2xl font-bold uppercase text-xs tracking-widest transition-all">
+                                    Cancelar
+                                </button>
+                                <button type="submit" className="flex-[2] py-3.5 bg-primary-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-primary-700 shadow-lg transition-all active:scale-[0.98]">
+                                    {editingCargo ? 'Guardar Cambios' : 'Crear Cargo'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            <ConfirmationModal
+                isOpen={confirmConfig.isOpen}
+                onClose={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmConfig.onConfirm}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                variant={confirmConfig.variant}
+            />
+        </div>
+    );
+};
+
+export default CargoManagement;

@@ -11,6 +11,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import UserManagement from './pages/Admin/UserManagement';
 import CupofManagement from './pages/Admin/CupofManagement';
 import PersonaManagement from './pages/Admin/PersonaManagement';
+import CargoManagement from './pages/Admin/CargoManagement';
 import PlanManagement from './pages/Academic/PlanManagement';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -134,6 +135,15 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <CupofManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/cargos" 
+                        element={
+                            <ProtectedRoute>
+                                <CargoManagement />
                             </ProtectedRoute>
                         } 
                     />
