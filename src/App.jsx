@@ -12,6 +12,7 @@ import UserManagement from './pages/Admin/UserManagement';
 import CupofManagement from './pages/Admin/CupofManagement';
 import PersonaManagement from './pages/Admin/PersonaManagement';
 import CargoManagement from './pages/Admin/CargoManagement';
+import LectivoManagement from './pages/Admin/LectivoManagement';
 import PlanManagement from './pages/Academic/PlanManagement';
 import PropuestaManagement from './pages/Academic/PropuestaManagement';
 import ForgotPassword from './pages/ForgotPassword';
@@ -145,6 +146,15 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <CargoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/lectivos" 
+                        element={
+                            <ProtectedRoute>
+                                <LectivoManagement />
                             </ProtectedRoute>
                         } 
                     />

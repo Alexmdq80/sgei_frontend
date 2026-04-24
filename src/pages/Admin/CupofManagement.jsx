@@ -29,6 +29,10 @@ const CupofManagement = () => {
     const [isPersonasLoading, setIsPersonasLoading] = useState(false);
     const [personaSearch, setPersonaSearch] = useState('');
 
+    // Nuevos estados para la búsqueda en el modal de asignación
+    const [assignSearchResults, setAssignSearchResults] = useState([]);
+    const [isSearchingPersona, setIsSearchingPersona] = useState(false);
+
     // Catálogos
     const [escuelas, setEscuelas] = useState([]);
     const [cargos, setCargos] = useState([]);
@@ -96,6 +100,25 @@ const CupofManagement = () => {
             showNotification('Error al cargar el padrón de personas.', 'error');
         } finally {
             setIsPersonasLoading(false);
+        }
+    };
+
+    const searchPersonaForAssign = async () => {
+        if (!personaSearch || personaSearch.length < 3) {
+            showNotification('Ingrese al menos 3 caracteres para buscar.', 'warning');
+            return;
+        }
+        try {
+            setIsSearchingPersona(true);
+            const response = await personaService.getAll({ search: personaSearch });
+            setAssignSearchResults(response.data || []);
+            if (response.data && response.data.length === 0) {
+                showNotification('No se encontraron personas con ese criterio.', 'info');
+            }
+        } catch (error) {
+            showNotification('Error al buscar persona en el padrón.', 'error');
+        } finally {
+            setIsSearchingPersona(false);
         }
     };
 
@@ -377,7 +400,18 @@ const CupofManagement = () => {
                                                 <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     {cupof.estado_cupof === 'disponible' ? (
                                                         <button 
-                                                            onClick={() => { setSelectedCupof(cupof); setIsAssignModalOpen(true); }}
+                                                            onClick={() => { 
+                                                                setSelectedCupof(cupof); 
+                                                                setPersonaSearch('');
+                                                                setAssignSearchResults([]);
+                                                                setAssignData({
+                                                                    persona_id: '',
+                                                                    situacion_revista: 'provisional',
+                                                                    fecha_inicio: new Date().toISOString().split('T')[0],
+                                                                    resolucion: ''
+                                                                });
+                                                                setIsAssignModalOpen(true); 
+                                                            }}
                                                             className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                                                             title="Asignar Persona"
                                                         >
@@ -627,10 +661,19 @@ const CupofManagement = () => {
                                             value={personaSearch}
                                             onChange={(e) => setPersonaSearch(e.target.value)}
                                         />
-                                        <button type="button" onClick={fetchPersonas} className="px-4 bg-secondary-900 text-white rounded-xl">
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
+                                        <button 
+                                            type="button" 
+                                            onClick={searchPersonaForAssign} 
+                                            disabled={isSearchingPersona}
+                                            className="px-4 bg-secondary-900 text-white rounded-xl disabled:opacity-50"
+                                        >
+                                            {isSearchingPersona ? (
+                                                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                            ) : (
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                </svg>
+                                            )}
                                         </button>
                                     </div>
                                     <select 
@@ -639,8 +682,10 @@ const CupofManagement = () => {
                                         value={assignData.persona_id}
                                         onChange={(e) => setAssignData({...assignData, persona_id: e.target.value})}
                                     >
-                                        <option value="">Seleccionar Persona...</option>
-                                        {personas.map(p => (
+                                        <option value="">
+                                            {isSearchingPersona ? 'Buscando...' : 'Seleccionar Persona...'}
+                                        </option>
+                                        {assignSearchResults.map(p => (
                                             <option key={p.id} value={p.id}>
                                                 {p.apellido}, {p.nombre} ({p.documento_numero})
                                             </option>

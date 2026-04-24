@@ -11,9 +11,14 @@ import ConfirmationModal from '../../components/ConfirmationModal';
 const PropuestaManagement = () => {
     const { activeProfile, showNotification } = useAuth();
     
+    // Estados para Escuelas Autorizadas
+    const [authorizedSchools, setAuthorizedSchools] = useState([]);
+    const [selectedSchoolId, setSelectedSchoolId] = useState('');
+    const [isSchoolsLoading, setIsSchoolsLoading] = useState(true);
+
     // Estados para Propuestas
     const [propuestas, setPropuestas] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [search, setSearch] = useState('');
     
     // Catálogos
@@ -32,10 +37,10 @@ const PropuestaManagement = () => {
         turno_fin_id: '',
         jornada_id: '',
         lectivo_id: '',
-        escuela_id: activeProfile?.escuela_id || ''
+        escuela_id: ''
     });
 
-    // Estados para el Modal de Confirmación
+    // Estados para el Modal de Confirmación Global
     const [confirmConfig, setConfirmConfig] = useState({
         isOpen: false,
         title: '',
@@ -60,13 +65,39 @@ const PropuestaManagement = () => {
 
     // --- CARGA DE DATOS ---
 
+    /**
+     * Carga la lista de escuelas donde el usuario puede gestionar propuestas.
+     */
+    const fetchAuthorizedSchools = async () => {
+        try {
+            setIsSchoolsLoading(true);
+            const schools = await propuestaService.getAuthorizedSchools();
+            setAuthorizedSchools(schools || []);
+            
+            // Lógica de selección inicial
+            if (schools && schools.length > 0) {
+                // Si el perfil activo coincide con una autorizada, usarla. Si no, la primera.
+                const profileMatch = schools.find(s => s.id === activeProfile?.escuela_id);
+                setSelectedSchoolId(profileMatch ? profileMatch.id : schools[0].id);
+            }
+        } catch (error) {
+            console.error('Error al cargar escuelas autorizadas:', error);
+            showNotification('No se pudieron cargar las instituciones autorizadas.', 'error');
+        } finally {
+            setIsSchoolsLoading(false);
+        }
+    };
+
+    /**
+     * Carga las propuestas y catálogos de la escuela seleccionada.
+     */
     const fetchData = async () => {
-        if (!activeProfile?.escuela_id) return;
+        if (!selectedSchoolId) return;
         
         try {
             setIsLoading(true);
             const [propData, turnData, jornData, lectData, anioPData] = await Promise.all([
-                propuestaService.getAll({ escuela_id: activeProfile.escuela_id }),
+                propuestaService.getAll({ escuela_id: selectedSchoolId }),
                 propuestaService.getTurnos(),
                 propuestaService.getJornadas(),
                 propuestaService.getLectivos(),
@@ -87,8 +118,14 @@ const PropuestaManagement = () => {
     };
 
     useEffect(() => {
-        fetchData();
-    }, [activeProfile?.escuela_id]);
+        fetchAuthorizedSchools();
+    }, []);
+
+    useEffect(() => {
+        if (selectedSchoolId) {
+            fetchData();
+        }
+    }, [selectedSchoolId]);
 
     // --- ACCIONES ---
 
@@ -101,7 +138,7 @@ const PropuestaManagement = () => {
                 turno_fin_id: propuesta.turno_fin_id || '',
                 jornada_id: propuesta.jornada_id || '',
                 lectivo_id: propuesta.lectivo_id || '',
-                escuela_id: activeProfile?.escuela_id || ''
+                escuela_id: selectedSchoolId
             });
         } else {
             setEditingPropuesta(null);
@@ -111,7 +148,7 @@ const PropuestaManagement = () => {
                 turno_fin_id: '',
                 jornada_id: '',
                 lectivo_id: '',
-                escuela_id: activeProfile?.escuela_id || ''
+                escuela_id: selectedSchoolId
             });
         }
         setIsModalOpen(true);
@@ -126,8 +163,7 @@ const PropuestaManagement = () => {
         e.preventDefault();
         try {
             setIsSaving(true);
-            // Asegurar que escuela_id esté presente
-            const finalData = { ...formData, escuela_id: activeProfile.escuela_id };
+            const finalData = { ...formData, escuela_id: selectedSchoolId };
             
             if (editingPropuesta) {
                 await propuestaService.update(editingPropuesta.id, finalData);
@@ -175,10 +211,33 @@ const PropuestaManagement = () => {
         return planName.includes(searchTerm) || anioName.includes(searchTerm);
     });
 
-    if (!activeProfile?.escuela_id) {
+    if (isSchoolsLoading) {
         return (
-            <div className="flex items-center justify-center h-64 text-gray-500">
-                Por favor, selecciona una institución para gestionar sus propuestas.
+            <div className="flex flex-col items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+                <p className="text-gray-600">Verificando autorizaciones...</p>
+            </div>
+        );
+    }
+
+    if (authorizedSchools.length === 0) {
+        return (
+            <div className="max-w-2xl mx-auto mt-12 p-8 bg-white rounded-2xl shadow-sm border border-red-100 text-center">
+                <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h2 className="text-xl font-bold text-gray-800 mb-2">Acceso Restringido</h2>
+                <p className="text-gray-600 mb-6">
+                    No tienes roles de equipo de conducción (Director, Secretario, etc.) asignados a ninguna institución para gestionar propuestas.
+                </p>
+                <button 
+                    onClick={() => window.history.back()}
+                    className="text-indigo-600 font-medium hover:text-indigo-800"
+                >
+                    &larr; Volver
+                </button>
             </div>
         );
     }
@@ -190,16 +249,52 @@ const PropuestaManagement = () => {
                     <h1 className="text-2xl font-bold text-gray-800">Propuestas Institucionales</h1>
                     <p className="text-gray-600">Configura la oferta académica de la institución para el ciclo lectivo.</p>
                 </div>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors font-medium shadow-sm"
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Nueva Propuesta
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                    {authorizedSchools.length > 1 && (
+                        <div className="relative">
+                            <select
+                                className="appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-medium text-gray-700 shadow-sm"
+                                value={selectedSchoolId}
+                                onChange={(e) => setSelectedSchoolId(e.target.value)}
+                            >
+                                {authorizedSchools.map(s => (
+                                    <option key={s.id} value={s.id}>{s.nombre} ({s.numero})</option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => handleOpenModal()}
+                        disabled={!selectedSchoolId}
+                        className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Nueva Propuesta
+                    </button>
+                </div>
             </header>
+
+            {/* Selector Visual Informativo si solo hay una escuela */}
+            {authorizedSchools.length === 1 && (
+                <div className="mb-6 bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-center gap-3">
+                    <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider">Institución Activa</p>
+                        <p className="text-sm font-semibold text-indigo-900">{authorizedSchools[0].nombre} - Esc. Nº {authorizedSchools[0].numero}</p>
+                    </div>
+                </div>
+            )}
 
             {/* Filtros */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
