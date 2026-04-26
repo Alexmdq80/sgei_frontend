@@ -23,6 +23,14 @@ const geografiaService = {
     },
 
     /**
+     * Obtiene todas las localidades (con filtros opcionales).
+     */
+    async getAllLocalidades(params = {}) {
+        const response = await api.get('/localidades', { params });
+        return response.data;
+    },
+
+    /**
      * Obtiene las localidades de un departamento.
      */
     async getLocalidades(departamentoId) {

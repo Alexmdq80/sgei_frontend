@@ -13,6 +13,18 @@ import CupofManagement from './pages/Admin/CupofManagement';
 import PersonaManagement from './pages/Admin/PersonaManagement';
 import CargoManagement from './pages/Admin/CargoManagement';
 import LectivoManagement from './pages/Admin/LectivoManagement';
+import AnioManagement from './pages/Admin/AnioManagement';
+import AmbitoManagement from './pages/Admin/AmbitoManagement';
+import CierreCausaManagement from './pages/Admin/CierreCausaManagement';
+import CondicionManagement from './pages/Admin/CondicionManagement';
+import DependenciaManagement from './pages/Admin/DependenciaManagement';
+import EscuelaTipoManagement from './pages/Admin/EscuelaTipoManagement';
+import EscuelaManagement from './pages/Admin/EscuelaManagement';
+import ModalidadNivelManagement from './pages/Admin/ModalidadNivelManagement';
+import NivelManagement from './pages/Admin/NivelManagement';
+import ModalidadManagement from './pages/Admin/ModalidadManagement';
+import OfertaManagement from './pages/Admin/OfertaManagement';
+import EscuelaUbicacionManagement from './pages/Admin/EscuelaUbicacionManagement';
 import PlanManagement from './pages/Academic/PlanManagement';
 import PropuestaManagement from './pages/Academic/PropuestaManagement';
 import ForgotPassword from './pages/ForgotPassword';
@@ -142,7 +154,7 @@ function App() {
                     />
 
                     <Route 
-                        path="/admin/cargos" 
+                        path="/admin/general/cargos" 
                         element={
                             <ProtectedRoute>
                                 <CargoManagement />
@@ -151,10 +163,109 @@ function App() {
                     />
 
                     <Route 
-                        path="/admin/lectivos" 
+                        path="/admin/general/ciclos" 
                         element={
                             <ProtectedRoute>
                                 <LectivoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/ambitos" 
+                        element={
+                            <ProtectedRoute>
+                                <AmbitoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/cierre-causas" 
+                        element={
+                            <ProtectedRoute>
+                                <CierreCausaManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/condiciones" 
+                        element={
+                            <ProtectedRoute>
+                                <CondicionManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/dependencias" 
+                        element={
+                            <ProtectedRoute>
+                                <DependenciaManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/escuela-tipos" 
+                        element={
+                            <ProtectedRoute>
+                                <EscuelaTipoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/niveles" 
+                        element={
+                            <ProtectedRoute>
+                                <NivelManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/modalidades" 
+                        element={
+                            <ProtectedRoute>
+                                <ModalidadManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/ofertas" 
+                        element={
+                            <ProtectedRoute>
+                                <OfertaManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/modalidad-niveles" 
+                        element={
+                            <ProtectedRoute>
+                                <ModalidadNivelManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/escuela-ubicaciones" 
+                        element={
+                            <ProtectedRoute>
+                                <EscuelaUbicacionManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/escuelas" 
+                        element={
+                            <ProtectedRoute>
+                                <EscuelaManagement />
                             </ProtectedRoute>
                         } 
                     />
@@ -168,9 +279,18 @@ function App() {
                         } 
                     />
 
-                    {/* Rutas de Gestión Académica */}
+                    {/* Rutas de Gestión Curricular */}
                     <Route 
-                        path="/academic/planes" 
+                        path="/admin/curricular/anios" 
+                        element={
+                            <ProtectedRoute>
+                                <AnioManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/curricular/planes" 
                         element={
                             <ProtectedRoute>
                                 <PlanManagement />
@@ -178,6 +298,7 @@ function App() {
                         } 
                     />
 
+                    {/* Rutas de Gestión Académica */}
                     <Route 
                         path="/academic/propuestas" 
                         element={

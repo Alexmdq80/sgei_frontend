@@ -102,7 +102,7 @@ const CargoManagement = () => {
         <div className="space-y-6 animate-fadeIn">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Maestro de Cargos</h1>
+                    <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Cargos</h1>
                     <p className="text-secondary-500 mt-1 font-medium">Configuración global de cargos escolares del sistema</p>
                 </div>
                 <button 

@@ -9,10 +9,42 @@ import { useAuth } from '../context/AuthContext';
 const Layout = ({ children }) => {
     const { user, logout, notification, clearNotification, activeProfile, selectProfile, hasPermission } = useAuth();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isGeneralPanelOpen, setIsGeneralPanelOpen] = useState(false);
+    const [isCurricularPanelOpen, setIsCurricularPanelOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const userMenuRef = useRef(null);
     const location = useLocation();
     const navigate = useNavigate();
+
+    // Abrir automáticamente los paneles si la ruta actual es una de sus subrutas
+    useEffect(() => {
+        const generalPaths = [
+            '/admin/general/cargos', 
+            '/admin/general/ciclos', 
+            '/admin/general/ambitos', 
+            '/admin/general/cierre-causas', 
+            '/admin/general/condiciones',
+            '/admin/general/dependencias',
+            '/admin/general/escuela-tipos',
+            '/admin/general/niveles',
+            '/admin/general/modalidades',
+            '/admin/general/ofertas',
+            '/admin/general/modalidad-niveles',
+            '/admin/general/escuela-ubicaciones',
+            '/admin/general/escuelas'
+        ];
+        const curricularPaths = [
+            '/admin/curricular/anios',
+            '/admin/curricular/planes'
+        ];
+
+        if (generalPaths.includes(location.pathname)) {
+            setIsGeneralPanelOpen(true);
+        }
+        if (curricularPaths.includes(location.pathname)) {
+            setIsCurricularPanelOpen(true);
+        }
+    }, [location.pathname]);
 
     const handleLogout = async () => {
         setIsUserMenuOpen(false);
@@ -82,47 +114,59 @@ const Layout = ({ children }) => {
         });
     }
 
-    // Configuración Maestra (Solo Superusuarios)
-    if (user?.roles?.some(r => r.name === 'superuser')) {
+    // Configuración Maestra (Solo Superusuarios o Administradores con permiso)
+    if (user?.roles?.some(r => r.name === 'superuser') || hasPermission('sistema.usuarios')) {
         navItems.push({ 
-            name: 'Maestro Cargos', 
-            path: '/admin/cargos', 
+            name: 'Panel General', 
             icon: (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
                 </svg>
-            )
+            ),
+            isDropdown: true,
+            isOpen: isGeneralPanelOpen,
+            setIsOpen: setIsGeneralPanelOpen,
+            subItems: [
+                { name: 'Cargos', path: '/admin/general/cargos' },
+                { name: 'Ciclos Lectivos', path: '/admin/general/ciclos' },
+                { name: 'Ámbitos', path: '/admin/general/ambitos' },
+                { name: 'Causas de Cierre', path: '/admin/general/cierre-causas' },
+                { name: 'Condiciones', path: '/admin/general/condiciones' },
+                { name: 'Dependencias', path: '/admin/general/dependencias' },
+                { name: 'Tipos de Escuela', path: '/admin/general/escuela-tipos' },
+                { name: 'Niveles', path: '/admin/general/niveles' },
+                { name: 'Modalidades', path: '/admin/general/modalidades' },
+                { name: 'Otras Ofertas Educativas', path: '/admin/general/ofertas' },
+                { name: 'Modalidades por Nivel', path: '/admin/general/modalidad-niveles' },
+                { name: 'Ubicaciones de Escuela', path: '/admin/general/escuela-ubicaciones' },
+                { name: 'Escuelas', path: '/admin/general/escuelas' },
+            ]
         });
+    }
 
+    // Panel Curricular (Académico/Curricular)
+    if (user?.roles?.some(r => r.name === 'superuser') || hasPermission('planes.ver')) {
         navItems.push({ 
-            name: 'Maestro Ciclos', 
-            path: '/admin/lectivos', 
+            name: 'Panel Curricular', 
             icon: (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
-            )
+            ),
+            isDropdown: true,
+            isOpen: isCurricularPanelOpen,
+            setIsOpen: setIsCurricularPanelOpen,
+            subItems: [
+                { name: 'Planes de Estudio', path: '/admin/curricular/planes' },
+                { name: 'Años', path: '/admin/curricular/anios' },
+            ]
         });
     }
 
     // Gestión Académica
     const isConduccion = ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeProfile?.role?.name);
 
-    if (hasPermission('planes.ver') || isConduccion) {
-        // Solo mostrar Planes de Estudio a quienes tienen permiso explícito o son superusuarios
-        if (hasPermission('planes.ver')) {
-            navItems.push({ 
-                name: 'Planes de Estudio', 
-                path: '/academic/planes', 
-                icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                )
-            });
-        }
-
+    if (isConduccion || user?.roles?.some(r => r.name === 'superuser')) {
         // Mostrar Propuestas Institucionales tanto a administrativos como al equipo de conducción
         navItems.push({ 
             name: 'Propuestas Inst.', 
@@ -195,18 +239,59 @@ const Layout = ({ children }) => {
                 <nav className="flex-grow mt-6 px-3">
                     <ul className="space-y-2">
                         {navItems.map((item) => (
-                            <li key={item.path}>
-                                <Link 
-                                    to={item.path}
-                                    className={`flex items-center p-3 rounded-lg transition-colors ${
-                                        location.pathname === item.path 
-                                        ? 'bg-primary-600 text-white shadow-md' 
-                                        : 'text-secondary-400 hover:bg-secondary-800 hover:text-white'
-                                    }`}
-                                >
-                                    {item.icon}
-                                    {isSidebarOpen && <span className="ml-4 font-medium">{item.name}</span>}
-                                </Link>
+                            <li key={item.name}>
+                                {item.isDropdown ? (
+                                    <div className="flex flex-col">
+                                        <button 
+                                            onClick={() => item.setIsOpen(!item.isOpen)}
+                                            className={`flex items-center w-full p-3 rounded-lg transition-colors ${
+                                                item.subItems.some(sub => location.pathname === sub.path)
+                                                ? 'bg-secondary-800 text-white' 
+                                                : 'text-secondary-400 hover:bg-secondary-800 hover:text-white'
+                                            }`}
+                                        >
+                                            {item.icon}
+                                            {isSidebarOpen && (
+                                                <div className="flex items-center justify-between flex-grow ml-4">
+                                                    <span className="font-medium">{item.name}</span>
+                                                    <svg className={`w-4 h-4 transition-transform duration-200 ${item.isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                            )}
+                                        </button>
+                                        {item.isOpen && isSidebarOpen && (
+                                            <ul className="mt-2 ml-10 space-y-1">
+                                                {item.subItems.map((subItem) => (
+                                                    <li key={subItem.path}>
+                                                        <Link 
+                                                            to={subItem.path}
+                                                            className={`block p-2 text-sm rounded-lg transition-colors ${
+                                                                location.pathname === subItem.path
+                                                                ? 'text-primary-400 font-bold' 
+                                                                : 'text-secondary-400 hover:text-white hover:bg-secondary-800'
+                                                            }`}
+                                                        >
+                                                            {subItem.name}
+                                                        </Link>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <Link 
+                                        to={item.path}
+                                        className={`flex items-center p-3 rounded-lg transition-colors ${
+                                            location.pathname === item.path 
+                                            ? 'bg-primary-600 text-white shadow-md' 
+                                            : 'text-secondary-400 hover:bg-secondary-800 hover:text-white'
+                                        }`}
+                                    >
+                                        {item.icon}
+                                        {isSidebarOpen && <span className="ml-4 font-medium">{item.name}</span>}
+                                    </Link>
+                                )}
                             </li>
                         ))}
                     </ul>
