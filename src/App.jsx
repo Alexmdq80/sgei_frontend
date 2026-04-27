@@ -25,6 +25,11 @@ import NivelManagement from './pages/Admin/NivelManagement';
 import ModalidadManagement from './pages/Admin/ModalidadManagement';
 import OfertaManagement from './pages/Admin/OfertaManagement';
 import EscuelaUbicacionManagement from './pages/Admin/EscuelaUbicacionManagement';
+import DocumentoSituacionManagement from './pages/Admin/DocumentoSituacionManagement';
+import DocumentoTipoManagement from './pages/Admin/DocumentoTipoManagement';
+import GeneroManagement from './pages/Admin/GeneroManagement';
+import SexoManagement from './pages/Admin/SexoManagement';
+import ContinenteManagement from './pages/Admin/ContinenteManagement';
 import PlanManagement from './pages/Academic/PlanManagement';
 import PropuestaManagement from './pages/Academic/PropuestaManagement';
 import ForgotPassword from './pages/ForgotPassword';
@@ -257,6 +262,51 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <EscuelaUbicacionManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/documento-situacions" 
+                        element={
+                            <ProtectedRoute>
+                                <DocumentoSituacionManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/documento-tipos" 
+                        element={
+                            <ProtectedRoute>
+                                <DocumentoTipoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/generos" 
+                        element={
+                            <ProtectedRoute>
+                                <GeneroManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/sexos" 
+                        element={
+                            <ProtectedRoute>
+                                <SexoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/continentes" 
+                        element={
+                            <ProtectedRoute>
+                                <ContinenteManagement />
                             </ProtectedRoute>
                         } 
                     />
