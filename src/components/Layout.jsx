@@ -47,7 +47,11 @@ const Layout = ({ children }) => {
             '/admin/general/sexos'
         ];
         const geoPaths = [
-            '/admin/general/continentes'
+            '/admin/general/continentes',
+            '/admin/general/naciones',
+            '/admin/general/provincias',
+            '/admin/general/departamentos',
+            '/admin/general/localidades'
         ];
         const opsPaths = [
             '/admin/general/cargos', 
@@ -183,6 +187,10 @@ const Layout = ({ children }) => {
                     setIsOpen: setIsGeoGroupOpen,
                     items: [
                         { name: 'Continentes', path: '/admin/general/continentes' },
+                        { name: 'Naciones', path: '/admin/general/naciones' },
+                        { name: 'Provincias', path: '/admin/general/provincias' },
+                        { name: 'Departamentos', path: '/admin/general/departamentos' },
+                        { name: 'Localidades', path: '/admin/general/localidades' },
                     ]
                 },
                 {

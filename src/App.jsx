@@ -30,6 +30,10 @@ import DocumentoTipoManagement from './pages/Admin/DocumentoTipoManagement';
 import GeneroManagement from './pages/Admin/GeneroManagement';
 import SexoManagement from './pages/Admin/SexoManagement';
 import ContinenteManagement from './pages/Admin/ContinenteManagement';
+import NacionManagement from './pages/Admin/NacionManagement';
+import ProvinciaManagement from './pages/Admin/ProvinciaManagement';
+import DepartamentoManagement from './pages/Admin/DepartamentoManagement';
+import LocalidadManagement from './pages/Admin/LocalidadManagement';
 import PlanManagement from './pages/Academic/PlanManagement';
 import PropuestaManagement from './pages/Academic/PropuestaManagement';
 import ForgotPassword from './pages/ForgotPassword';
@@ -307,6 +311,42 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <ContinenteManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/naciones" 
+                        element={
+                            <ProtectedRoute>
+                                <NacionManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/provincias" 
+                        element={
+                            <ProtectedRoute>
+                                <ProvinciaManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/departamentos" 
+                        element={
+                            <ProtectedRoute>
+                                <DepartamentoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/localidades" 
+                        element={
+                            <ProtectedRoute>
+                                <LocalidadManagement />
                             </ProtectedRoute>
                         } 
                     />
