@@ -34,6 +34,7 @@ import NacionManagement from './pages/Admin/NacionManagement';
 import ProvinciaManagement from './pages/Admin/ProvinciaManagement';
 import DepartamentoManagement from './pages/Admin/DepartamentoManagement';
 import LocalidadManagement from './pages/Admin/LocalidadManagement';
+import LocalidadCensalManagement from './pages/Admin/LocalidadCensalManagement';
 import PlanManagement from './pages/Academic/PlanManagement';
 import PropuestaManagement from './pages/Academic/PropuestaManagement';
 import ForgotPassword from './pages/ForgotPassword';
@@ -347,6 +348,15 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <LocalidadManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/localidad-censals" 
+                        element={
+                            <ProtectedRoute>
+                                <LocalidadCensalManagement />
                             </ProtectedRoute>
                         } 
                     />

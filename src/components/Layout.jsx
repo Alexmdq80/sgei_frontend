@@ -191,6 +191,7 @@ const Layout = ({ children }) => {
                         { name: 'Provincias', path: '/admin/general/provincias' },
                         { name: 'Departamentos', path: '/admin/general/departamentos' },
                         { name: 'Localidades', path: '/admin/general/localidades' },
+                        { name: 'Localidades Censales', path: '/admin/general/localidad-censals' },
                     ]
                 },
                 {
