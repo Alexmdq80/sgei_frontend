@@ -35,6 +35,9 @@ import ProvinciaManagement from './pages/Admin/ProvinciaManagement';
 import DepartamentoManagement from './pages/Admin/DepartamentoManagement';
 import LocalidadManagement from './pages/Admin/LocalidadManagement';
 import LocalidadCensalManagement from './pages/Admin/LocalidadCensalManagement';
+import GeorefFuenteManagement from './pages/Admin/GeorefFuenteManagement';
+import GeorefCategoriaManagement from './pages/Admin/GeorefCategoriaManagement';
+import GeorefFuncionManagement from './pages/Admin/GeorefFuncionManagement';
 import PlanManagement from './pages/Academic/PlanManagement';
 import PropuestaManagement from './pages/Academic/PropuestaManagement';
 import ForgotPassword from './pages/ForgotPassword';
@@ -357,6 +360,33 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <LocalidadCensalManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/georef-fuentes" 
+                        element={
+                            <ProtectedRoute>
+                                <GeorefFuenteManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/georef-categorias" 
+                        element={
+                            <ProtectedRoute>
+                                <GeorefCategoriaManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/georef-funcions" 
+                        element={
+                            <ProtectedRoute>
+                                <GeorefFuncionManagement />
                             </ProtectedRoute>
                         } 
                     />

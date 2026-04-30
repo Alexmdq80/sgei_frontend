@@ -4,6 +4,8 @@ import localidadService from '../../services/localidadService';
 import departamentoService from '../../services/departamentoService';
 import provinciaService from '../../services/provinciaService';
 import nacionService from '../../services/nacionService';
+import localidadCensalService from '../../services/localidadCensalService';
+import SearchableSelect from '../../components/SearchableSelect';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
 const LocalidadManagement = () => {
@@ -13,6 +15,7 @@ const LocalidadManagement = () => {
     const [naciones, setNaciones] = useState([]);
     const [provincias, setProvincias] = useState([]);
     const [departamentos, setDepartamentos] = useState([]);
+    const [localidadCensals, setLocalidadCensals] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -30,6 +33,7 @@ const LocalidadManagement = () => {
     const [formData, setFormData] = useState({
         nombre: '',
         departamento_id: '',
+        localidad_censal_id: '',
         id_georef: ''
     });
 
@@ -48,8 +52,8 @@ const LocalidadManagement = () => {
                 page: page,
                 per_page: 15
             });
-            setItems(response.data);
-            setPagination(response);
+            setItems(response.data || response);
+            setPagination(response.data ? response : {});
         } catch (error) {
             showNotification('Error al cargar las localidades.', 'error');
         } finally {
@@ -59,14 +63,19 @@ const LocalidadManagement = () => {
 
     const fetchCatalogs = async () => {
         try {
-            const [depsData, provsData, nationsData] = await Promise.all([
-                departamentoService.getAll(),
-                provinciaService.getAll(),
-                nacionService.getAll()
+            const [depsRes, provsRes, nationsRes, lcRes] = await Promise.all([
+                departamentoService.getAll({ per_page: 500 }),
+                provinciaService.getAll({ per_page: 500 }),
+                nacionService.getAll({ per_page: 500 }),
+                localidadCensalService.getAll({ per_page: 1000 })
             ]);
-            setDepartamentos(depsData);
-            setProvincias(provsData);
-            setNaciones(nationsData);
+            setDepartamentos(depsRes.data || depsRes);
+            setProvincias(provsRes.data || provsRes);
+            setNaciones(nationsRes.data || nationsRes);
+            
+            // Aseguramos que los datos tengan el formato {id, nombre}
+            const lcData = lcRes.data.data || lcRes.data || lcRes;
+            setLocalidadCensals(Array.isArray(lcData) ? lcData : []);
         } catch (error) {
             showNotification('Error al cargar catálogos.', 'error');
         }
@@ -115,6 +124,7 @@ const LocalidadManagement = () => {
             setFormData({
                 nombre: item.nombre,
                 departamento_id: item.departamento_id,
+                localidad_censal_id: item.localidad_censal_id || '',
                 id_georef: item.id_georef || ''
             });
         } else {
@@ -124,6 +134,7 @@ const LocalidadManagement = () => {
             setFormData({
                 nombre: '',
                 departamento_id: '',
+                localidad_censal_id: '',
                 id_georef: ''
             });
         }
@@ -135,7 +146,7 @@ const LocalidadManagement = () => {
         setEditingItem(null);
         setSelectedNacionId('');
         setSelectedProvinciaId('');
-        setFormData({ nombre: '', departamento_id: '', id_georef: '' });
+        setFormData({ nombre: '', departamento_id: '', localidad_censal_id: '', id_georef: '' });
     };
 
     const handleSubmit = async (e) => {
@@ -215,6 +226,7 @@ const LocalidadManagement = () => {
                                 <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Nombre</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Departamento</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Provincia</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">L. Censal</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100 text-right">Acciones</th>
                             </tr>
                         </thead>
@@ -222,7 +234,7 @@ const LocalidadManagement = () => {
                             {isLoading ? (
                                 Array(5).fill(0).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan="4" className="px-6 py-4"><div className="h-4 bg-secondary-100 rounded w-full"></div></td>
+                                        <td colSpan="5" className="px-6 py-4"><div className="h-4 bg-secondary-100 rounded w-full"></div></td>
                                     </tr>
                                 ))
                             ) : items.length > 0 ? (
@@ -233,6 +245,11 @@ const LocalidadManagement = () => {
                                         <td className="px-6 py-4">
                                             <span className="px-2.5 py-1 rounded-lg bg-secondary-100 text-secondary-700 text-[10px] font-black uppercase tracking-wider border border-secondary-200">
                                                 {item.departamento?.provincia?.nombre}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="px-2.5 py-1 rounded-lg bg-primary-50 text-primary-700 text-[10px] font-black uppercase tracking-wider border border-primary-100">
+                                                {item.localidad_censal?.nombre || '-'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -293,29 +310,39 @@ const LocalidadManagement = () => {
                         <form onSubmit={handleSubmit} className="p-8 space-y-6">
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5">Nación</label>
-                                        <select required value={selectedNacionId} onChange={(e) => setSelectedNacionId(e.target.value)} className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm appearance-none">
-                                            <option value="">Seleccione...</option>
-                                            {naciones.map(n => <option key={n.id} value={n.id}>{n.nombre}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5">Provincia</label>
-                                        <select required disabled={!selectedNacionId} value={selectedProvinciaId} onChange={(e) => setSelectedProvinciaId(e.target.value)} className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm appearance-none">
-                                            <option value="">{selectedNacionId ? 'Seleccione...' : 'Primero nación'}</option>
-                                            {filteredProvincias.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                                        </select>
-                                    </div>
+                                    <SearchableSelect 
+                                        label="Nación"
+                                        options={naciones}
+                                        value={selectedNacionId}
+                                        onChange={(e) => setSelectedNacionId(e.target.value)}
+                                        placeholder="Buscar Nación..."
+                                    />
+                                    <SearchableSelect 
+                                        label="Provincia"
+                                        options={filteredProvincias}
+                                        value={selectedProvinciaId}
+                                        onChange={(e) => setSelectedProvinciaId(e.target.value)}
+                                        placeholder={selectedNacionId ? "Buscar Provincia..." : "Primero nación"}
+                                        disabled={!selectedNacionId}
+                                    />
                                 </div>
 
-                                <div>
-                                    <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5">Departamento</label>
-                                    <select required disabled={!selectedProvinciaId} value={formData.departamento_id} onChange={(e) => setFormData({...formData, departamento_id: e.target.value})} className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm appearance-none">
-                                        <option value="">{selectedProvinciaId ? 'Seleccione...' : 'Primero provincia'}</option>
-                                        {filteredDepartamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
-                                    </select>
-                                </div>
+                                <SearchableSelect 
+                                    label="Departamento"
+                                    options={filteredDepartamentos}
+                                    value={formData.departamento_id}
+                                    onChange={(e) => setFormData({...formData, departamento_id: e.target.value})}
+                                    placeholder={selectedProvinciaId ? "Buscar Departamento..." : "Primero provincia"}
+                                    disabled={!selectedProvinciaId}
+                                />
+
+                                <SearchableSelect 
+                                    label="Localidad Censal (Asociación)"
+                                    options={localidadCensals}
+                                    value={formData.localidad_censal_id}
+                                    onChange={(e) => setFormData({...formData, localidad_censal_id: e.target.value})}
+                                    placeholder="Buscar Localidad Censal..."
+                                />
 
                                 <div>
                                     <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5">Nombre de Localidad</label>

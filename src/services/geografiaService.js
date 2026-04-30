@@ -7,17 +7,17 @@ const geografiaService = {
     /**
      * Obtiene todas las provincias.
      */
-    async getProvincias() {
-        const response = await api.get('/provincias');
+    async getProvincias(params = {}) {
+        const response = await api.get('/provincias', { params });
         return response.data;
     },
 
     /**
      * Obtiene los departamentos de una provincia.
      */
-    async getDepartamentos(provinciaId) {
+    async getDepartamentos(provinciaId, params = {}) {
         const response = await api.get('/departamentos', {
-            params: { provincia_id: provinciaId }
+            params: { ...params, provincia_id: provinciaId }
         });
         return response.data;
     },
@@ -33,9 +33,9 @@ const geografiaService = {
     /**
      * Obtiene las localidades de un departamento.
      */
-    async getLocalidades(departamentoId) {
+    async getLocalidades(departamentoId, params = {}) {
         const response = await api.get('/localidades', {
-            params: { departamento_id: departamentoId }
+            params: { ...params, departamento_id: departamentoId }
         });
         return response.data;
     }

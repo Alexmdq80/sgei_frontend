@@ -39,8 +39,8 @@ const NacionManagement = () => {
                 page: page,
                 per_page: 15
             });
-            setItems(response.data);
-            setPagination(response);
+            setItems(response.data || response);
+            setPagination(response.data ? response : {});
         } catch (error) {
             showNotification('Error al cargar las naciones.', 'error');
         } finally {
@@ -50,8 +50,8 @@ const NacionManagement = () => {
 
     const fetchCatalogs = async () => {
         try {
-            const continentesData = await continenteService.getAll();
-            setContinentes(continentesData);
+            const response = await continenteService.getAll({ per_page: 500 });
+            setContinentes(response.data || response);
         } catch (error) {
             showNotification('Error al cargar catálogos.', 'error');
         }

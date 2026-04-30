@@ -6,6 +6,7 @@ import dependenciaService from '../../services/dependenciaService';
 import escuelaTipoService from '../../services/escuelaTipoService';
 import geografiaService from '../../services/geografiaService';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import SearchableSelect from '../../components/SearchableSelect';
 
 /**
  * Gestión Integral de Instituciones Educativas (Escuelas).
@@ -75,16 +76,28 @@ const EscuelaManagement = () => {
     const fetchCatalogs = async () => {
         try {
             const results = await Promise.allSettled([
-                ambitoService.getAll(),
-                dependenciaService.getAll(),
-                escuelaTipoService.getAll(),
-                geografiaService.getProvincias()
+                ambitoService.getAll({ per_page: 500 }),
+                dependenciaService.getAll({ per_page: 500 }),
+                escuelaTipoService.getAll({ per_page: 500 }),
+                geografiaService.getProvincias({ per_page: 500 })
             ]);
             
-            if (results[0].status === 'fulfilled') setAmbitos(results[0].value);
-            if (results[1].status === 'fulfilled') setDependencias(results[1].value);
-            if (results[2].status === 'fulfilled') setSectores(results[2].value);
-            if (results[3].status === 'fulfilled') setProvincias(results[3].value);
+            if (results[0].status === 'fulfilled') {
+                const val = results[0].value;
+                setAmbitos(val.data || val);
+            }
+            if (results[1].status === 'fulfilled') {
+                const val = results[1].value;
+                setDependencias(val.data || val);
+            }
+            if (results[2].status === 'fulfilled') {
+                const val = results[2].value;
+                setSectores(val.data || val);
+            }
+            if (results[3].status === 'fulfilled') {
+                const val = results[3].value;
+                setProvincias(val.data || val);
+            }
 
         } catch (error) {
             console.error("Error cargando catálogos", error);
@@ -95,8 +108,8 @@ const EscuelaManagement = () => {
     // Cargar departamentos cuando cambia la provincia
     useEffect(() => {
         if (selectedProvincia) {
-            geografiaService.getDepartamentos(selectedProvincia)
-                .then(setDepartamentos)
+            geografiaService.getDepartamentos(selectedProvincia, { per_page: 500 })
+                .then(res => setDepartamentos(res.data || res))
                 .catch(() => showNotification('Error al cargar departamentos.', 'error'));
         } else {
             setDepartamentos([]);
@@ -107,8 +120,8 @@ const EscuelaManagement = () => {
     // Cargar localidades cuando cambia el departamento
     useEffect(() => {
         if (selectedDepartamento) {
-            geografiaService.getLocalidades(selectedDepartamento)
-                .then(setLocalidades)
+            geografiaService.getLocalidades(selectedDepartamento, { per_page: 500 })
+                .then(res => setLocalidades(res.data || res))
                 .catch(() => showNotification('Error al cargar localidades.', 'error'));
         } else {
             setLocalidades([]);
@@ -471,51 +484,38 @@ const EscuelaManagement = () => {
                                 <div className="space-y-4">
                                     <h3 className="text-xs font-black text-primary-600 uppercase tracking-widest border-b border-primary-100 pb-1">Ubicación Geográfica</h3>
                                     
-                                    <div>
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Provincia</label>
-                                        <select 
-                                            className="w-full px-4 py-2 bg-secondary-50 border border-secondary-200 rounded-xl font-bold focus:ring-2 focus:ring-primary-500 outline-none text-xs uppercase"
-                                            value={selectedProvincia}
-                                            onChange={(e) => {
-                                                setSelectedProvincia(e.target.value);
-                                                setSelectedDepartamento('');
-                                                setFormData({...formData, localidad_id: ''});
-                                            }}
-                                        >
-                                            <option value="">Seleccionar Provincia...</option>
-                                            {provincias.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                                        </select>
-                                    </div>
+                                    <SearchableSelect 
+                                        label="Provincia"
+                                        options={provincias}
+                                        value={selectedProvincia}
+                                        onChange={(e) => {
+                                            setSelectedProvincia(e.target.value);
+                                            setSelectedDepartamento('');
+                                            setFormData({...formData, localidad_id: ''});
+                                        }}
+                                        placeholder="Buscar Provincia..."
+                                    />
 
-                                    <div>
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Departamento / Distrito</label>
-                                        <select 
-                                            disabled={!selectedProvincia}
-                                            className="w-full px-4 py-2 bg-secondary-50 border border-secondary-200 rounded-xl font-bold focus:ring-2 focus:ring-primary-500 outline-none text-xs uppercase disabled:opacity-50"
-                                            value={selectedDepartamento}
-                                            onChange={(e) => {
-                                                setSelectedDepartamento(e.target.value);
-                                                setFormData({...formData, localidad_id: ''});
-                                            }}
-                                        >
-                                            <option value="">Seleccionar Departamento...</option>
-                                            {departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
-                                        </select>
-                                    </div>
+                                    <SearchableSelect 
+                                        label="Departamento / Distrito"
+                                        options={departamentos}
+                                        value={selectedDepartamento}
+                                        disabled={!selectedProvincia}
+                                        onChange={(e) => {
+                                            setSelectedDepartamento(e.target.value);
+                                            setFormData({...formData, localidad_id: ''});
+                                        }}
+                                        placeholder="Buscar Departamento..."
+                                    />
 
-                                    <div>
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Localidad</label>
-                                        <select 
-                                            required
-                                            disabled={!selectedDepartamento}
-                                            className="w-full px-4 py-2 bg-secondary-50 border border-secondary-200 rounded-xl font-bold focus:ring-2 focus:ring-primary-500 outline-none text-xs uppercase disabled:opacity-50"
-                                            value={formData.localidad_id}
-                                            onChange={(e) => setFormData({...formData, localidad_id: e.target.value})}
-                                        >
-                                            <option value="">Seleccionar Localidad...</option>
-                                            {localidades.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
-                                        </select>
-                                    </div>
+                                    <SearchableSelect 
+                                        label="Localidad"
+                                        options={localidades}
+                                        value={formData.localidad_id}
+                                        disabled={!selectedDepartamento}
+                                        onChange={(e) => setFormData({...formData, localidad_id: e.target.value})}
+                                        placeholder="Buscar Localidad..."
+                                    />
 
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="md:col-span-2">

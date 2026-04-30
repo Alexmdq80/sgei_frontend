@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import departamentoService from '../../services/departamentoService';
 import provinciaService from '../../services/provinciaService';
 import nacionService from '../../services/nacionService';
+import SearchableSelect from '../../components/SearchableSelect';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
 const DepartamentoManagement = () => {
@@ -44,8 +45,8 @@ const DepartamentoManagement = () => {
                 page: page,
                 per_page: 15
             });
-            setItems(response.data);
-            setPagination(response);
+            setItems(response.data || response);
+            setPagination(response.data ? response : {});
         } catch (error) {
             showNotification('Error al cargar los departamentos.', 'error');
         } finally {
@@ -55,12 +56,12 @@ const DepartamentoManagement = () => {
 
     const fetchCatalogs = async () => {
         try {
-            const [provsData, nationsData] = await Promise.all([
-                provinciaService.getAll(),
-                nacionService.getAll()
+            const [provsRes, nationsRes] = await Promise.all([
+                provinciaService.getAll({ per_page: 500 }),
+                nacionService.getAll({ per_page: 500 })
             ]);
-            setProvincias(provsData);
-            setNaciones(nationsData);
+            setProvincias(provsRes.data || provsRes);
+            setNaciones(nationsRes.data || nationsRes);
         } catch (error) {
             showNotification('Error al cargar catálogos.', 'error');
         }
@@ -279,35 +280,21 @@ const DepartamentoManagement = () => {
                         <form onSubmit={handleSubmit} className="p-8 space-y-6">
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Nación</label>
-                                        <select 
-                                            required
-                                            value={selectedNacionId}
-                                            onChange={(e) => setSelectedNacionId(e.target.value)}
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium appearance-none"
-                                        >
-                                            <option value="">Seleccione...</option>
-                                            {naciones.map(n => (
-                                                <option key={n.id} value={n.id}>{n.nombre}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Provincia</label>
-                                        <select 
-                                            required
-                                            disabled={!selectedNacionId}
-                                            value={formData.provincia_id}
-                                            onChange={(e) => setFormData({...formData, provincia_id: e.target.value})}
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium appearance-none disabled:opacity-50"
-                                        >
-                                            <option value="">{selectedNacionId ? 'Seleccione...' : 'Primero elija nación'}</option>
-                                            {filteredProvincias.map(p => (
-                                                <option key={p.id} value={p.id}>{p.nombre}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    <SearchableSelect 
+                                        label="Nación"
+                                        options={naciones}
+                                        value={selectedNacionId}
+                                        onChange={(e) => setSelectedNacionId(e.target.value)}
+                                        placeholder="Buscar Nación..."
+                                    />
+                                    <SearchableSelect 
+                                        label="Provincia"
+                                        options={filteredProvincias}
+                                        value={formData.provincia_id}
+                                        onChange={(e) => setFormData({...formData, provincia_id: e.target.value})}
+                                        placeholder={selectedNacionId ? "Buscar Provincia..." : "Primero elija nación"}
+                                        disabled={!selectedNacionId}
+                                    />
                                 </div>
 
                                 <div>

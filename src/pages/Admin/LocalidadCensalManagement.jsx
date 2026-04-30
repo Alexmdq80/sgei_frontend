@@ -46,8 +46,8 @@ const LocalidadCensalManagement = () => {
                 page: page,
                 per_page: 15
             });
-            setItems(response.data);
-            setPagination(response);
+            setItems(response.data || response);
+            setPagination(response.data ? response : {});
         } catch (error) {
             showNotification('Error al cargar las localidades censales.', 'error');
         } finally {
@@ -58,13 +58,13 @@ const LocalidadCensalManagement = () => {
     const fetchCatalogs = async () => {
         try {
             const [fuentesRes, catsRes, funcsRes] = await Promise.all([
-                api.get('/admin/georef-fuentes'),
-                api.get('/admin/georef-categorias'),
-                api.get('/admin/georef-funcions')
+                api.get('/admin/georef-fuentes', { params: { per_page: 500 } }),
+                api.get('/admin/georef-categorias', { params: { per_page: 500 } }),
+                api.get('/admin/georef-funcions', { params: { per_page: 500 } })
             ]);
-            setFuentes(fuentesRes.data);
-            setCategorias(catsRes.data);
-            setFuncions(funcsRes.data);
+            setFuentes(fuentesRes.data.data || fuentesRes.data);
+            setCategorias(catsRes.data.data || catsRes.data);
+            setFuncions(funcsRes.data.data || funcsRes.data);
         } catch (error) {
             showNotification('Error al cargar catálogos.', 'error');
         }

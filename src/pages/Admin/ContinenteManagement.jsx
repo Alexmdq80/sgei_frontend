@@ -27,8 +27,8 @@ const ContinenteManagement = () => {
     const fetchData = async () => {
         try {
             setIsLoading(true);
-            const data = await continenteService.getAll();
-            setItems(data);
+            const response = await continenteService.getAll();
+            setItems(response.data || response);
         } catch (error) {
             showNotification('Error al cargar los continentes.', 'error');
         } finally {

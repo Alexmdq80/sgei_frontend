@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import provinciaService from '../../services/provinciaService';
 import nacionService from '../../services/nacionService';
+import SearchableSelect from '../../components/SearchableSelect';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
 const ProvinciaManagement = () => {
@@ -39,8 +40,9 @@ const ProvinciaManagement = () => {
                 page: page,
                 per_page: 15
             });
-            setItems(response.data);
-            setPagination(response);
+            // Soporte para respuestas paginadas o arrays planos
+            setItems(response.data || response);
+            setPagination(response.data ? response : {});
         } catch (error) {
             showNotification('Error al cargar las provincias.', 'error');
         } finally {
@@ -50,8 +52,9 @@ const ProvinciaManagement = () => {
 
     const fetchCatalogs = async () => {
         try {
-            const nacionesData = await nacionService.getAll();
-            setNaciones(nacionesData);
+            const response = await nacionService.getAll({ per_page: 500 });
+            // Extraer el array de datos si viene paginado
+            setNaciones(response.data || response);
         } catch (error) {
             showNotification('Error al cargar catálogos.', 'error');
         }
@@ -259,20 +262,13 @@ const ProvinciaManagement = () => {
 
                         <form onSubmit={handleSubmit} className="p-8 space-y-6">
                             <div className="space-y-4">
-                                <div>
-                                    <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Nación / País</label>
-                                    <select 
-                                        required
-                                        value={formData.nacion_id}
-                                        onChange={(e) => setFormData({...formData, nacion_id: e.target.value})}
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium appearance-none"
-                                    >
-                                        <option value="">Seleccione Nación...</option>
-                                        {naciones.map(n => (
-                                            <option key={n.id} value={n.id}>{n.nombre}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <SearchableSelect 
+                                    label="Nación / País"
+                                    options={naciones}
+                                    value={formData.nacion_id}
+                                    onChange={(e) => setFormData({...formData, nacion_id: e.target.value})}
+                                    placeholder="Buscar Nación..."
+                                />
 
                                 <div>
                                     <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Nombre de la Provincia</label>

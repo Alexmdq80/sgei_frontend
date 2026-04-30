@@ -105,13 +105,15 @@ const UserManagement = () => {
     const fetchCatalogs = async () => {
         try {
             const [docs, roles, schools] = await Promise.all([
-                documentoTipoService.getAll(),
-                roleService.getAll(),
+                documentoTipoService.getAll({ per_page: 500 }),
+                roleService.getAll({ per_page: 500 }),
                 escuelaService.search('') // Cargar escuelas iniciales
             ]);
-            setDocTipos(docs);
-            setRolEscolares(roles);
-            setEscuelasCatalog(schools.map(s => ({ 
+            setDocTipos(docs.data || docs);
+            setRolEscolares(roles.data || roles);
+            
+            const schoolsArray = schools.data || schools;
+            setEscuelasCatalog(schoolsArray.map(s => ({ 
                 id: s.id, 
                 nombre: `${s.numero} - ${s.nombre} (${s.cue_anexo})` 
             })));

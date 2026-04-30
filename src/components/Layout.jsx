@@ -16,6 +16,7 @@ const Layout = ({ children }) => {
     const [isDocGroupOpen, setIsDocGroupOpen] = useState(false);
     const [isIdentityGroupOpen, setIsIdentityGroupOpen] = useState(false);
     const [isGeoGroupOpen, setIsGeoGroupOpen] = useState(false);
+    const [isGeorefGroupOpen, setIsGeorefGroupOpen] = useState(false);
     const [isOpsGroupOpen, setIsOpsGroupOpen] = useState(false);
     const [isCurricularPanelOpen, setIsCurricularPanelOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -51,7 +52,16 @@ const Layout = ({ children }) => {
             '/admin/general/naciones',
             '/admin/general/provincias',
             '/admin/general/departamentos',
-            '/admin/general/localidades'
+            '/admin/general/localidades',
+            '/admin/general/localidad-censals',
+            '/admin/general/georef-fuentes',
+            '/admin/general/georef-categorias',
+            '/admin/general/georef-funcions'
+        ];
+        const georefPaths = [
+            '/admin/general/georef-fuentes',
+            '/admin/general/georef-categorias',
+            '/admin/general/georef-funcions'
         ];
         const opsPaths = [
             '/admin/general/cargos', 
@@ -78,6 +88,7 @@ const Layout = ({ children }) => {
         }
         if (geoPaths.includes(location.pathname)) {
             setIsGeoGroupOpen(true);
+            if (georefPaths.includes(location.pathname)) setIsGeorefGroupOpen(true);
         }
         if (opsPaths.includes(location.pathname)) {
             setIsOpsGroupOpen(true);
@@ -192,6 +203,17 @@ const Layout = ({ children }) => {
                         { name: 'Departamentos', path: '/admin/general/departamentos' },
                         { name: 'Localidades', path: '/admin/general/localidades' },
                         { name: 'Localidades Censales', path: '/admin/general/localidad-censals' },
+                        {
+                            name: 'Metadatos Georef',
+                            isSubgroup: true,
+                            isOpen: isGeorefGroupOpen,
+                            setIsOpen: setIsGeorefGroupOpen,
+                            items: [
+                                { name: 'Fuentes', path: '/admin/general/georef-fuentes' },
+                                { name: 'Categorías', path: '/admin/general/georef-categorias' },
+                                { name: 'Funciones', path: '/admin/general/georef-funcions' },
+                            ]
+                        },
                     ]
                 },
                 {
