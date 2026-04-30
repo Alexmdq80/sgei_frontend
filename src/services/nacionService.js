@@ -5,10 +5,10 @@ import api from './api';
  */
 const nacionService = {
     /**
-     * Obtiene todas las naciones.
+     * Obtiene las naciones paginadas y filtradas.
      */
-    getAll: async () => {
-        const response = await api.get('/admin/naciones');
+    getAll: async (params = {}) => {
+        const response = await api.get('/admin/naciones', { params });
         return response.data;
     },
 

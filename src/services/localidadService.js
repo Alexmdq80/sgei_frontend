@@ -5,10 +5,10 @@ import api from './api';
  */
 const localidadService = {
     /**
-     * Obtiene todas las localidades.
+     * Obtiene las localidades paginadas y filtradas.
      */
-    getAll: async () => {
-        const response = await api.get('/admin/localidades');
+    getAll: async (params = {}) => {
+        const response = await api.get('/admin/localidades', { params });
         return response.data;
     },
 

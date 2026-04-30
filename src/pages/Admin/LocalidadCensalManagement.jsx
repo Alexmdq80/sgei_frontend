@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import nacionService from '../../services/nacionService';
-import continenteService from '../../services/continenteService';
+import localidadCensalService from '../../services/localidadCensalService';
+import api from '../../services/api';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
-const NacionManagement = () => {
+const LocalidadCensalManagement = () => {
     const { showNotification } = useAuth();
     const [items, setItems] = useState([]);
     const [pagination, setPagination] = useState({});
-    const [continentes, setContinentes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -16,12 +15,20 @@ const NacionManagement = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    // Catálogos
+    const [fuentes, setFuentes] = useState([]);
+    const [categorias, setCategorias] = useState([]);
+    const [funciones, setFuncions] = useState([]);
     
     const [formData, setFormData] = useState({
         nombre: '',
-        nacionalidad: '',
-        continente_id: '',
-        id_georef: ''
+        id_georef: '',
+        georef_fuente_id: '',
+        georef_categoria_id: '',
+        georef_funcion_id: '',
+        centroide_lat: '',
+        centroide_lon: ''
     });
 
     const [confirmConfig, setConfirmConfig] = useState({
@@ -34,7 +41,7 @@ const NacionManagement = () => {
     const fetchItems = async () => {
         try {
             setIsLoading(true);
-            const response = await nacionService.getAll({
+            const response = await localidadCensalService.getAll({
                 search: debouncedSearch,
                 page: page,
                 per_page: 15
@@ -42,7 +49,7 @@ const NacionManagement = () => {
             setItems(response.data);
             setPagination(response);
         } catch (error) {
-            showNotification('Error al cargar las naciones.', 'error');
+            showNotification('Error al cargar las localidades censales.', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -50,8 +57,14 @@ const NacionManagement = () => {
 
     const fetchCatalogs = async () => {
         try {
-            const continentesData = await continenteService.getAll();
-            setContinentes(continentesData);
+            const [fuentesRes, catsRes, funcsRes] = await Promise.all([
+                api.get('/admin/georef-fuentes'),
+                api.get('/admin/georef-categorias'),
+                api.get('/admin/georef-funcions')
+            ]);
+            setFuentes(fuentesRes.data);
+            setCategorias(catsRes.data);
+            setFuncions(funcsRes.data);
         } catch (error) {
             showNotification('Error al cargar catálogos.', 'error');
         }
@@ -65,7 +78,6 @@ const NacionManagement = () => {
         fetchItems();
     }, [page, debouncedSearch]);
 
-    // Debounce para la búsqueda
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(search);
@@ -79,17 +91,23 @@ const NacionManagement = () => {
             setEditingItem(item);
             setFormData({
                 nombre: item.nombre,
-                nacionalidad: item.nacionalidad,
-                continente_id: item.continente_id,
-                id_georef: item.id_georef || ''
+                id_georef: item.id_georef || '',
+                georef_fuente_id: item.georef_fuente_id || '',
+                georef_categoria_id: item.georef_categoria_id || '',
+                georef_funcion_id: item.georef_funcion_id || '',
+                centroide_lat: item.centroide_lat || '',
+                centroide_lon: item.centroide_lon || ''
             });
         } else {
             setEditingItem(null);
             setFormData({
                 nombre: '',
-                nacionalidad: '',
-                continente_id: '',
-                id_georef: ''
+                id_georef: '',
+                georef_fuente_id: '',
+                georef_categoria_id: '',
+                georef_funcion_id: '',
+                centroide_lat: '',
+                centroide_lon: ''
             });
         }
         setIsModalOpen(true);
@@ -98,7 +116,7 @@ const NacionManagement = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingItem(null);
-        setFormData({ nombre: '', nacionalidad: '', continente_id: '', id_georef: '' });
+        setFormData({ nombre: '', id_georef: '', georef_fuente_id: '', georef_categoria_id: '', georef_funcion_id: '', centroide_lat: '', centroide_lon: '' });
     };
 
     const handleSubmit = async (e) => {
@@ -106,16 +124,16 @@ const NacionManagement = () => {
         try {
             setIsSaving(true);
             if (editingItem) {
-                await nacionService.update(editingItem.id, formData);
-                showNotification('Nación actualizada correctamente.', 'success');
+                await localidadCensalService.update(editingItem.id, formData);
+                showNotification('Localidad censal actualizada.', 'success');
             } else {
-                await nacionService.create(formData);
-                showNotification('Nación creada correctamente.', 'success');
+                await localidadCensalService.create(formData);
+                showNotification('Localidad censal creada.', 'success');
             }
             fetchItems();
             handleCloseModal();
         } catch (error) {
-            const msg = error.response?.data?.error || 'Error al guardar la nación.';
+            const msg = error.response?.data?.error || 'Error al guardar.';
             showNotification(msg, 'error');
         } finally {
             setIsSaving(false);
@@ -125,15 +143,15 @@ const NacionManagement = () => {
     const handleDelete = (item) => {
         setConfirmConfig({
             isOpen: true,
-            title: 'Eliminar Nación',
-            message: `¿Está seguro que desea eliminar la nación "${item.nombre}"? Esta acción no se puede deshacer.`,
+            title: 'Eliminar Localidad Censal',
+            message: `¿Está seguro que desea eliminar "${item.nombre}"?`,
             onConfirm: async () => {
                 try {
-                    await nacionService.delete(item.id);
-                    showNotification('Nación eliminada correctamente.', 'success');
+                    await localidadCensalService.delete(item.id);
+                    showNotification('Eliminado correctamente.', 'success');
                     fetchItems();
                 } catch (error) {
-                    showNotification('Error al eliminar la nación.', 'error');
+                    showNotification('Error al eliminar.', 'error');
                 }
             }
         });
@@ -143,15 +161,15 @@ const NacionManagement = () => {
         <div className="space-y-6 animate-fadeIn">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-secondary-900">Gestión de Naciones</h1>
-                    <p className="text-secondary-500 text-sm mt-1">Administre el catálogo de países y nacionalidades del sistema.</p>
+                    <h1 className="text-2xl font-bold text-secondary-900">Gestión de Localidades Censales</h1>
+                    <p className="text-secondary-500 text-sm mt-1">Administre el catálogo de localidades con fines censales.</p>
                 </div>
                 <button 
                     onClick={() => handleOpenModal()}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 active:scale-95"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-                    Nueva Nación
+                    Nueva Localidad Censal
                 </button>
             </div>
 
@@ -163,7 +181,7 @@ const NacionManagement = () => {
                         </span>
                         <input 
                             type="text" 
-                            placeholder="Buscar por nombre, nacionalidad o continente..." 
+                            placeholder="Buscar por nombre o ID Georef..." 
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 bg-white border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
@@ -176,9 +194,9 @@ const NacionManagement = () => {
                         <thead>
                             <tr className="bg-secondary-50/50">
                                 <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Nombre</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Nacionalidad</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Continente</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">ID Georef</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Categoría</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Coordenadas</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100 text-right">Acciones</th>
                             </tr>
                         </thead>
@@ -193,13 +211,15 @@ const NacionManagement = () => {
                                 items.map((item) => (
                                     <tr key={item.id} className="hover:bg-secondary-50/50 transition-colors group">
                                         <td className="px-6 py-4 text-sm font-bold text-secondary-900 uppercase">{item.nombre}</td>
-                                        <td className="px-6 py-4 text-sm text-secondary-600 uppercase">{item.nacionalidad}</td>
+                                        <td className="px-6 py-4 text-sm text-secondary-600 font-mono">{item.id_georef || '-'}</td>
                                         <td className="px-6 py-4">
-                                            <span className="px-2.5 py-1 rounded-lg bg-primary-50 text-primary-700 text-[10px] font-black uppercase tracking-wider border border-primary-100">
-                                                {item.continente?.nombre}
+                                            <span className="px-2.5 py-1 rounded-lg bg-secondary-100 text-secondary-700 text-[10px] font-black uppercase tracking-wider border border-secondary-200">
+                                                {item.georef_categoria?.nombre || '-'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-secondary-500 font-mono">{item.id_georef || '-'}</td>
+                                        <td className="px-6 py-4 text-[10px] text-secondary-500 font-mono">
+                                            {item.centroide_lat ? `${item.centroide_lat}, ${item.centroide_lon}` : '-'}
+                                        </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button onClick={() => handleOpenModal(item)} className="p-2 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="Editar"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2.828 2.828 0 114 4L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
@@ -210,7 +230,7 @@ const NacionManagement = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-12 text-center text-secondary-500 font-medium">No se encontraron naciones.</td>
+                                    <td colSpan="5" className="px-6 py-12 text-center text-secondary-500 font-medium">No se encontraron registros.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -221,7 +241,7 @@ const NacionManagement = () => {
                 {!isLoading && pagination.last_page > 1 && (
                     <div className="px-6 py-4 bg-secondary-50/50 border-t border-secondary-100 flex items-center justify-between">
                         <p className="text-xs text-secondary-500 font-medium">
-                            Mostrando <span className="font-bold text-secondary-700">{pagination.from}</span> a <span className="font-bold text-secondary-700">{pagination.to}</span> de <span className="font-bold text-secondary-700">{pagination.total}</span> naciones
+                            Mostrando <span className="font-bold text-secondary-700">{pagination.from}</span> a <span className="font-bold text-secondary-700">{pagination.to}</span> de <span className="font-bold text-secondary-700">{pagination.total}</span> registros
                         </p>
                         <div className="flex gap-2">
                             <button 
@@ -243,14 +263,14 @@ const NacionManagement = () => {
                 )}
             </div>
 
-            {/* Modal de Creación/Edición */}
+            {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-scaleIn">
                         <div className="px-8 py-6 border-b border-secondary-100 flex items-center justify-between bg-secondary-50/50">
                             <div>
-                                <h3 className="text-xl font-bold text-secondary-900">{editingItem ? 'Editar Nación' : 'Nueva Nación'}</h3>
-                                <p className="text-secondary-500 text-xs mt-1">Complete los datos del país.</p>
+                                <h3 className="text-xl font-bold text-secondary-900">{editingItem ? 'Editar Localidad Censal' : 'Nueva Localidad Censal'}</h3>
+                                <p className="text-secondary-500 text-xs mt-1">Complete los datos de la localidad.</p>
                             </div>
                             <button onClick={handleCloseModal} className="p-2 hover:bg-secondary-200/50 rounded-xl transition-colors text-secondary-400 hover:text-secondary-600">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -260,78 +280,57 @@ const NacionManagement = () => {
                         <form onSubmit={handleSubmit} className="p-8 space-y-6">
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Nombre del País</label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        value={formData.nombre}
-                                        onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium"
-                                        placeholder="Ej: ARGENTINA"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Nacionalidad</label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        value={formData.nacionalidad}
-                                        onChange={(e) => setFormData({...formData, nacionalidad: e.target.value})}
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium"
-                                        placeholder="Ej: ARGENTINA/O"
-                                    />
+                                    <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Nombre</label>
+                                    <input type="text" required value={formData.nombre} onChange={(e) => setFormData({...formData, nombre: e.target.value})} className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium" placeholder="Ej: CIUDAD DE BUENOS AIRES" />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Continente</label>
-                                        <select 
-                                            required
-                                            value={formData.continente_id}
-                                            onChange={(e) => setFormData({...formData, continente_id: e.target.value})}
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium appearance-none"
-                                        >
+                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">ID Georef</label>
+                                        <input type="text" value={formData.id_georef} onChange={(e) => setFormData({...formData, id_georef: e.target.value})} className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Categoría</label>
+                                        <select value={formData.georef_categoria_id} onChange={(e) => setFormData({...formData, georef_categoria_id: e.target.value})} className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium appearance-none">
                                             <option value="">Seleccione...</option>
-                                            {continentes.map(c => (
-                                                <option key={c.id} value={c.id}>{c.nombre}</option>
-                                            ))}
+                                            {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Fuente</label>
+                                        <select value={formData.georef_fuente_id} onChange={(e) => setFormData({...formData, georef_fuente_id: e.target.value})} className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm appearance-none">
+                                            <option value="">Seleccione...</option>
+                                            {fuentes.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">ID Georef (Opcional)</label>
-                                        <input 
-                                            type="number" 
-                                            value={formData.id_georef}
-                                            onChange={(e) => setFormData({...formData, id_georef: e.target.value})}
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium"
-                                            placeholder="Ej: 340"
-                                        />
+                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Función</label>
+                                        <select value={formData.georef_funcion_id} onChange={(e) => setFormData({...formData, georef_funcion_id: e.target.value})} className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm appearance-none">
+                                            <option value="">Seleccione...</option>
+                                            {funciones.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Latitud</label>
+                                        <input type="number" step="any" value={formData.centroide_lat} onChange={(e) => setFormData({...formData, centroide_lat: e.target.value})} className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Longitud</label>
+                                        <input type="number" step="any" value={formData.centroide_lon} onChange={(e) => setFormData({...formData, centroide_lon: e.target.value})} className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm" />
                                     </div>
                                 </div>
                             </div>
 
                             <div className="flex gap-3 pt-4">
-                                <button 
-                                    type="button"
-                                    onClick={handleCloseModal}
-                                    className="flex-1 px-6 py-3 border border-secondary-200 text-secondary-600 rounded-2xl font-bold hover:bg-secondary-50 transition-all active:scale-95"
-                                >
-                                    Cancelar
-                                </button>
-                                <button 
-                                    type="submit"
-                                    disabled={isSaving}
-                                    className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
-                                >
-                                    {isSaving ? (
-                                        <>
-                                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                            Guardando...
-                                        </>
-                                    ) : (
-                                        editingItem ? 'Guardar Cambios' : 'Crear Nación'
-                                    )}
+                                <button type="button" onClick={handleCloseModal} className="flex-1 px-6 py-3 border border-secondary-200 text-secondary-600 rounded-2xl font-bold hover:bg-secondary-50">Cancelar</button>
+                                <button type="submit" disabled={isSaving} className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold hover:bg-primary-700 shadow-lg shadow-primary-200 disabled:opacity-50">
+                                    {isSaving ? 'Guardando...' : (editingItem ? 'Guardar Cambios' : 'Crear Localidad')}
                                 </button>
                             </div>
                         </form>
@@ -339,15 +338,9 @@ const NacionManagement = () => {
                 </div>
             )}
 
-            <ConfirmationModal 
-                isOpen={confirmConfig.isOpen}
-                title={confirmConfig.title}
-                message={confirmConfig.message}
-                onConfirm={confirmConfig.onConfirm}
-                onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
-            />
+            <ConfirmationModal isOpen={confirmConfig.isOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={confirmConfig.onConfirm} onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} />
         </div>
     );
 };
 
-export default NacionManagement;
+export default LocalidadCensalManagement;

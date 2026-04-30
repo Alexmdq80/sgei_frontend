@@ -5,10 +5,10 @@ import api from './api';
  */
 const departamentoService = {
     /**
-     * Obtiene todos los departamentos.
+     * Obtiene los departamentos paginados y filtrados.
      */
-    getAll: async () => {
-        const response = await api.get('/admin/departamentos');
+    getAll: async (params = {}) => {
+        const response = await api.get('/admin/departamentos', { params });
         return response.data;
     },
 

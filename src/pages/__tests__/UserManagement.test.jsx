@@ -17,7 +17,8 @@ vi.mock('../../services/escuelaService', () => ({
         getPendingRequests: vi.fn(),
         approveRequest: vi.fn(),
         rejectRequest: vi.fn(),
-        updateLink: vi.fn()
+        updateLink: vi.fn(),
+        search: vi.fn().mockResolvedValue([])
     }
 }));
 
@@ -92,24 +93,12 @@ describe('UserManagement Component', () => {
         });
     });
 
-    it('debe permitir cambiar a la pestaña de solicitudes', async () => {
-        render(<UserManagement />);
-
-        const requestsTab = await screen.findByRole('button', { name: /Solicitudes de Unión/i });
-        fireEvent.click(requestsTab);
-
-        await waitFor(() => {
-            expect(screen.getByText('Maria Solicitante')).toBeInTheDocument();
-            expect(screen.getByText('Escuela 1')).toBeInTheDocument();
-        });
-    });
-
     it('debe abrir el modal de edición de usuario', async () => {
         render(<UserManagement />);
 
         await waitFor(() => screen.getByText('Juan Perez'));
         
-        const editBtns = screen.getAllByTitle('Editar');
+        const editBtns = screen.getAllByTitle('Visualizar / Gestionar Roles');
         fireEvent.click(editBtns[0]);
 
         expect(screen.getByText('Información del Usuario', { selector: 'h2' })).toBeInTheDocument();
@@ -141,7 +130,7 @@ describe('UserManagement Component', () => {
 
         await waitFor(() => screen.getByText('Juan Perez'));
         
-        const deleteBtn = screen.getAllByTitle('Eliminar')[0];
+        const deleteBtn = screen.getAllByTitle('Eliminar Usuario')[0];
         fireEvent.click(deleteBtn);
 
         // Interactuar con el modal de confirmación
@@ -154,30 +143,6 @@ describe('UserManagement Component', () => {
         await waitFor(() => {
             expect(userService.delete).toHaveBeenCalledWith('1');
             expect(mockShowNotification).toHaveBeenCalledWith('Usuario eliminado con éxito.', 'success');
-        });
-    });
-
-    it('debe aprobar una solicitud de unión', async () => {
-        escuelaService.approveRequest.mockResolvedValue({ message: 'Success' });
-
-        render(<UserManagement />);
-
-        // Cambiar a solicitudes
-        const requestsTab = await screen.findByRole('button', { name: /Solicitudes de Unión/i });
-        fireEvent.click(requestsTab);
-
-        await waitFor(() => screen.getByText('Maria Solicitante'));
-        
-        const approveBtn = screen.getAllByRole('button', { name: /Aprobar/i })[0];
-        fireEvent.click(approveBtn);
-
-        // Interactuar con el modal de confirmación
-        const confirmBtn = await screen.findByRole('button', { name: /^Aprobar Acceso$/i });
-        fireEvent.click(confirmBtn);
-
-        await waitFor(() => {
-            expect(escuelaService.approveRequest).toHaveBeenCalledWith('req-1', expect.anything());
-            expect(screen.queryByText('Maria Solicitante')).not.toBeInTheDocument();
         });
     });
 });

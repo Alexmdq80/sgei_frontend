@@ -5,10 +5,10 @@ import api from './api';
  */
 const provinciaService = {
     /**
-     * Obtiene todas las provincias.
+     * Obtiene las provincias paginadas y filtradas.
      */
-    getAll: async () => {
-        const response = await api.get('/admin/provincias');
+    getAll: async (params = {}) => {
+        const response = await api.get('/admin/provincias', { params });
         return response.data;
     },
 

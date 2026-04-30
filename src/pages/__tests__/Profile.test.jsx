@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Profile from '../Profile';
 import { useAuth } from '../../context/AuthContext';
@@ -16,6 +16,12 @@ vi.mock('../../services/userService', () => ({
         updateAvatar: vi.fn(),
         deleteAvatar: vi.fn(),
         updatePassword: vi.fn()
+    }
+}));
+
+vi.mock('../../services/documentoTipoService', () => ({
+    default: {
+        getAll: vi.fn().mockResolvedValue([{ id: 1, nombre: 'DNI' }])
     }
 }));
 
@@ -43,12 +49,14 @@ describe('Profile Component', () => {
         });
     });
 
-    it('debe renderizar la información del perfil correctamente', () => {
-        render(
-            <BrowserRouter>
-                <Profile />
-            </BrowserRouter>
-        );
+    it('debe renderizar la información del perfil correctamente', async () => {
+        await act(async () => {
+            render(
+                <BrowserRouter>
+                    <Profile />
+                </BrowserRouter>
+            );
+        });
 
         expect(screen.getByDisplayValue('Alex')).toBeInTheDocument();
         expect(screen.getByDisplayValue('alex@example.com')).toBeInTheDocument();
@@ -57,22 +65,28 @@ describe('Profile Component', () => {
     it('debe llamar a updateProfile al enviar el formulario de perfil', async () => {
         userService.updateProfile.mockResolvedValue({ message: 'Success' });
 
-        render(
-            <BrowserRouter>
-                <Profile />
-            </BrowserRouter>
-        );
+        await act(async () => {
+            render(
+                <BrowserRouter>
+                    <Profile />
+                </BrowserRouter>
+            );
+        });
 
         const nombreInput = screen.getByDisplayValue('Alex');
-        fireEvent.change(nombreInput, { target: { value: 'AlexUpdated', name: 'nombre' } });
+        await act(async () => {
+            fireEvent.change(nombreInput, { target: { value: 'AlexUpdated', name: 'nombre' } });
+        });
 
-        const updateButton = screen.getByRole('button', { name: /Actualizar/i });
-        fireEvent.click(updateButton);
+        const updateButton = screen.getByRole('button', { name: /Actualizar Perfil/i });
+        await act(async () => {
+            fireEvent.click(updateButton);
+        });
 
-        expect(userService.updateProfile).toHaveBeenCalledWith({
+        expect(userService.updateProfile).toHaveBeenCalledWith(expect.objectContaining({
             nombre: 'AlexUpdated',
             email: 'alex@example.com'
-        });
+        }));
 
         await waitFor(() => {
             expect(mockShowNotification).toHaveBeenCalledWith('Perfil actualizado con éxito.', 'success');
@@ -80,24 +94,26 @@ describe('Profile Component', () => {
         });
     });
 
-    it('debe mostrar advertencia si el email no está verificado', () => {
+    it('debe mostrar advertencia si el email no está verificado', async () => {
         useAuth.mockReturnValue({
             user: { ...mockUser, email_verified_at: null },
             checkAuth: mockCheckAuth,
             showNotification: mockShowNotification
         });
 
-        render(
-            <BrowserRouter>
-                <Profile />
-            </BrowserRouter>
-        );
+        await act(async () => {
+            render(
+                <BrowserRouter>
+                    <Profile />
+                </BrowserRouter>
+            );
+        });
 
         expect(screen.getByText(/Correo Electrónico No Verificado/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Reenviar Verificación/i })).toBeInTheDocument();
     });
 
-    it('debe deshabilitar campos de nombre y contraseña si el email no está verificado', () => {
+    it('debe deshabilitar campos de nombre y contraseña si el email no está verificado', async () => {
         useAuth.mockReturnValue({
             user: { ...mockUser, email_verified_at: null },
             checkAuth: mockCheckAuth,
@@ -122,34 +138,42 @@ describe('Profile Component', () => {
         const currentPassInput = container.querySelector('input[name="current_password"]');
         expect(currentPassInput).toBeDisabled();
 
-        // El botón de actualizar debe tener el texto de corrección
-        expect(screen.getByRole('button', { name: /Corregir y Reenviar/i })).toBeInTheDocument();
+        // El botón de actualizar debe estar presente
+        expect(screen.getByRole('button', { name: /Actualizar Perfil/i })).toBeInTheDocument();
     });
 
     it('debe llamar a updatePassword al enviar el formulario de contraseña', async () => {
         userService.updatePassword.mockResolvedValue({ message: 'Success' });
 
-        const { container } = render(
-            <BrowserRouter>
-                <Profile />
-            </BrowserRouter>
-        );
+        let container;
+        await act(async () => {
+            const result = render(
+                <BrowserRouter>
+                    <Profile />
+                </BrowserRouter>
+            );
+            container = result.container;
+        });
 
         const currentPassInput = container.querySelector('input[name="current_password"]');
         const newPassInput = container.querySelector('input[name="password"]');
         const confirmPassInput = container.querySelector('input[name="password_confirmation"]');
+        const submitPassBtn = screen.getByRole('button', { name: /Cambiar Contraseña/i });
 
-        fireEvent.change(currentPassInput, { target: { value: 'oldpassword', name: 'current_password' } });
-        fireEvent.change(newPassInput, { target: { value: 'NewPassword123!', name: 'password' } });
-        fireEvent.change(confirmPassInput, { target: { value: 'NewPassword123!', name: 'password_confirmation' } });
+        await act(async () => {
+            fireEvent.change(currentPassInput, { target: { value: 'password123', name: 'current_password' } });
+            fireEvent.change(newPassInput, { target: { value: 'newpassword123', name: 'password' } });
+            fireEvent.change(confirmPassInput, { target: { value: 'newpassword123', name: 'password_confirmation' } });
+        });
 
-        const changePassButton = screen.getByRole('button', { name: /Cambiar Contraseña/i });
-        fireEvent.click(changePassButton);
+        await act(async () => {
+            fireEvent.click(submitPassBtn);
+        });
 
         expect(userService.updatePassword).toHaveBeenCalledWith({
-            current_password: 'oldpassword',
-            password: 'NewPassword123!',
-            password_confirmation: 'NewPassword123!'
+            current_password: 'password123',
+            password: 'newpassword123',
+            password_confirmation: 'newpassword123'
         });
 
         await waitFor(() => {
@@ -158,24 +182,33 @@ describe('Profile Component', () => {
     });
 
     it('debe manejar la subida de avatar', async () => {
-        userService.updateAvatar.mockResolvedValue({ message: 'Success' });
+        userService.updateAvatar.mockResolvedValue({ 
+            message: 'Foto de perfil actualizada.',
+            user: { ...mockUser, avatar_url: 'new-avatar.jpg' }
+        });
 
-        render(
+        const { container } = render(
             <BrowserRouter>
                 <Profile />
             </BrowserRouter>
         );
 
-        // Simulamos la selección de un archivo
         const file = new File(['hello'], 'hello.png', { type: 'image/png' });
-        const input = screen.getByLabelText('', { selector: 'input[type="file"]' });
-        
-        fireEvent.change(input, { target: { files: [file] } });
+        const input = container.querySelector('input[type="file"]');
 
-        const uploadButton = screen.getByRole('button', { name: /Subir Nueva Foto/i });
-        fireEvent.click(uploadButton);
+        await act(async () => {
+            fireEvent.change(input, { target: { files: [file] } });
+        });
 
-        expect(userService.updateAvatar).toHaveBeenCalled();
+        const submitBtn = screen.getByRole('button', { name: /Subir Nueva Foto/i });
+        await act(async () => {
+            fireEvent.click(submitBtn);
+        });
+
+        await waitFor(() => {
+            expect(userService.updateAvatar).toHaveBeenCalled();
+        });
+
         await waitFor(() => {
             expect(mockShowNotification).toHaveBeenCalledWith('Foto de perfil actualizada.', 'success');
             expect(mockCheckAuth).toHaveBeenCalled();

@@ -9,11 +9,14 @@ import ConfirmationModal from '../../components/ConfirmationModal';
 const LocalidadManagement = () => {
     const { showNotification } = useAuth();
     const [items, setItems] = useState([]);
+    const [pagination, setPagination] = useState({});
     const [naciones, setNaciones] = useState([]);
     const [provincias, setProvincias] = useState([]);
     const [departamentos, setDepartamentos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [page, setPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -37,29 +40,54 @@ const LocalidadManagement = () => {
         onConfirm: () => {}
     });
 
-    const fetchData = async () => {
+    const fetchItems = async () => {
         try {
             setIsLoading(true);
-            const [locsData, depsData, provsData, nationsData] = await Promise.all([
-                localidadService.getAll(),
-                departamentoService.getAll(),
-                provinciaService.getAll(),
-                nacionService.getAll()
-            ]);
-            setItems(locsData);
-            setDepartamentos(depsData);
-            setProvincias(provsData);
-            setNaciones(nationsData);
+            const response = await localidadService.getAll({
+                search: debouncedSearch,
+                page: page,
+                per_page: 15
+            });
+            setItems(response.data);
+            setPagination(response);
         } catch (error) {
-            showNotification('Error al cargar los datos.', 'error');
+            showNotification('Error al cargar las localidades.', 'error');
         } finally {
             setIsLoading(false);
         }
     };
 
+    const fetchCatalogs = async () => {
+        try {
+            const [depsData, provsData, nationsData] = await Promise.all([
+                departamentoService.getAll(),
+                provinciaService.getAll(),
+                nacionService.getAll()
+            ]);
+            setDepartamentos(depsData);
+            setProvincias(provsData);
+            setNaciones(nationsData);
+        } catch (error) {
+            showNotification('Error al cargar catálogos.', 'error');
+        }
+    };
+
     useEffect(() => {
-        fetchData();
+        fetchCatalogs();
     }, []);
+
+    useEffect(() => {
+        fetchItems();
+    }, [page, debouncedSearch]);
+
+    // Debounce para la búsqueda
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+            setPage(1); // Resetear a la primera página al buscar
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search]);
 
     // Filtrar provincias cuando cambia la nación
     useEffect(() => {
@@ -121,7 +149,7 @@ const LocalidadManagement = () => {
                 await localidadService.create(formData);
                 showNotification('Localidad creada correctamente.', 'success');
             }
-            fetchData();
+            fetchItems();
             handleCloseModal();
         } catch (error) {
             const msg = error.response?.data?.error || 'Error al guardar la localidad.';
@@ -140,19 +168,13 @@ const LocalidadManagement = () => {
                 try {
                     await localidadService.delete(item.id);
                     showNotification('Localidad eliminada correctamente.', 'success');
-                    fetchData();
+                    fetchItems();
                 } catch (error) {
                     showNotification('Error al eliminar la localidad.', 'error');
                 }
             }
         });
     };
-
-    const filteredItems = items.filter(item => 
-        item.nombre.toLowerCase().includes(search.toLowerCase()) ||
-        item.departamento?.nombre.toLowerCase().includes(search.toLowerCase()) ||
-        item.departamento?.provincia?.nombre.toLowerCase().includes(search.toLowerCase())
-    );
 
     return (
         <div className="space-y-6 animate-fadeIn">
@@ -203,11 +225,11 @@ const LocalidadManagement = () => {
                                         <td colSpan="4" className="px-6 py-4"><div className="h-4 bg-secondary-100 rounded w-full"></div></td>
                                     </tr>
                                 ))
-                            ) : filteredItems.length > 0 ? (
-                                filteredItems.map((item) => (
+                            ) : items.length > 0 ? (
+                                items.map((item) => (
                                     <tr key={item.id} className="hover:bg-secondary-50/50 transition-colors group">
-                                        <td className="px-6 py-4 text-sm font-bold text-secondary-900">{item.nombre}</td>
-                                        <td className="px-6 py-4 text-sm text-secondary-600">{item.departamento?.nombre}</td>
+                                        <td className="px-6 py-4 text-sm font-bold text-secondary-900 uppercase">{item.nombre}</td>
+                                        <td className="px-6 py-4 text-sm text-secondary-600 uppercase">{item.departamento?.nombre}</td>
                                         <td className="px-6 py-4">
                                             <span className="px-2.5 py-1 rounded-lg bg-secondary-100 text-secondary-700 text-[10px] font-black uppercase tracking-wider border border-secondary-200">
                                                 {item.departamento?.provincia?.nombre}
@@ -229,6 +251,31 @@ const LocalidadManagement = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Paginación */}
+                {!isLoading && pagination.last_page > 1 && (
+                    <div className="px-6 py-4 bg-secondary-50/50 border-t border-secondary-100 flex items-center justify-between">
+                        <p className="text-xs text-secondary-500 font-medium">
+                            Mostrando <span className="font-bold text-secondary-700">{pagination.from}</span> a <span className="font-bold text-secondary-700">{pagination.to}</span> de <span className="font-bold text-secondary-700">{pagination.total}</span> localidades
+                        </p>
+                        <div className="flex gap-2">
+                            <button 
+                                disabled={page === 1}
+                                onClick={() => setPage(page - 1)}
+                                className="px-4 py-1.5 bg-white border border-secondary-200 rounded-xl text-xs font-bold text-secondary-600 hover:bg-secondary-50 transition-colors disabled:opacity-50 disabled:hover:bg-white"
+                            >
+                                Anterior
+                            </button>
+                            <button 
+                                disabled={page === pagination.last_page}
+                                onClick={() => setPage(page + 1)}
+                                className="px-4 py-1.5 bg-white border border-secondary-200 rounded-xl text-xs font-bold text-secondary-600 hover:bg-secondary-50 transition-colors disabled:opacity-50 disabled:hover:bg-white"
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Modal */}

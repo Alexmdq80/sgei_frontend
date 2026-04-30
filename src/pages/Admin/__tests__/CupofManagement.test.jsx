@@ -65,7 +65,7 @@ describe('CupofManagement Component', () => {
     vi.clearAllMocks();
     cupofService.getAll.mockResolvedValue([]);
     cargoService.getAll.mockResolvedValue(mockCargos);
-    escuelaService.search.mockResolvedValue({ data: mockEscuelas });
+    escuelaService.search.mockResolvedValue(mockEscuelas);
     personaService.getAll.mockResolvedValue({ data: [] });
   });
 

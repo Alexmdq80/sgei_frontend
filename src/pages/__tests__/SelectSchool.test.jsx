@@ -1,50 +1,12 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SelectSchool from '../SelectSchool';
 import { useAuth } from '../../context/AuthContext';
 import { BrowserRouter } from 'react-router-dom';
-import escuelaService from '../../services/escuelaService';
-import geografiaService from '../../services/geografiaService';
 
 // Mock de hooks y servicios
 vi.mock('../../context/AuthContext', () => ({
     useAuth: vi.fn()
-}));
-
-vi.mock('../../services/escuelaService', () => ({
-    default: {
-        getNiveles: vi.fn(),
-        getSectores: vi.fn(),
-        search: vi.fn(),
-        requestJoin: vi.fn()
-    }
-}));
-
-vi.mock('../../services/geografiaService', () => ({
-    default: {
-        getProvincias: vi.fn(),
-        getDepartamentos: vi.fn(),
-        getLocalidades: vi.fn()
-    }
-}));
-
-// Mock de SearchableSelect para simplificar
-vi.mock('../../components/SearchableSelect', () => ({
-    default: ({ label, name, options, value, onChange, placeholder, disabled }) => (
-        <div data-testid={`select-${name}`}>
-            <label>{label}</label>
-            <select 
-                name={name} 
-                value={value} 
-                onChange={onChange} 
-                disabled={disabled}
-                placeholder={placeholder}
-            >
-                <option value="">Seleccionar...</option>
-                {options.map(opt => <option key={opt.id} value={opt.id}>{opt.nombre}</option>)}
-            </select>
-        </div>
-    )
 }));
 
 const mockNavigate = vi.fn();
@@ -57,23 +19,20 @@ vi.mock('react-router-dom', async () => {
 });
 
 describe('SelectSchool Component', () => {
-    const mockCheckAuth = vi.fn();
     const mockLogout = vi.fn();
+    const mockSelectProfile = vi.fn();
 
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    it('debe redirigir a dashboard si el usuario es administrador', async () => {
         useAuth.mockReturnValue({
+            user: { es_administrador: true },
             logout: mockLogout,
-            checkAuth: mockCheckAuth
+            selectProfile: mockSelectProfile
         });
 
-        geografiaService.getProvincias.mockResolvedValue([{ id: 1, nombre: 'Buenos Aires' }]);
-        escuelaService.getNiveles.mockResolvedValue([{ id: 1, nombre: 'Primario' }]);
-        escuelaService.getSectores.mockResolvedValue([{ id: 1, nombre: 'Estatal' }]);
-        escuelaService.search.mockResolvedValue([]);
-    });
-
-    it('debe cargar catálogos iniciales al montar', async () => {
         render(
             <BrowserRouter>
                 <SelectSchool />
@@ -81,17 +40,17 @@ describe('SelectSchool Component', () => {
         );
 
         await waitFor(() => {
-            expect(geografiaService.getProvincias).toHaveBeenCalled();
-            expect(escuelaService.getNiveles).toHaveBeenCalled();
-            expect(escuelaService.getSectores).toHaveBeenCalled();
+            expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
         });
-
-        expect(screen.getByText('Buenos Aires')).toBeInTheDocument();
-        expect(screen.getByText('Primario')).toBeInTheDocument();
     });
 
-    it('debe cargar departamentos al seleccionar una provincia', async () => {
-        geografiaService.getDepartamentos.mockResolvedValue([{ id: 10, nombre: 'La Plata' }]);
+    it('debe redirigir automáticamente si solo hay un cargo verificado', async () => {
+        const mockLink = { id: 1, verified_at: '2026-01-01', escuela: { nombre: 'Escuela 1' } };
+        useAuth.mockReturnValue({
+            user: { escuela_usuarios: [mockLink] },
+            logout: mockLogout,
+            selectProfile: mockSelectProfile
+        });
 
         render(
             <BrowserRouter>
@@ -99,19 +58,22 @@ describe('SelectSchool Component', () => {
             </BrowserRouter>
         );
 
-        const provinciaSelect = await screen.findByTestId('select-provincia_id');
-        fireEvent.change(provinciaSelect.querySelector('select'), { target: { value: '1', name: 'provincia_id' } });
-
         await waitFor(() => {
-            expect(geografiaService.getDepartamentos).toHaveBeenCalledWith('1');
+            expect(mockSelectProfile).toHaveBeenCalledWith(mockLink);
+            expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
         });
     });
 
-    it('debe buscar escuelas al escribir en el buscador', async () => {
-        const mockEscuelas = [
-            { id: 1, nombre: 'Escuela 1', numero: '123', cue_anexo: '101', localidad: { nombre: 'La Plata' }, sector: { id: 1, nombre: 'Estatal' } }
+    it('debe permitir seleccionar entre múltiples cargos verificados', async () => {
+        const mockLinks = [
+            { id: 1, verified_at: '2026-01-01', escuela: { nombre: 'Escuela 1', cue_anexo: '101' }, role: { name: 'Director' } },
+            { id: 2, verified_at: '2026-01-01', escuela: { nombre: 'Escuela 2', cue_anexo: '202' }, role: { name: 'Secretario' } }
         ];
-        escuelaService.search.mockResolvedValue(mockEscuelas);
+        useAuth.mockReturnValue({
+            user: { escuela_usuarios: mockLinks },
+            logout: mockLogout,
+            selectProfile: mockSelectProfile
+        });
 
         render(
             <BrowserRouter>
@@ -119,23 +81,21 @@ describe('SelectSchool Component', () => {
             </BrowserRouter>
         );
 
-        const searchInput = screen.getByPlaceholderText(/Nombre, N° de escuela o CUE.../i);
-        fireEvent.change(searchInput, { target: { value: 'Escuela' } });
+        expect(screen.getByText('Escuela 1')).toBeInTheDocument();
+        expect(screen.getByText('Escuela 2')).toBeInTheDocument();
 
-        await waitFor(() => {
-            expect(escuelaService.search).toHaveBeenCalledWith('Escuela', expect.any(Object));
-        });
+        fireEvent.click(screen.getByText('Escuela 1'));
 
-        expect(await screen.findByText('Escuela 1 N° 123')).toBeInTheDocument();
+        expect(mockSelectProfile).toHaveBeenCalledWith(mockLinks[0]);
+        expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
     });
 
-    it('debe llamar a requestJoin y redirigir al unirse a una escuela', async () => {
-        const mockEscuelas = [
-            { id: 1, nombre: 'Escuela 1', numero: '123', cue_anexo: '101', localidad: { nombre: 'La Plata' }, sector: { id: 1, nombre: 'Estatal' } }
-        ];
-        escuelaService.search.mockResolvedValue(mockEscuelas);
-        escuelaService.requestJoin.mockResolvedValue({ message: 'Success' });
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+    it('debe mostrar mensaje si no hay cargos asignados', () => {
+        useAuth.mockReturnValue({
+            user: { escuela_usuarios: [] },
+            logout: mockLogout,
+            selectProfile: mockSelectProfile
+        });
 
         render(
             <BrowserRouter>
@@ -143,16 +103,9 @@ describe('SelectSchool Component', () => {
             </BrowserRouter>
         );
 
-        const searchInput = screen.getByPlaceholderText(/Nombre, N° de escuela o CUE.../i);
-        fireEvent.change(searchInput, { target: { value: 'Escuela' } });
-
-        const joinButton = await screen.findByRole('button', { name: /Vincularme/i });
-        fireEvent.click(joinButton);
-
-        expect(escuelaService.requestJoin).toHaveBeenCalledWith(1);
-        await waitFor(() => {
-            expect(mockCheckAuth).toHaveBeenCalled();
-            expect(mockNavigate).toHaveBeenCalledWith('/pending-approval');
-        });
+        expect(screen.getByText(/Sin Cargos Asignados/i)).toBeInTheDocument();
+        const logoutBtn = screen.getByRole('button', { name: /Cerrar Sesión/i });
+        fireEvent.click(logoutBtn);
+        expect(mockLogout).toHaveBeenCalled();
     });
 });
