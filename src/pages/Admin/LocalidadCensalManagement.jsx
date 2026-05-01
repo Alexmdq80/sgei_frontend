@@ -48,7 +48,7 @@ const LocalidadCensalManagement = () => {
             });
             setItems(response.data || response);
             setPagination(response.data ? response : {});
-        } catch (error) {
+        } catch {
             showNotification('Error al cargar las localidades censales.', 'error');
         } finally {
             setIsLoading(false);
@@ -150,8 +150,10 @@ const LocalidadCensalManagement = () => {
                     await localidadCensalService.delete(item.id);
                     showNotification('Eliminado correctamente.', 'success');
                     fetchItems();
-                } catch (error) {
+                } catch {
                     showNotification('Error al eliminar.', 'error');
+                } finally {
+                    setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 }
             }
         });
@@ -338,7 +340,14 @@ const LocalidadCensalManagement = () => {
                 </div>
             )}
 
-            <ConfirmationModal isOpen={confirmConfig.isOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={confirmConfig.onConfirm} onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} />
+            <ConfirmationModal 
+                isOpen={confirmConfig.isOpen} 
+                title={confirmConfig.title} 
+                message={confirmConfig.message} 
+                onConfirm={confirmConfig.onConfirm} 
+                onClose={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))} 
+                variant="danger"
+            />
         </div>
     );
 };

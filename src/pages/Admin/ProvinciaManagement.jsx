@@ -137,6 +137,8 @@ const ProvinciaManagement = () => {
                     fetchItems();
                 } catch (error) {
                     showNotification('Error al eliminar la provincia.', 'error');
+                } finally {
+                    setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 }
             }
         });
@@ -335,11 +337,12 @@ const ProvinciaManagement = () => {
             )}
 
             <ConfirmationModal 
-                isOpen={confirmConfig.isOpen}
-                title={confirmConfig.title}
-                message={confirmConfig.message}
-                onConfirm={confirmConfig.onConfirm}
-                onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+                isOpen={confirmConfig.isOpen} 
+                title={confirmConfig.title} 
+                message={confirmConfig.message} 
+                onConfirm={confirmConfig.onConfirm} 
+                onClose={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))} 
+                variant="danger"
             />
         </div>
     );
