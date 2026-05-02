@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import sexoService from '../../services/sexoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -32,7 +33,7 @@ const SexoManagement = () => {
             const data = await sexoService.getAll();
             setItems(data);
         } catch (error) {
-            showNotification('Error al cargar los sexos.', 'error');
+            showNotification(parseError(error, 'Error al cargar los sexos.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -72,8 +73,7 @@ const SexoManagement = () => {
             fetchData();
             setIsModalOpen(false);
         } catch (error) {
-            const errorMsg = error.response?.data?.error || 'Error al procesar la solicitud.';
-            showNotification(errorMsg, 'error');
+            showNotification(parseError(error), 'error');
         } finally {
             setIsSaving(false);
         }
@@ -90,7 +90,7 @@ const SexoManagement = () => {
                     showNotification('Registro eliminado.', 'success');
                     fetchData();
                 } catch (error) {
-                    showNotification('No se puede eliminar el registro porque está en uso.', 'error');
+                    showNotification(parseError(error, 'No se puede eliminar el registro porque está en uso.'), 'error');
                 } finally {
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 }

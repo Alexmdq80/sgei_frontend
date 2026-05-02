@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import nivelService from '../../services/nivelService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -33,7 +34,7 @@ const NivelManagement = () => {
             const data = await nivelService.getAll();
             setNiveles(data);
         } catch (error) {
-            showNotification('Error al cargar los niveles.', 'error');
+            showNotification(parseError(error, 'Error al cargar los niveles.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +72,7 @@ const NivelManagement = () => {
             setIsModalOpen(false);
             fetchNiveles();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error), 'error');
         }
     };
 
@@ -88,7 +89,7 @@ const NivelManagement = () => {
                     fetchNiveles();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar el nivel.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar el nivel.'), 'error');
                 }
             }
         });

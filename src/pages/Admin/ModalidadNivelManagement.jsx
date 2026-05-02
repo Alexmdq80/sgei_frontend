@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import modalidadNivelService from '../../services/modalidadNivelService';
 import nivelService from '../../services/nivelService';
 import modalidadService from '../../services/modalidadService';
@@ -50,7 +51,7 @@ const ModalidadNivelManagement = () => {
             setModalidades(mods);
             setEscuelaTipos(tipos);
         } catch (error) {
-            showNotification('Error al cargar los datos.', 'error');
+            showNotification(parseError(error, 'Error al cargar los datos.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -89,7 +90,7 @@ const ModalidadNivelManagement = () => {
             setIsModalOpen(false);
             fetchData();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error), 'error');
         }
     };
 
@@ -106,7 +107,7 @@ const ModalidadNivelManagement = () => {
                     fetchData();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar la combinación.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar la combinación.'), 'error');
                 }
             }
         });

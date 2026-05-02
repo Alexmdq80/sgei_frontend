@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import cierreCausaService from '../../services/cierreCausaService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -71,7 +72,7 @@ const CierreCausaManagement = () => {
             setIsModalOpen(false);
             fetchCausas();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error, 'Error al guardar la causa de cierre.'), 'error');
         }
     };
 
@@ -88,7 +89,7 @@ const CierreCausaManagement = () => {
                     fetchCausas();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar la causa.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar la causa de cierre.'), 'error');
                 }
             }
         });

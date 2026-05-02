@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import georefFuncionService from '../../services/georefFuncionService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -48,8 +49,8 @@ const GeorefFuncionManagement = () => {
             });
             setItems(response.data || []);
             setPagination(response);
-        } catch {
-            showNotification('Error al cargar las funciones.', 'error');
+        } catch (error) {
+            showNotification(parseError(error, 'Error al cargar las funciones.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -86,8 +87,8 @@ const GeorefFuncionManagement = () => {
             }
             setIsModalOpen(false);
             fetchItems();
-        } catch {
-            showNotification('Error al procesar la solicitud.', 'error');
+        } catch (error) {
+            showNotification(parseError(error, 'Error al procesar la solicitud.'), 'error');
         }
     };
 
@@ -103,8 +104,8 @@ const GeorefFuncionManagement = () => {
                     showNotification('Función eliminada con éxito.', 'success');
                     fetchItems();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-                } catch {
-                    showNotification('Error al eliminar la función.', 'error');                }
+                } catch (error) {
+            showNotification(parseError(error, 'Error al eliminar la función.'), 'error');                }
             }
         });
     };

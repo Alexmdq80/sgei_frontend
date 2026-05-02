@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import localidadService from '../../services/localidadService';
 import departamentoService from '../../services/departamentoService';
 import provinciaService from '../../services/provinciaService';
@@ -55,7 +56,7 @@ const LocalidadManagement = () => {
             setItems(response.data || response);
             setPagination(response.data ? response : {});
         } catch (error) {
-            showNotification('Error al cargar las localidades.', 'error');
+            showNotification(parseError(error, 'Error al cargar las localidades.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -77,7 +78,7 @@ const LocalidadManagement = () => {
             const lcData = lcRes.data.data || lcRes.data || lcRes;
             setLocalidadCensals(Array.isArray(lcData) ? lcData : []);
         } catch (error) {
-            showNotification('Error al cargar catálogos.', 'error');
+            showNotification(parseError(error, 'Error al cargar catálogos.'), 'error');
         }
     };
 
@@ -164,7 +165,7 @@ const LocalidadManagement = () => {
             handleCloseModal();
         } catch (error) {
             const msg = error.response?.data?.error || 'Error al guardar la localidad.';
-            showNotification(msg, 'error');
+            showNotification(parseError(error), 'error');
         } finally {
             setIsSaving(false);
         }
@@ -181,7 +182,7 @@ const LocalidadManagement = () => {
                     showNotification('Localidad eliminada correctamente.', 'success');
                     fetchItems();
                 } catch (error) {
-                    showNotification('Error al eliminar la localidad.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar la localidad.'), 'error');
                 } finally {
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 }

@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { parseError } from '../../utils/errorParser';
+import municipioService from '../../services/municipioService';
+import provinciaService from '../../services/provinciaService';
 import nacionService from '../../services/nacionService';
-import continenteService from '../../services/continenteService';
+import SearchableSelect from '../../components/SearchableSelect';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
-const NacionManagement = () => {
+const MunicipioManagement = () => {
     const { showNotification } = useAuth();
     const [items, setItems] = useState([]);
     const [pagination, setPagination] = useState({});
-    const [continentes, setContinentes] = useState([]);
+    const [naciones, setNaciones] = useState([]);
+    const [provincias, setProvincias] = useState([]);
+    const [filteredProvincias, setFilteredProvincias] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -18,10 +22,10 @@ const NacionManagement = () => {
     const [editingItem, setEditingItem] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     
+    const [selectedNacionId, setSelectedNacionId] = useState('');
     const [formData, setFormData] = useState({
         nombre: '',
-        nacionalidad: '',
-        continente_id: '',
+        provincia_id: '',
         id_georef: ''
     });
 
@@ -35,7 +39,7 @@ const NacionManagement = () => {
     const fetchItems = async () => {
         try {
             setIsLoading(true);
-            const response = await nacionService.getAll({
+            const response = await municipioService.getAll({
                 search: debouncedSearch,
                 page: page,
                 per_page: 15
@@ -43,7 +47,7 @@ const NacionManagement = () => {
             setItems(response.data || response);
             setPagination(response.data ? response : {});
         } catch (error) {
-            showNotification(parseError(error, 'Error al cargar las naciones.'), 'error');
+            showNotification(parseError(error, 'Error al cargar los municipios.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -51,8 +55,12 @@ const NacionManagement = () => {
 
     const fetchCatalogs = async () => {
         try {
-            const response = await continenteService.getAll({ per_page: 500 });
-            setContinentes(response.data || response);
+            const [provsRes, nationsRes] = await Promise.all([
+                provinciaService.getAll({ per_page: 500 }),
+                nacionService.getAll({ per_page: 500 })
+            ]);
+            setProvincias(provsRes.data || provsRes);
+            setNaciones(nationsRes.data || nationsRes);
         } catch (error) {
             showNotification(parseError(error, 'Error al cargar catálogos.'), 'error');
         }
@@ -66,7 +74,6 @@ const NacionManagement = () => {
         fetchItems();
     }, [page, debouncedSearch]);
 
-    // Debounce para la búsqueda
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(search);
@@ -75,21 +82,30 @@ const NacionManagement = () => {
         return () => clearTimeout(timer);
     }, [search]);
 
+    // Filtrar provincias cuando cambia la nación
+    useEffect(() => {
+        if (selectedNacionId) {
+            setFilteredProvincias(provincias.filter(p => p.nacion_id == selectedNacionId));
+        } else {
+            setFilteredProvincias([]);
+        }
+    }, [selectedNacionId, provincias]);
+
     const handleOpenModal = (item = null) => {
         if (item) {
             setEditingItem(item);
+            setSelectedNacionId(item.provincia?.nacion_id || '');
             setFormData({
                 nombre: item.nombre,
-                nacionalidad: item.nacionalidad,
-                continente_id: item.continente_id,
+                provincia_id: item.provincia_id,
                 id_georef: item.id_georef || ''
             });
         } else {
             setEditingItem(null);
+            setSelectedNacionId('');
             setFormData({
                 nombre: '',
-                nacionalidad: '',
-                continente_id: '',
+                provincia_id: '',
                 id_georef: ''
             });
         }
@@ -99,7 +115,8 @@ const NacionManagement = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingItem(null);
-        setFormData({ nombre: '', nacionalidad: '', continente_id: '', id_georef: '' });
+        setSelectedNacionId('');
+        setFormData({ nombre: '', provincia_id: '', id_georef: '' });
     };
 
     const handleSubmit = async (e) => {
@@ -107,17 +124,16 @@ const NacionManagement = () => {
         try {
             setIsSaving(true);
             if (editingItem) {
-                await nacionService.update(editingItem.id, formData);
-                showNotification('Nación actualizada correctamente.', 'success');
+                await municipioService.update(editingItem.id, formData);
+                showNotification('Municipio actualizado correctamente.', 'success');
             } else {
-                await nacionService.create(formData);
-                showNotification('Nación creada correctamente.', 'success');
+                await municipioService.create(formData);
+                showNotification('Municipio creado correctamente.', 'success');
             }
             fetchItems();
             handleCloseModal();
         } catch (error) {
-            const msg = error.response?.data?.error || 'Error al guardar la nación.';
-            showNotification(parseError(error), 'error');
+            showNotification(parseError(error, 'Error al guardar el municipio.'), 'error');
         } finally {
             setIsSaving(false);
         }
@@ -126,15 +142,15 @@ const NacionManagement = () => {
     const handleDelete = (item) => {
         setConfirmConfig({
             isOpen: true,
-            title: 'Eliminar Nación',
-            message: `¿Está seguro que desea eliminar la nación "${item.nombre}"? Esta acción no se puede deshacer.`,
+            title: 'Eliminar Municipio',
+            message: `¿Está seguro que desea eliminar el municipio "${item.nombre}"? Esta acción no se puede deshacer.`,
             onConfirm: async () => {
                 try {
-                    await nacionService.delete(item.id);
-                    showNotification('Nación eliminada correctamente.', 'success');
+                    await municipioService.delete(item.id);
+                    showNotification('Municipio eliminado correctamente.', 'success');
                     fetchItems();
                 } catch (error) {
-                    showNotification(parseError(error, 'Error al eliminar la nación.'), 'error');
+                    showNotification(parseError(error, 'Error al eliminar el municipio.'), 'error');
                 } finally {
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 }
@@ -146,15 +162,15 @@ const NacionManagement = () => {
         <div className="space-y-6 animate-fadeIn">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-secondary-900">Gestión de Naciones</h1>
-                    <p className="text-secondary-500 text-sm mt-1">Administre el catálogo de países y nacionalidades del sistema.</p>
+                    <h1 className="text-2xl font-bold text-secondary-900">Gestión de Municipios</h1>
+                    <p className="text-secondary-500 text-sm mt-1">Administre el catálogo de municipios por provincia.</p>
                 </div>
                 <button 
                     onClick={() => handleOpenModal()}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 active:scale-95"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-                    Nueva Nación
+                    Nuevo Municipio
                 </button>
             </div>
 
@@ -166,7 +182,7 @@ const NacionManagement = () => {
                         </span>
                         <input 
                             type="text" 
-                            placeholder="Buscar por nombre, nacionalidad o continente..." 
+                            placeholder="Buscar por nombre, provincia o nación..." 
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 bg-white border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
@@ -179,8 +195,8 @@ const NacionManagement = () => {
                         <thead>
                             <tr className="bg-secondary-50/50">
                                 <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Nombre</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Nacionalidad</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Continente</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Provincia</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">Nación</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100">ID Georef</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-secondary-500 uppercase tracking-widest border-b border-secondary-100 text-right">Acciones</th>
                             </tr>
@@ -196,12 +212,12 @@ const NacionManagement = () => {
                                 items.map((item) => (
                                     <tr key={item.id} className="hover:bg-secondary-50/50 transition-colors group">
                                         <td className="px-6 py-4 text-sm font-bold text-secondary-900 uppercase">{item.nombre}</td>
-                                        <td className="px-6 py-4 text-sm text-secondary-600 uppercase">{item.nacionalidad}</td>
                                         <td className="px-6 py-4">
-                                            <span className="px-2.5 py-1 rounded-lg bg-primary-50 text-primary-700 text-[10px] font-black uppercase tracking-wider border border-primary-100">
-                                                {item.continente?.nombre}
+                                            <span className="px-2.5 py-1 rounded-lg bg-secondary-100 text-secondary-700 text-[10px] font-black uppercase tracking-wider border border-secondary-200">
+                                                {item.provincia?.nombre}
                                             </span>
                                         </td>
+                                        <td className="px-6 py-4 text-sm text-secondary-600 uppercase">{item.provincia?.nacion?.nombre}</td>
                                         <td className="px-6 py-4 text-sm text-secondary-500 font-mono">{item.id_georef || '-'}</td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -213,7 +229,7 @@ const NacionManagement = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-12 text-center text-secondary-500 font-medium">No se encontraron naciones.</td>
+                                    <td colSpan="5" className="px-6 py-12 text-center text-secondary-500 font-medium">No se encontraron municipios.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -224,7 +240,7 @@ const NacionManagement = () => {
                 {!isLoading && pagination.last_page > 1 && (
                     <div className="px-6 py-4 bg-secondary-50/50 border-t border-secondary-100 flex items-center justify-between">
                         <p className="text-xs text-secondary-500 font-medium">
-                            Mostrando <span className="font-bold text-secondary-700">{pagination.from}</span> a <span className="font-bold text-secondary-700">{pagination.to}</span> de <span className="font-bold text-secondary-700">{pagination.total}</span> naciones
+                            Mostrando <span className="font-bold text-secondary-700">{pagination.from}</span> a <span className="font-bold text-secondary-700">{pagination.to}</span> de <span className="font-bold text-secondary-700">{pagination.total}</span> municipios
                         </p>
                         <div className="flex gap-2">
                             <button 
@@ -246,14 +262,14 @@ const NacionManagement = () => {
                 )}
             </div>
 
-            {/* Modal de Creación/Edición */}
+            {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-scaleIn">
                         <div className="px-8 py-6 border-b border-secondary-100 flex items-center justify-between bg-secondary-50/50">
                             <div>
-                                <h3 className="text-xl font-bold text-secondary-900">{editingItem ? 'Editar Nación' : 'Nueva Nación'}</h3>
-                                <p className="text-secondary-500 text-xs mt-1">Complete los datos del país.</p>
+                                <h3 className="text-xl font-bold text-secondary-900">{editingItem ? 'Editar Municipio' : 'Nuevo Municipio'}</h3>
+                                <p className="text-secondary-500 text-xs mt-1">Complete los datos del municipio.</p>
                             </div>
                             <button onClick={handleCloseModal} className="p-2 hover:bg-secondary-200/50 rounded-xl transition-colors text-secondary-400 hover:text-secondary-600">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -262,55 +278,45 @@ const NacionManagement = () => {
 
                         <form onSubmit={handleSubmit} className="p-8 space-y-6">
                             <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <SearchableSelect 
+                                        label="Nación"
+                                        options={naciones}
+                                        value={selectedNacionId}
+                                        onChange={(e) => setSelectedNacionId(e.target.value)}
+                                        placeholder="Buscar Nación..."
+                                    />
+                                    <SearchableSelect 
+                                        label="Provincia"
+                                        options={filteredProvincias}
+                                        value={formData.provincia_id}
+                                        onChange={(e) => setFormData({...formData, provincia_id: e.target.value})}
+                                        placeholder={selectedNacionId ? "Buscar Provincia..." : "Primero nación"}
+                                        disabled={!selectedNacionId}
+                                    />
+                                </div>
+
                                 <div>
-                                    <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Nombre del País</label>
+                                    <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Nombre del Municipio</label>
                                     <input 
                                         type="text" 
                                         required
                                         value={formData.nombre}
                                         onChange={(e) => setFormData({...formData, nombre: e.target.value})}
                                         className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium"
-                                        placeholder="Ej: ARGENTINA"
+                                        placeholder="Ej: GENERAL PUEYRREDÓN"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Nacionalidad</label>
+                                    <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">ID Georef</label>
                                     <input 
-                                        type="text" 
-                                        required
-                                        value={formData.nacionalidad}
-                                        onChange={(e) => setFormData({...formData, nacionalidad: e.target.value})}
+                                        type="number" 
+                                        value={formData.id_georef}
+                                        onChange={(e) => setFormData({...formData, id_georef: e.target.value})}
                                         className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium"
-                                        placeholder="Ej: ARGENTINA/O"
+                                        placeholder="Ej: 060357"
                                     />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">Continente</label>
-                                        <select 
-                                            required
-                                            value={formData.continente_id}
-                                            onChange={(e) => setFormData({...formData, continente_id: e.target.value})}
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium appearance-none"
-                                        >
-                                            <option value="">Seleccione...</option>
-                                            {continentes.map(c => (
-                                                <option key={c.id} value={c.id}>{c.nombre}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-secondary-500 uppercase tracking-widest mb-1.5 ml-1">ID Georef (Opcional)</label>
-                                        <input 
-                                            type="number" 
-                                            value={formData.id_georef}
-                                            onChange={(e) => setFormData({...formData, id_georef: e.target.value})}
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium"
-                                            placeholder="Ej: 340"
-                                        />
-                                    </div>
                                 </div>
                             </div>
 
@@ -325,16 +331,9 @@ const NacionManagement = () => {
                                 <button 
                                     type="submit"
                                     disabled={isSaving}
-                                    className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+                                    className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 active:scale-95 disabled:opacity-50 disabled:active:scale-100"
                                 >
-                                    {isSaving ? (
-                                        <>
-                                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                            Guardando...
-                                        </>
-                                    ) : (
-                                        editingItem ? 'Guardar Cambios' : 'Crear Nación'
-                                    )}
+                                    {isSaving ? 'Guardando...' : (editingItem ? 'Guardar Cambios' : 'Crear Municipio')}
                                 </button>
                             </div>
                         </form>
@@ -354,4 +353,4 @@ const NacionManagement = () => {
     );
 };
 
-export default NacionManagement;
+export default MunicipioManagement;

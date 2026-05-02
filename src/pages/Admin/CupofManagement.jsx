@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import cupofService from '../../services/cupofService';
 import personaService from '../../services/personaService';
 import escuelaService from '../../services/escuelaService';
@@ -197,7 +198,7 @@ const CupofManagement = () => {
             setIsCreateModalOpen(false);
             fetchCupofs();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al crear el puesto.', 'error');
+            showNotification(parseError(error, 'Error al crear el puesto.'), 'error');
         }
     };
 
@@ -209,7 +210,7 @@ const CupofManagement = () => {
             setIsAssignModalOpen(false);
             fetchCupofs();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al asignar persona.', 'error');
+            showNotification(parseError(error, 'Error al asignar persona.'), 'error');
         }
     };
 

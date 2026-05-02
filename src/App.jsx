@@ -34,6 +34,7 @@ import NacionManagement from './pages/Admin/NacionManagement';
 import ProvinciaManagement from './pages/Admin/ProvinciaManagement';
 import DepartamentoManagement from './pages/Admin/DepartamentoManagement';
 import LocalidadManagement from './pages/Admin/LocalidadManagement';
+import MunicipioManagement from './pages/Admin/MunicipioManagement';
 import LocalidadCensalManagement from './pages/Admin/LocalidadCensalManagement';
 import GeorefFuenteManagement from './pages/Admin/GeorefFuenteManagement';
 import GeorefCategoriaManagement from './pages/Admin/GeorefCategoriaManagement';
@@ -342,6 +343,15 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <DepartamentoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/municipios" 
+                        element={
+                            <ProtectedRoute>
+                                <MunicipioManagement />
                             </ProtectedRoute>
                         } 
                     />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import localidadCensalService from '../../services/localidadCensalService';
 import api from '../../services/api';
 import ConfirmationModal from '../../components/ConfirmationModal';
@@ -48,8 +49,8 @@ const LocalidadCensalManagement = () => {
             });
             setItems(response.data || response);
             setPagination(response.data ? response : {});
-        } catch {
-            showNotification('Error al cargar las localidades censales.', 'error');
+        } catch (error) {
+            showNotification(parseError(error, 'Error al cargar las localidades censales.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -66,7 +67,7 @@ const LocalidadCensalManagement = () => {
             setCategorias(catsRes.data.data || catsRes.data);
             setFuncions(funcsRes.data.data || funcsRes.data);
         } catch (error) {
-            showNotification('Error al cargar catálogos.', 'error');
+            showNotification(parseError(error, 'Error al cargar catálogos.'), 'error');
         }
     };
 
@@ -134,7 +135,7 @@ const LocalidadCensalManagement = () => {
             handleCloseModal();
         } catch (error) {
             const msg = error.response?.data?.error || 'Error al guardar.';
-            showNotification(msg, 'error');
+            showNotification(parseError(error), 'error');
         } finally {
             setIsSaving(false);
         }
@@ -150,8 +151,8 @@ const LocalidadCensalManagement = () => {
                     await localidadCensalService.delete(item.id);
                     showNotification('Eliminado correctamente.', 'success');
                     fetchItems();
-                } catch {
-                    showNotification('Error al eliminar.', 'error');
+                } catch (error) {
+            showNotification(parseError(error, 'Error al eliminar.'), 'error');
                 } finally {
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 }

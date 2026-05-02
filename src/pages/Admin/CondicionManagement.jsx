@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import condicionService from '../../services/condicionService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -71,7 +72,7 @@ const CondicionManagement = () => {
             setIsModalOpen(false);
             fetchCondiciones();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error, 'Error al guardar la condición.'), 'error');
         }
     };
 
@@ -88,7 +89,7 @@ const CondicionManagement = () => {
                     fetchCondiciones();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar la condición.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar la condición.'), 'error');
                 }
             }
         });

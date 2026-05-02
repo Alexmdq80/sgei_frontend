@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import departamentoService from '../../services/departamentoService';
 import provinciaService from '../../services/provinciaService';
 import nacionService from '../../services/nacionService';
@@ -135,8 +136,7 @@ const DepartamentoManagement = () => {
             fetchItems();
             handleCloseModal();
         } catch (error) {
-            const msg = error.response?.data?.error || 'Error al guardar el departamento.';
-            showNotification(msg, 'error');
+            showNotification(parseError(error, 'Error al guardar el departamento.'), 'error');
         } finally {
             setIsSaving(false);
         }

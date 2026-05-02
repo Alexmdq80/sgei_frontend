@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import documentoTipoService from '../../services/documentoTipoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -30,7 +31,7 @@ const DocumentoTipoManagement = () => {
             const data = await documentoTipoService.getAll();
             setItems(data);
         } catch (error) {
-            showNotification('Error al cargar los tipos de documento.', 'error');
+            showNotification(parseError(error, 'Error al cargar los tipos de documento.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -68,8 +69,7 @@ const DocumentoTipoManagement = () => {
             fetchData();
             setIsModalOpen(false);
         } catch (error) {
-            const errorMsg = error.response?.data?.error || 'Error al procesar la solicitud.';
-            showNotification(errorMsg, 'error');
+            showNotification(parseError(error, 'Error al procesar la solicitud.'), 'error');
         } finally {
             setIsSaving(false);
         }
@@ -86,7 +86,7 @@ const DocumentoTipoManagement = () => {
                     showNotification('Registro eliminado.', 'success');
                     fetchData();
                 } catch (error) {
-                    showNotification('No se puede eliminar el registro porque está en uso.', 'error');
+                    showNotification(parseError(error, 'No se puede eliminar el registro porque está en uso.'), 'error');
                 } finally {
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import dependenciaService from '../../services/dependenciaService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -71,7 +72,7 @@ const DependenciaManagement = () => {
             setIsModalOpen(false);
             fetchDependencias();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error, 'Error al guardar la dependencia.'), 'error');
         }
     };
 

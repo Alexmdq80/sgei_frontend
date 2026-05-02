@@ -6,6 +6,7 @@ import {
     User, Phone, Home, Layers, Briefcase, FileText
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import personaService from '../../services/personaService';
 import cupofService from '../../services/cupofService';
 import documentoTipoService from '../../services/documentoTipoService';
@@ -71,7 +72,7 @@ export default function PersonaManagement() {
             setPagination(response.meta || { current_page: 1, last_page: 1, total: 0 });
         } catch (error) {
             console.error('Error al cargar personas:', error);
-            showNotification('Error al cargar el padrón.', 'error');
+            showNotification(parseError(error, 'Error al cargar el padrón.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -104,7 +105,7 @@ export default function PersonaManagement() {
             setIsDetailsModalOpen(true);
         } catch (error) {
             console.error('Error al obtener detalles de la persona:', error);
-            showNotification('No se pudieron cargar los detalles del registro.', 'error');
+            showNotification(parseError(error, 'No se pudieron cargar los detalles del registro.'), 'error');
         } finally {
             setIsFetchingDetails(false);
         }
@@ -129,7 +130,7 @@ export default function PersonaManagement() {
             }
         } catch (error) {
             console.error('Error al buscar CUPOF:', error);
-            showNotification('Error al buscar posiciones disponibles.', 'error');
+            showNotification(parseError(error, 'Error al buscar posiciones disponibles.'), 'error');
         } finally {
             setIsSearchingCupof(false);
         }
@@ -155,8 +156,7 @@ export default function PersonaManagement() {
             setIsDetailsModalOpen(false);
         } catch (error) {
             console.error('Error al asignar CUPOF:', error);
-            const msg = error.response?.data?.error || 'No se pudo completar la asignación.';
-            showNotification(msg, 'error');
+            showNotification(parseError(error, 'No se pudo completar la asignación.'), 'error');
         } finally {
             setIsSavingAssignment(false);
         }
@@ -212,31 +212,7 @@ export default function PersonaManagement() {
             fetchPersonas(isEditMode ? pagination.current_page : 1);
         } catch (error) {
             console.error('Error al procesar persona:', error);
-            
-            let msg = `No se pudo ${isEditMode ? 'actualizar' : 'registrar'} la persona.`;
-            
-            // Si es un error de validación de Laravel (422)
-            if (error.response?.status === 422) {
-                const validationErrors = error.response.data.errors;
-                if (validationErrors) {
-                    // Si existe el error específico de documento_numero o email, lo mostramos con prioridad
-                    if (validationErrors.documento_numero) {
-                        msg = validationErrors.documento_numero[0];
-                    } else if (validationErrors.email) {
-                        msg = validationErrors.email[0];
-                    } else {
-                        // Si hay otros errores de validación, tomamos el primero
-                        const firstError = Object.values(validationErrors)[0];
-                        if (Array.isArray(firstError)) msg = firstError[0];
-                    }
-                } else if (error.response.data.error) {
-                    msg = error.response.data.error;
-                }
-            } else if (error.response?.data?.error) {
-                msg = error.response.data.error;
-            }
-            
-            showNotification(msg, 'error');
+            showNotification(parseError(error, `No se pudo ${isEditMode ? 'actualizar' : 'registrar'} la persona.`), 'error');
         } finally {
             setIsSavingPersona(false);
         }
@@ -254,8 +230,7 @@ export default function PersonaManagement() {
             ));
         } catch (error) {
             console.error('Error al vincular usuario:', error);
-            const msg = error.response?.data?.error || 'No se pudo realizar la vinculación.';
-            showNotification(msg, 'warning');
+            showNotification(parseError(error, 'No se pudo realizar la vinculación.', 'warning'), 'warning');
         } finally {
             setIsLinkingUser(null);
         }
@@ -273,8 +248,7 @@ export default function PersonaManagement() {
             ));
         } catch (error) {
             console.error('Error al desvincular usuario:', error);
-            const msg = error.response?.data?.error || 'No se pudo realizar la desvinculación.';
-            showNotification(msg, 'error');
+            showNotification(parseError(error, 'No se pudo realizar la desvinculación.'), 'error');
         } finally {
             setIsLinkingUser(null);
         }

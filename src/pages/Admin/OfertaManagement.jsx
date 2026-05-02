@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import ofertaService from '../../services/ofertaService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -33,7 +34,7 @@ const OfertaManagement = () => {
             const data = await ofertaService.getAll();
             setOfertas(data);
         } catch (error) {
-            showNotification('Error al cargar las otras ofertas educativas.', 'error');
+            showNotification(parseError(error, 'Error al cargar las otras ofertas educativas.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +72,7 @@ const OfertaManagement = () => {
             setIsModalOpen(false);
             fetchOfertas();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error), 'error');
         }
     };
 
@@ -88,7 +89,7 @@ const OfertaManagement = () => {
                     fetchOfertas();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar la oferta.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar la oferta.'), 'error');
                 }
             }
         });

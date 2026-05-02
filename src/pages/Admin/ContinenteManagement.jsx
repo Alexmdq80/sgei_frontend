@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import continenteService from '../../services/continenteService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -68,8 +69,7 @@ const ContinenteManagement = () => {
             fetchData();
             setIsModalOpen(false);
         } catch (error) {
-            const errorMsg = error.response?.data?.error || 'Error al procesar la solicitud.';
-            showNotification(errorMsg, 'error');
+            showNotification(parseError(error, 'Error al guardar el continente.'), 'error');
         } finally {
             setIsSaving(false);
         }
@@ -86,7 +86,7 @@ const ContinenteManagement = () => {
                     showNotification('Registro eliminado.', 'success');
                     fetchData();
                 } catch (error) {
-                    showNotification('No se puede eliminar el registro porque tiene países asociados.', 'error');
+                    showNotification(parseError(error, 'No se puede eliminar el registro porque tiene países asociados.'), 'error');
                 } finally {
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 }

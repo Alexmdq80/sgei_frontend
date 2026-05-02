@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import modalidadService from '../../services/modalidadService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -33,7 +34,7 @@ const ModalidadManagement = () => {
             const data = await modalidadService.getAll();
             setModalidades(data);
         } catch (error) {
-            showNotification('Error al cargar las modalidades.', 'error');
+            showNotification(parseError(error, 'Error al cargar las modalidades.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +72,7 @@ const ModalidadManagement = () => {
             setIsModalOpen(false);
             fetchModalidades();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error), 'error');
         }
     };
 
@@ -88,7 +89,7 @@ const ModalidadManagement = () => {
                     fetchModalidades();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar la modalidad.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar la modalidad.'), 'error');
                 }
             }
         });

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import escuelaService from '../../services/escuelaService';
 import ambitoService from '../../services/ambitoService';
 import dependenciaService from '../../services/dependenciaService';
@@ -67,7 +68,7 @@ const EscuelaManagement = () => {
             setEscuelas(response.data);
             setMeta(response);
         } catch (error) {
-            showNotification('Error al cargar las escuelas.', 'error');
+            showNotification(parseError(error, 'Error al cargar las escuelas.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -101,7 +102,7 @@ const EscuelaManagement = () => {
 
         } catch (error) {
             console.error("Error cargando catálogos", error);
-            showNotification('Error al cargar algunos catálogos.', 'error');
+            showNotification(parseError(error, 'Error al cargar algunos catálogos.'), 'error');
         }
     };
 
@@ -110,7 +111,7 @@ const EscuelaManagement = () => {
         if (selectedProvincia) {
             geografiaService.getDepartamentos(selectedProvincia, { per_page: 500 })
                 .then(res => setDepartamentos(res.data || res))
-                .catch(() => showNotification('Error al cargar departamentos.', 'error'));
+                .catch((error) => showNotification(parseError(error, 'Error al cargar departamentos.'), 'error'));
         } else {
             setDepartamentos([]);
             setLocalidades([]);
@@ -122,7 +123,7 @@ const EscuelaManagement = () => {
         if (selectedDepartamento) {
             geografiaService.getLocalidades(selectedDepartamento, { per_page: 500 })
                 .then(res => setLocalidades(res.data || res))
-                .catch(() => showNotification('Error al cargar localidades.', 'error'));
+                .catch((error) => showNotification(parseError(error, 'Error al cargar localidades.'), 'error'));
         } else {
             setLocalidades([]);
         }
@@ -202,7 +203,7 @@ const EscuelaManagement = () => {
             setFormData(baseFormData);
             setIsModalOpen(true);
         } catch (error) {
-            showNotification('Error al cargar datos de la escuela.', 'error');
+            showNotification(parseError(error, 'Error al cargar datos de la escuela.'), 'error');
             console.error(error);
         }
     };
@@ -220,7 +221,7 @@ const EscuelaManagement = () => {
             setIsModalOpen(false);
             fetchEscuelas();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error, 'Error al procesar la solicitud.'), 'error');
         }
     };
 
@@ -237,7 +238,7 @@ const EscuelaManagement = () => {
                     fetchEscuelas();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar la escuela.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar la escuela.'), 'error');
                 }
             }
         });

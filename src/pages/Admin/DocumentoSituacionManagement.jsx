@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import documentoSituacionService from '../../services/documentoSituacionService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -30,7 +31,7 @@ const DocumentoSituacionManagement = () => {
             const data = await documentoSituacionService.getAll();
             setItems(data);
         } catch (error) {
-            showNotification('Error al cargar las situaciones de documento.', 'error');
+            showNotification(parseError(error, 'Error al cargar las situaciones de documento.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -68,8 +69,7 @@ const DocumentoSituacionManagement = () => {
             fetchData();
             setIsModalOpen(false);
         } catch (error) {
-            const errorMsg = error.response?.data?.error || 'Error al procesar la solicitud.';
-            showNotification(errorMsg, 'error');
+            showNotification(parseError(error, 'Error al procesar la solicitud.'), 'error');
         } finally {
             setIsSaving(false);
         }
@@ -86,7 +86,7 @@ const DocumentoSituacionManagement = () => {
                     showNotification('Registro eliminado.', 'success');
                     fetchData();
                 } catch (error) {
-                    showNotification('No se puede eliminar el registro porque está en uso.', 'error');
+                    showNotification(parseError(error, 'No se puede eliminar el registro porque está en uso.'), 'error');
                 } finally {
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 }

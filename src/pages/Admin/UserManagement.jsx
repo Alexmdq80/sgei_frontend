@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import userService from '../../services/userService';
 import escuelaService from '../../services/escuelaService';
 import documentoTipoService from '../../services/documentoTipoService';
@@ -96,7 +97,7 @@ const UserManagement = () => {
             setPagination(response.meta || { current_page: 1, last_page: 1, total: 0 });
         } catch (error) {
             console.error('Error al cargar usuarios:', error);
-            showNotification('Error al cargar el listado de usuarios.', 'error');
+            showNotification(parseError(error, 'Error al cargar el listado de usuarios.'), 'error');
         } finally {
             setIsUsersLoading(false);
         }
@@ -212,8 +213,7 @@ const UserManagement = () => {
             
         } catch (error) {
             console.error('Error al asignar cargo:', error);
-            const msg = error.response?.data?.error || 'No se pudo realizar la asignación.';
-            showNotification(msg, 'error');
+            showNotification(parseError(error, 'No se pudo realizar la asignación.'), 'error');
         } finally {
             setIsAssigning(false);
         }
@@ -230,8 +230,7 @@ const UserManagement = () => {
             fetchUsers(pagination.current_page);
         } catch (error) {
             console.error('Error al actualizar usuario:', error);
-            const msg = error.response?.data?.error || error.response?.data?.message || 'Ocurrió un error al procesar el usuario.';
-            showNotification(msg, 'error');
+            showNotification(parseError(error, 'Ocurrió un error al procesar el usuario.'), 'error');
         }
     };
 
@@ -249,7 +248,7 @@ const UserManagement = () => {
                     fetchUsers(pagination.current_page);
                     closeConfirm();
                 } catch (error) {
-                    showNotification('Error al eliminar el usuario.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar el usuario.'), 'error');
                 } finally {
                     setConfirmConfig(prev => ({ ...prev, isLoading: false }));
                 }
@@ -264,8 +263,7 @@ const UserManagement = () => {
             showNotification(response.message, 'success');
             fetchUsers(pagination.current_page);
         } catch (error) {
-            const msg = error.response?.data?.error || 'No se pudo cambiar el rol de Supervisor.';
-            showNotification(msg, 'error');
+            showNotification(parseError(error, 'No se pudo cambiar el rol de Supervisor.'), 'error');
         } finally {
             setIsUpdatingRole(null);
         }
@@ -278,8 +276,7 @@ const UserManagement = () => {
             showNotification(response.message, 'success');
             fetchUsers(pagination.current_page);
         } catch (error) {
-            const msg = error.response?.data?.error || 'No se pudo cambiar el rol de Jefe Distrital.';
-            showNotification(msg, 'error');
+            showNotification(parseError(error, 'No se pudo cambiar el rol de Jefe Distrital.'), 'error');
         } finally {
             setIsUpdatingRole(null);
         }
@@ -299,8 +296,7 @@ const UserManagement = () => {
                     fetchUsers(pagination.current_page);
                     closeConfirm();
                 } catch (error) {
-                    const msg = error.response?.data?.error || 'Error al confirmar la vinculación.';
-                    showNotification(msg, 'error');
+                    showNotification(parseError(error, 'Error al confirmar la vinculación.'), 'error');
                     closeConfirm();
                 } finally {
                     setConfirmConfig(prev => ({ ...prev, isLoading: false }));
@@ -331,7 +327,7 @@ const UserManagement = () => {
                 setEditingUser(updatedUsers.find(u => u.id === editingUser.id));
             }
         } catch (error) {
-            showNotification('Error al actualizar el rol.', 'error');
+            showNotification(parseError(error, 'Error al actualizar el rol.'), 'error');
         } finally {
             setProcessingId(null);
         }

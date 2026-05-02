@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import anioService from '../../services/anioService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -36,7 +37,7 @@ const AnioManagement = () => {
             const data = await anioService.getAll();
             setAnios(data);
         } catch (error) {
-            showNotification('Error al cargar los años académicos.', 'error');
+            showNotification(parseError(error, 'Error al cargar los años académicos.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -83,7 +84,7 @@ const AnioManagement = () => {
             setIsModalOpen(false);
             fetchAnios();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error, 'Error al guardar el año académico.'), 'error');
         }
     };
 
@@ -100,7 +101,7 @@ const AnioManagement = () => {
                     fetchAnios();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar el año.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar el año.'), 'error');
                 }
             }
         });

@@ -4,6 +4,7 @@ import provinciaService from '../../services/provinciaService';
 import nacionService from '../../services/nacionService';
 import SearchableSelect from '../../components/SearchableSelect';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import { parseError } from '../../utils/errorParser';
 
 const ProvinciaManagement = () => {
     const { showNotification } = useAuth();
@@ -118,8 +119,7 @@ const ProvinciaManagement = () => {
             fetchItems();
             handleCloseModal();
         } catch (error) {
-            const msg = error.response?.data?.error || 'Error al guardar la provincia.';
-            showNotification(msg, 'error');
+            showNotification(parseError(error, 'Error al guardar la provincia.'), 'error');
         } finally {
             setIsSaving(false);
         }

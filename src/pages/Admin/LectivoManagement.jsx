@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import lectivoService from '../../services/lectivoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -35,7 +36,7 @@ const LectivoManagement = () => {
             const data = await lectivoService.getAll();
             setLectivos(data);
         } catch (error) {
-            showNotification('Error al cargar los ciclos lectivos.', 'error');
+            showNotification(parseError(error, 'Error al cargar los ciclos lectivos.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -80,7 +81,7 @@ const LectivoManagement = () => {
             setIsModalOpen(false);
             fetchLectivos();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error), 'error');
         }
     };
 
@@ -97,7 +98,7 @@ const LectivoManagement = () => {
                     fetchLectivos();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar el ciclo lectivo.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar el ciclo lectivo.'), 'error');
                 }
             }
         });

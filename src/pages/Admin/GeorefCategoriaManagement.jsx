@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import georefCategoriaService from '../../services/georefCategoriaService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -48,8 +49,8 @@ const GeorefCategoriaManagement = () => {
             });
             setItems(response.data || []);
             setPagination(response);
-        } catch {
-            showNotification('Error al cargar las categorías.', 'error');
+        } catch (error) {
+            showNotification(parseError(error, 'Error al cargar las categorías.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -86,8 +87,8 @@ const GeorefCategoriaManagement = () => {
             }
             setIsModalOpen(false);
             fetchItems();
-        } catch {
-            showNotification('Error al procesar la solicitud.', 'error');
+        } catch (error) {
+            showNotification(parseError(error), 'error');
         }
     };
 
@@ -103,8 +104,9 @@ const GeorefCategoriaManagement = () => {
                     showNotification('Categoría eliminada con éxito.', 'success');
                     fetchItems();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-                } catch {
-                    showNotification('Error al eliminar la categoría.', 'error');                }
+                } catch (error) {
+                    showNotification(parseError(error, 'Error al eliminar la categoría.'), 'error');
+                }
             }
         });
     };

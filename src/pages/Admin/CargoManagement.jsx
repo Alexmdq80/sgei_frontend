@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import cargoService from '../../services/cargoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -34,7 +35,7 @@ const CargoManagement = () => {
             const data = await cargoService.getAll(); // Cambiado para que traiga todos (backend admin) si es posible
             setCargos(data);
         } catch (error) {
-            showNotification('Error al cargar los cargos.', 'error');
+            showNotification(parseError(error, 'Error al cargar los cargos.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -75,7 +76,7 @@ const CargoManagement = () => {
             setIsModalOpen(false);
             fetchCargos();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error, 'Error al guardar el cargo.'), 'error');
         }
     };
 
@@ -92,7 +93,7 @@ const CargoManagement = () => {
                     fetchCargos();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar el cargo.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar el cargo.'), 'error');
                 }
             }
         });

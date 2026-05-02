@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import escuelaTipoService from '../../services/escuelaTipoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -33,7 +34,7 @@ const EscuelaTipoManagement = () => {
             const data = await escuelaTipoService.getAll();
             setEscuelaTipos(data);
         } catch (error) {
-            showNotification('Error al cargar los tipos de escuela.', 'error');
+            showNotification(parseError(error, 'Error al cargar los tipos de escuela.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +72,7 @@ const EscuelaTipoManagement = () => {
             setIsModalOpen(false);
             fetchEscuelaTipos();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error, 'Error al procesar la solicitud.'), 'error');
         }
     };
 
@@ -88,7 +89,7 @@ const EscuelaTipoManagement = () => {
                     fetchEscuelaTipos();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar el tipo de escuela.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar el tipo de escuela.'), 'error');
                 }
             }
         });

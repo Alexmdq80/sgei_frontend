@@ -51,6 +51,7 @@ const Layout = ({ children }) => {
             '/admin/general/continentes',
             '/admin/general/naciones',
             '/admin/general/provincias',
+            '/admin/general/municipios',
             '/admin/general/departamentos',
             '/admin/general/localidades',
             '/admin/general/localidad-censals',
@@ -201,6 +202,7 @@ const Layout = ({ children }) => {
                         { name: 'Naciones', path: '/admin/general/naciones' },
                         { name: 'Provincias', path: '/admin/general/provincias' },
                         { name: 'Departamentos', path: '/admin/general/departamentos' },
+                        { name: 'Municipios', path: '/admin/general/municipios' },
                         { name: 'Localidades', path: '/admin/general/localidades' },
                         { name: 'Localidades Censales', path: '/admin/general/localidad-censals' },
                         {
@@ -363,7 +365,7 @@ const Layout = ({ children }) => {
         <div className="min-h-screen bg-secondary-50 flex font-sans">
             {/* Global Notifications */}
             {notification && (
-                <div className="fixed top-20 right-8 z-[100] max-w-sm w-full animate-fadeInRight">
+                <div className="fixed top-20 right-8 z-[200] max-w-sm w-full animate-fadeInRight">
                     <div className={`p-4 rounded-2xl shadow-2xl border-l-4 flex items-start gap-4 ${
                         notification.type === 'success' ? 'bg-white border-green-500' : 'bg-white border-red-500'
                     }`}>

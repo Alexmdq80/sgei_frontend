@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import generoService from '../../services/generoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -31,7 +32,7 @@ const GeneroManagement = () => {
             const data = await generoService.getAll();
             setItems(data);
         } catch (error) {
-            showNotification('Error al cargar los géneros.', 'error');
+            showNotification(parseError(error, 'Error al cargar los géneros.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -70,8 +71,7 @@ const GeneroManagement = () => {
             fetchData();
             setIsModalOpen(false);
         } catch (error) {
-            const errorMsg = error.response?.data?.error || 'Error al procesar la solicitud.';
-            showNotification(errorMsg, 'error');
+            showNotification(parseError(error, 'Error al procesar la solicitud.'), 'error');
         } finally {
             setIsSaving(false);
         }
@@ -88,7 +88,7 @@ const GeneroManagement = () => {
                     showNotification('Registro eliminado.', 'success');
                     fetchData();
                 } catch (error) {
-                    showNotification('No se puede eliminar el registro porque está en uso.', 'error');
+                    showNotification(parseError(error, 'No se puede eliminar el registro porque está en uso.'), 'error');
                 } finally {
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 }

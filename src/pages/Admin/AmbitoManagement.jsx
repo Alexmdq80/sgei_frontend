@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import ambitoService from '../../services/ambitoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -33,7 +34,7 @@ const AmbitoManagement = () => {
             const data = await ambitoService.getAll();
             setAmbitos(data);
         } catch (error) {
-            showNotification('Error al cargar los ámbitos.', 'error');
+            showNotification(parseError(error, 'Error al cargar los ámbitos.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +72,7 @@ const AmbitoManagement = () => {
             setIsModalOpen(false);
             fetchAmbitos();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error, 'Error al guardar el ámbito.'), 'error');
         }
     };
 
@@ -88,7 +89,7 @@ const AmbitoManagement = () => {
                     fetchAmbitos();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar el ámbito.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar el ámbito.'), 'error');
                 }
             }
         });

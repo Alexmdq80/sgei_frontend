@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import escuelaUbicacionService from '../../services/escuelaUbicacionService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -33,7 +34,7 @@ const EscuelaUbicacionManagement = () => {
             const data = await escuelaUbicacionService.getAll();
             setEscuelaUbicaciones(data);
         } catch (error) {
-            showNotification('Error al cargar las ubicaciones de escuela.', 'error');
+            showNotification(parseError(error, 'Error al cargar las ubicaciones de escuela.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +72,7 @@ const EscuelaUbicacionManagement = () => {
             setIsModalOpen(false);
             fetchEscuelaUbicaciones();
         } catch (error) {
-            showNotification(error.response?.data?.error || 'Error al procesar la solicitud.', 'error');
+            showNotification(parseError(error, 'Error al procesar la solicitud.'), 'error');
         }
     };
 
@@ -88,7 +89,7 @@ const EscuelaUbicacionManagement = () => {
                     fetchEscuelaUbicaciones();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
-                    showNotification('Error al eliminar la ubicación de escuela.', 'error');
+                    showNotification(parseError(error, 'Error al eliminar la ubicación de escuela.'), 'error');
                 }
             }
         });

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { parseError } from '../../utils/errorParser';
 import georefFuenteService from '../../services/georefFuenteService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
@@ -51,8 +52,8 @@ const GeorefFuenteManagement = () => {
             // Si el backend devuelve paginación, los items están en response.data
             setItems(response.data || []);
             setPagination(response);
-        } catch {
-            showNotification('Error al cargar las fuentes.', 'error');
+        } catch (error) {
+            showNotification(parseError(error, 'Error al cargar las fuentes.'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -90,8 +91,8 @@ const GeorefFuenteManagement = () => {
             }
             setIsModalOpen(false);
             fetchItems();
-        } catch {
-            showNotification('Error al procesar la solicitud.', 'error');
+        } catch (error) {
+            showNotification(parseError(error, 'Error al procesar la solicitud.'), 'error');
         }
     };
 
@@ -107,8 +108,8 @@ const GeorefFuenteManagement = () => {
                     showNotification('Fuente eliminada con éxito.', 'success');
                     fetchItems();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-                } catch {
-                    showNotification('Error al eliminar la fuente.', 'error');                }
+                } catch (error) {
+            showNotification(parseError(error, 'Error al eliminar la fuente.'), 'error');                }
             }
         });
     };
