@@ -17,12 +17,18 @@ import AnioManagement from './pages/Admin/AnioManagement';
 import AmbitoManagement from './pages/Admin/AmbitoManagement';
 import CierreCausaManagement from './pages/Admin/CierreCausaManagement';
 import CondicionManagement from './pages/Admin/CondicionManagement';
+import VinculoTipoManagement from './pages/Admin/VinculoTipoManagement';
+import VinculoManagement from './pages/Admin/VinculoManagement';
 import DependenciaManagement from './pages/Admin/DependenciaManagement';
 import EscuelaTipoManagement from './pages/Admin/EscuelaTipoManagement';
 import EscuelaManagement from './pages/Admin/EscuelaManagement';
 import ModalidadNivelManagement from './pages/Admin/ModalidadNivelManagement';
 import NivelManagement from './pages/Admin/NivelManagement';
 import ModalidadManagement from './pages/Admin/ModalidadManagement';
+import JornadaManagement from './pages/Admin/JornadaManagement';
+import TurnoManagement from './pages/Admin/TurnoManagement';
+import EscalafonManagement from './pages/Admin/EscalafonManagement';
+import PuestoTipoManagement from './pages/Admin/PuestoTipoManagement';
 import OfertaManagement from './pages/Admin/OfertaManagement';
 import EscuelaUbicacionManagement from './pages/Admin/EscuelaUbicacionManagement';
 import DocumentoSituacionManagement from './pages/Admin/DocumentoSituacionManagement';
@@ -36,6 +42,7 @@ import DepartamentoManagement from './pages/Admin/DepartamentoManagement';
 import LocalidadManagement from './pages/Admin/LocalidadManagement';
 import MunicipioManagement from './pages/Admin/MunicipioManagement';
 import LocalidadCensalManagement from './pages/Admin/LocalidadCensalManagement';
+import CalleManagement from './pages/Admin/CalleManagement';
 import GeorefFuenteManagement from './pages/Admin/GeorefFuenteManagement';
 import GeorefCategoriaManagement from './pages/Admin/GeorefCategoriaManagement';
 import GeorefFuncionManagement from './pages/Admin/GeorefFuncionManagement';
@@ -213,6 +220,24 @@ function App() {
                     />
 
                     <Route 
+                        path="/admin/general/vinculo-tipos" 
+                        element={
+                            <ProtectedRoute>
+                                <VinculoTipoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/vinculos" 
+                        element={
+                            <ProtectedRoute>
+                                <VinculoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
                         path="/admin/general/dependencias" 
                         element={
                             <ProtectedRoute>
@@ -244,6 +269,42 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <ModalidadManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/jornadas" 
+                        element={
+                            <ProtectedRoute>
+                                <JornadaManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/turnos" 
+                        element={
+                            <ProtectedRoute>
+                                <TurnoManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/escalafones" 
+                        element={
+                            <ProtectedRoute>
+                                <EscalafonManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/puesto-tipos" 
+                        element={
+                            <ProtectedRoute>
+                                <PuestoTipoManagement />
                             </ProtectedRoute>
                         } 
                     />
@@ -370,6 +431,15 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <LocalidadCensalManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/calles" 
+                        element={
+                            <ProtectedRoute>
+                                <CalleManagement />
                             </ProtectedRoute>
                         } 
                     />

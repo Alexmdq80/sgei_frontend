@@ -5,6 +5,8 @@ import cupofService from '../../services/cupofService';
 import personaService from '../../services/personaService';
 import escuelaService from '../../services/escuelaService';
 import cargoService from '../../services/cargoService';
+import escalafonService from '../../services/escalafonService';
+import puestoTipoService from '../../services/puestoTipoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
 /**
@@ -21,7 +23,7 @@ const CupofManagement = () => {
     const [filters, setFilters] = useState({
         escuela_id: '',
         estado_cupof: '',
-        escalafon: '',
+        escalafon_id: '',
         search: ''
     });
 
@@ -37,6 +39,8 @@ const CupofManagement = () => {
     // Catálogos
     const [escuelas, setEscuelas] = useState([]);
     const [cargos, setCargos] = useState([]);
+    const [escalafones, setEscalafones] = useState([]);
+    const [puestoTipos, setPuestoTipos] = useState([]);
     const [cueSearch, setCueSearch] = useState('');
     const [foundEscuela, setFoundEscuela] = useState(null);
     const [isSearchingEscuela, setIsSearchingEscuela] = useState(false);
@@ -48,8 +52,8 @@ const CupofManagement = () => {
     const [formData, setFormData] = useState({
         codigo_cupof: '',
         escuela_id: '',
-        escalafon: 'docente',
-        tipo_puesto: 'cargo',
+        escalafon_id: '',
+        puesto_tipo_id: '',
         nombre_cargo: '',
         asignatura_id: '',
         cantidad: 1
@@ -141,12 +145,26 @@ const CupofManagement = () => {
         }
     };
 
+    const fetchCatalogs = async () => {
+        try {
+            const [eRes, pRes] = await Promise.all([
+                escalafonService.getAll(),
+                puestoTipoService.getAll()
+            ]);
+            setEscalafones(eRes || []);
+            setPuestoTipos(pRes || []);
+        } catch (error) {
+            console.error('Error al cargar catálogos de escalafón/puesto');
+        }
+    };
+
     // --- EFECTOS ---
 
     // Carga de catálogos iniciales
     useEffect(() => {
         fetchEscuelas();
         fetchCargos();
+        fetchCatalogs();
     }, []);
 
     // Búsqueda de escuela específica por CUE para el Modal
@@ -186,7 +204,7 @@ const CupofManagement = () => {
     useEffect(() => {
         if (activeTab === 'pof') fetchCupofs();
         if (activeTab === 'personas') fetchPersonas();
-    }, [activeTab, filters.escuela_id, filters.estado_cupof, filters.escalafon]);
+    }, [activeTab, filters.escuela_id, filters.estado_cupof, filters.escalafon_id]);
 
     // --- ACCIONES ---
 
@@ -252,8 +270,8 @@ const CupofManagement = () => {
                         setFormData({
                             codigo_cupof: '',
                             escuela_id: '',
-                            escalafon: 'docente',
-                            tipo_puesto: 'cargo',
+                            escalafon_id: '',
+                            puesto_tipo_id: '',
                             nombre_cargo: '',
                             asignatura_id: '',
                             cantidad: 1
@@ -320,13 +338,13 @@ const CupofManagement = () => {
 
                         <select 
                             className="px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none"
-                            value={filters.escalafon}
-                            onChange={(e) => setFilters({...filters, escalafon: e.target.value})}
+                            value={filters.escalafon_id}
+                            onChange={(e) => setFilters({...filters, escalafon_id: e.target.value})}
                         >
                             <option value="">Todos los Escalafones</option>
-                            <option value="docente">Docente</option>
-                            <option value="auxiliar">Auxiliar</option>
-                            <option value="administrativo">Administrativo</option>
+                            {escalafones.map(e => (
+                                <option key={e.id} value={e.id}>{e.nombre}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -357,7 +375,7 @@ const CupofManagement = () => {
                                                     }`}></div>
                                                     <div>
                                                         <p className="text-sm font-black text-secondary-900 tracking-tighter">{cupof.codigo_cupof}</p>
-                                                        <span className="text-[10px] font-bold text-secondary-500 uppercase">{cupof.escalafon}</span>
+                                                        <span className="text-[10px] font-bold text-secondary-500 uppercase">{cupof.escalafon?.nombre}</span>
                                                     </div>
                                                 </div>
                                             </td>
@@ -365,7 +383,7 @@ const CupofManagement = () => {
                                                 <p className="text-xs font-bold text-secondary-800">{cupof.escuela.nombre}</p>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <span className="text-[10px] px-2 py-0.5 bg-secondary-100 rounded text-secondary-600 font-bold">
-                                                        {cupof.tipo_puesto}
+                                                        {cupof.puesto_tipo?.nombre}
                                                     </span>
                                                     {cupof.nombre_cargo ? (
                                                         <span className="text-[10px] text-primary-600 font-black uppercase">
@@ -555,32 +573,36 @@ const CupofManagement = () => {
                                     <div>
                                         <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Escalafón</label>
                                         <select 
+                                            required
                                             className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
-                                            value={formData.escalafon}
-                                            onChange={(e) => setFormData({...formData, escalafon: e.target.value})}
+                                            value={formData.escalafon_id}
+                                            onChange={(e) => setFormData({...formData, escalafon_id: e.target.value})}
                                         >
-                                            <option value="docente">Docente</option>
-                                            <option value="auxiliar">Auxiliar</option>
-                                            <option value="administrativo">Administrativo</option>
+                                            <option value="">Seleccionar...</option>
+                                            {escalafones.map(e => (
+                                                <option key={e.id} value={e.id}>{e.nombre}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Tipo Puesto</label>
                                         <select 
+                                            required
                                             className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
-                                            value={formData.tipo_puesto}
-                                            onChange={(e) => setFormData({...formData, tipo_puesto: e.target.value})}
+                                            value={formData.puesto_tipo_id}
+                                            onChange={(e) => setFormData({...formData, puesto_tipo_id: e.target.value})}
                                         >
-                                            <option value="cargo">Cargo</option>
-                                            <option value="horas_catedra">Horas Cátedra</option>
-                                            <option value="modulos">Módulos</option>
+                                            <option value="">Seleccionar...</option>
+                                            {puestoTipos.map(p => (
+                                                <option key={p.id} value={p.id}>{p.nombre}</option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>
 
-                                {formData.tipo_puesto === 'cargo' && (
+                                {formData.escalafon_id && (
                                     <div className="animate-slideDown">
-                                        <label htmlFor="nombre_cargo" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Nombre del Cargo</label>
+                                        <label htmlFor="nombre_cargo" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Nombre del Cargo / Función</label>
                                         <select
                                             id="nombre_cargo"
                                             required

@@ -36,6 +36,8 @@ const Layout = ({ children }) => {
         const offerPaths = [
             '/admin/general/niveles',
             '/admin/general/modalidades',
+            '/admin/general/jornadas',
+            '/admin/general/turnos',
             '/admin/general/modalidad-niveles',
             '/admin/general/ofertas'
         ];
@@ -55,9 +57,7 @@ const Layout = ({ children }) => {
             '/admin/general/departamentos',
             '/admin/general/localidades',
             '/admin/general/localidad-censals',
-            '/admin/general/georef-fuentes',
-            '/admin/general/georef-categorias',
-            '/admin/general/georef-funcions'
+            '/admin/general/calles'
         ];
         const georefPaths = [
             '/admin/general/georef-fuentes',
@@ -68,10 +68,12 @@ const Layout = ({ children }) => {
             '/admin/general/cargos', 
             '/admin/general/ciclos', 
             '/admin/general/condiciones',
+            '/admin/general/vinculo-tipos',
+            '/admin/general/vinculos',
             '/admin/general/cierre-causas'
         ];
 
-        const allGeneralPaths = [...instPaths, ...offerPaths, ...docPaths, ...identityPaths, ...geoPaths, ...opsPaths];
+        const allGeneralPaths = [...instPaths, ...offerPaths, ...docPaths, ...identityPaths, ...geoPaths, ...georefPaths, ...opsPaths];
 
         if (allGeneralPaths.includes(location.pathname)) {
             setIsGeneralPanelOpen(true);
@@ -87,7 +89,7 @@ const Layout = ({ children }) => {
             if (docPaths.includes(location.pathname)) setIsDocGroupOpen(true);
             if (identityPaths.includes(location.pathname)) setIsIdentityGroupOpen(true);
         }
-        if (geoPaths.includes(location.pathname)) {
+        if (geoPaths.includes(location.pathname) || georefPaths.includes(location.pathname)) {
             setIsGeoGroupOpen(true);
             if (georefPaths.includes(location.pathname)) setIsGeorefGroupOpen(true);
         }
@@ -205,6 +207,7 @@ const Layout = ({ children }) => {
                         { name: 'Municipios', path: '/admin/general/municipios' },
                         { name: 'Localidades', path: '/admin/general/localidades' },
                         { name: 'Localidades Censales', path: '/admin/general/localidad-censals' },
+                        { name: 'Calles', path: '/admin/general/calles' },
                         {
                             name: 'Metadatos Georef',
                             isSubgroup: true,
@@ -226,6 +229,8 @@ const Layout = ({ children }) => {
                     items: [
                         { name: 'Niveles', path: '/admin/general/niveles' },
                         { name: 'Modalidades', path: '/admin/general/modalidades' },
+                        { name: 'Jornadas', path: '/admin/general/jornadas' },
+                        { name: 'Turnos', path: '/admin/general/turnos' },
                         { name: 'Modalidades por Nivel', path: '/admin/general/modalidad-niveles' },
                         { name: 'Otras Ofertas', path: '/admin/general/ofertas' },
                     ]
@@ -267,6 +272,9 @@ const Layout = ({ children }) => {
                         { name: 'Cargos', path: '/admin/general/cargos' },
                         { name: 'Ciclos Lectivos', path: '/admin/general/ciclos' },
                         { name: 'Condiciones', path: '/admin/general/condiciones' },
+                        { name: 'Escalafones', path: '/admin/general/escalafones' },
+                        { name: 'Tipos de Puesto', path: '/admin/general/puesto-tipos' },
+                        { name: 'Tipos de Vínculo', path: '/admin/general/vinculo-tipos' },                        { name: 'Vínculos', path: '/admin/general/vinculos' },
                         { name: 'Causas de Cierre', path: '/admin/general/cierre-causas' },
                     ]
                 }
