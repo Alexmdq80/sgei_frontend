@@ -58,6 +58,38 @@ const personaService = {
     async unlinkUser(id) {
         const response = await api.post(`/admin/personas/${id}/unlink-user`);
         return response.data;
+    },
+
+    /**
+     * Asigna el rol de Jefe Distrital a una persona.
+     */
+    async assignJefeDistrital(id, departamento_id) {
+        const response = await api.post(`/admin/personas/${id}/jefe-distrital`, { departamento_id });
+        return response.data;
+    },
+
+    /**
+     * Asigna el rol de Supervisor Curricular a una persona.
+     */
+    async assignSupervisor(id) {
+        const response = await api.post(`/admin/personas/${id}/supervisor`);
+        return response.data;
+    },
+
+    /**
+     * Remueve un rol administrativo de una persona.
+     */
+    async removeRole(id, role) {
+        const response = await api.delete(`/admin/personas/${id}/roles/${role}`);
+        return response.data;
+    },
+
+    /**
+     * Obtiene la comunidad educativa vinculada a una escuela específica.
+     */
+    async getComunidad(params = {}) {
+        const response = await api.get('/admin/comunidad-educativa', { params });
+        return response.data;
     }
 };
 

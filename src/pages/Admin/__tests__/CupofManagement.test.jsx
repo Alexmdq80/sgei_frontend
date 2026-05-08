@@ -5,6 +5,8 @@ import cupofService from '../../../services/cupofService';
 import cargoService from '../../../services/cargoService';
 import escuelaService from '../../../services/escuelaService';
 import personaService from '../../../services/personaService';
+import escalafonService from '../../../services/escalafonService';
+import puestoTipoService from '../../../services/puestoTipoService';
 
 // Mocks de Servicios
 vi.mock('../../../services/cupofService', () => ({
@@ -32,11 +34,23 @@ vi.mock('../../../services/personaService', () => ({
   }
 }));
 
+vi.mock('../../../services/escalafonService', () => ({
+  default: {
+    getAll: vi.fn().mockResolvedValue([]),
+  }
+}));
+
+vi.mock('../../../services/puestoTipoService', () => ({
+  default: {
+    getAll: vi.fn().mockResolvedValue([]),
+  }
+}));
+
 // Mock de AuthContext
 vi.mock('../../../context/AuthContext', async () => {
   return {
     useAuth: () => ({
-      user: { nombre: 'Admin Test', es_administrador: true },
+      user: { nombre: 'Admin Test', es_administrador: true, roles: [{ name: 'superuser' }] },
       showNotification: vi.fn(),
     })
   };
@@ -67,6 +81,8 @@ describe('CupofManagement Component', () => {
     cargoService.getAll.mockResolvedValue(mockCargos);
     escuelaService.search.mockResolvedValue(mockEscuelas);
     personaService.getAll.mockResolvedValue({ data: [] });
+    escalafonService.getAll.mockResolvedValue([{ id: 1, nombre: 'DOCENTE' }]);
+    puestoTipoService.getAll.mockResolvedValue([{ id: 1, nombre: 'CARGO' }]);
   });
 
   it('debe cargar los cargos dinámicamente al montar el componente', async () => {
@@ -87,6 +103,10 @@ describe('CupofManagement Component', () => {
     await act(async () => {
       fireEvent.click(btnNuevo);
     });
+
+    // Seleccionar Escalafón para que aparezca el campo de Cargo
+    const selectEscalafon = screen.getByLabelText(/Escalafón/i);
+    fireEvent.change(selectEscalafon, { target: { value: '1' } });
     
     // Verificar que el select de cargos tiene las opciones de la API
     const selectCargo = screen.getByLabelText(/Nombre del Cargo/i);

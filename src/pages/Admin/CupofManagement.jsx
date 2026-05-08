@@ -14,14 +14,36 @@ import ConfirmationModal from '../../components/ConfirmationModal';
  * Exclusivo para Superusuarios y Supervisores Curriculares.
  */
 const CupofManagement = () => {
-    const { showNotification } = useAuth();
+    const { user, showNotification, activeProfile } = useAuth();
     const [activeTab, setActiveTab] = useState('pof'); // 'pof' | 'personas'
     
+    // Roles del usuario
+    const isSuperUser = user?.roles?.some(r => r.name === 'superuser');
+    const isJefeDistrital = user?.roles?.some(r => r.name === 'jefe_distrital');
+    const isConduccion = ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeProfile?.role?.name);
+
+    // Función auxiliar para determinar si un cargo es jerárquico
+    const isHierarchicalCargo = (nombreCargo) => {
+        if (!nombreCargo) return false;
+        const cargo = nombreCargo.toLowerCase();
+        return ['director', 'vicedirector', 'secretario', 'prosecretario'].some(r => cargo.includes(r));
+    };
+
+    // Determina si el usuario actual puede gestionar un CUPOF específico
+    const canManageCupof = (cupof) => {
+        if (isSuperUser) return true;
+        const hierarchical = isHierarchicalCargo(cupof.nombre_cargo);
+        if (isJefeDistrital) return hierarchical;
+        // Equipo de Conducción ahora puede gestionar TODO en su escuela (jerárquico y operativo)
+        if (isConduccion) return true;
+        return false;
+    };
+
     // Estados para CUPOF (POF)
     const [cupofs, setCupofs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filters, setFilters] = useState({
-        escuela_id: '',
+        escuela_id: activeProfile?.escuela_id || '',
         estado_cupof: '',
         escalafon_id: '',
         search: ''
@@ -263,30 +285,34 @@ const CupofManagement = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Gestión CUPOF</h1>
-                    <p className="text-secondary-500 mt-1 font-medium">Administración de la Planta Orgánica Funcional (POF)</p>
+                    <p className="text-secondary-500 mt-1 font-medium">
+                        {isJefeDistrital ? 'Designación de Equipos de Conducción' : 'Administración de la Planta Orgánica Funcional (POF)'}
+                    </p>
                 </div>
-                <button 
-                    onClick={() => {
-                        setFormData({
-                            codigo_cupof: '',
-                            escuela_id: '',
-                            escalafon_id: '',
-                            puesto_tipo_id: '',
-                            nombre_cargo: '',
-                            asignatura_id: '',
-                            cantidad: 1
-                        });
-                        setCueSearch('');
-                        setFoundEscuela(null);
-                        setIsCreateModalOpen(true);
-                    }}
-                    className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold shadow-lg hover:bg-primary-700 transition-all active:scale-95"
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Nuevo Puesto
-                </button>
+                {(isConduccion || isSuperUser) && (
+                    <button 
+                        onClick={() => {
+                            setFormData({
+                                codigo_cupof: '',
+                                escuela_id: '',
+                                escalafon_id: '',
+                                puesto_tipo_id: '',
+                                nombre_cargo: '',
+                                asignatura_id: '',
+                                cantidad: 1
+                            });
+                            setCueSearch('');
+                            setFoundEscuela(null);
+                            setIsCreateModalOpen(true);
+                        }}
+                        className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold shadow-lg hover:bg-primary-700 transition-all active:scale-95"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Nuevo Puesto
+                    </button>
+                )}
             </div>
 
             {/* Selector de Pestañas */}
@@ -297,7 +323,7 @@ const CupofManagement = () => {
                         activeTab === 'pof' ? 'bg-white text-primary-600 shadow-sm' : 'text-secondary-500 hover:text-secondary-700'
                     }`}
                 >
-                    Planta Funcional (POF)
+                    {isJefeDistrital ? 'Cargos de Conducción' : isSuperUser ? 'Planta General' : 'Planta Funcional (POF)'}
                 </button>
                 <button
                     onClick={() => setActiveTab('personas')}
@@ -314,16 +340,18 @@ const CupofManagement = () => {
                 <div className="bg-white rounded-3xl shadow-sm border border-secondary-200 overflow-hidden">
                     {/* Filtros */}
                     <div className="p-6 border-b border-secondary-100 bg-secondary-50/50 flex flex-wrap gap-4">
-                        <select 
-                            className="flex-1 min-w-[200px] px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                            value={filters.escuela_id}
-                            onChange={(e) => setFilters({...filters, escuela_id: e.target.value})}
-                        >
-                            <option value="">Todas las Escuelas</option>
-                            {escuelas.map(e => (
-                                <option key={e.id} value={e.id}>{e.nombre}</option>
-                            ))}
-                        </select>
+                        {(isJefeDistrital || isSuperUser) && (
+                            <select 
+                                className="flex-1 min-w-[200px] px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                                value={filters.escuela_id}
+                                onChange={(e) => setFilters({...filters, escuela_id: e.target.value})}
+                            >
+                                <option value="">Todas las Escuelas</option>
+                                {escuelas.map(e => (
+                                    <option key={e.id} value={e.id}>{e.nombre}</option>
+                                ))}
+                            </select>
+                        )}
 
                         <select 
                             className="px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none"
@@ -417,47 +445,51 @@ const CupofManagement = () => {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {cupof.estado_cupof === 'disponible' ? (
-                                                        <button 
-                                                            onClick={() => { 
-                                                                setSelectedCupof(cupof); 
-                                                                setPersonaSearch('');
-                                                                setAssignSearchResults([]);
-                                                                setAssignData({
-                                                                    persona_id: '',
-                                                                    situacion_revista: 'provisional',
-                                                                    fecha_inicio: new Date().toISOString().split('T')[0],
-                                                                    resolucion: ''
-                                                                });
-                                                                setIsAssignModalOpen(true); 
-                                                            }}
-                                                            className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                                            title="Asignar Persona"
-                                                        >
-                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                                                            </svg>
-                                                        </button>
-                                                    ) : cupof.estado_cupof === 'ocupado' ? (
-                                                        <button 
-                                                            onClick={() => handleReleaseCupof(cupof)}
-                                                            className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                                                            title="Liberar Puesto"
-                                                        >
-                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                                            </svg>
-                                                        </button>
-                                                    ) : null}
-                                                    <button 
-                                                        onClick={() => handleReleaseCupof(cupof, true)}
-                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="Dar de Baja (Cierre)"
-                                                    >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
+                                                    {canManageCupof(cupof) && (
+                                                        <>
+                                                            {cupof.estado_cupof === 'disponible' ? (
+                                                                <button 
+                                                                    onClick={() => { 
+                                                                        setSelectedCupof(cupof); 
+                                                                        setPersonaSearch('');
+                                                                        setAssignSearchResults([]);
+                                                                        setAssignData({
+                                                                            persona_id: '',
+                                                                            situacion_revista: 'provisional',
+                                                                            fecha_inicio: new Date().toISOString().split('T')[0],
+                                                                            resolucion: ''
+                                                                        });
+                                                                        setIsAssignModalOpen(true); 
+                                                                    }}
+                                                                    className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                                                    title="Asignar Persona"
+                                                                >
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                                                    </svg>
+                                                                </button>
+                                                            ) : cupof.estado_cupof === 'ocupado' ? (
+                                                                <button 
+                                                                    onClick={() => handleReleaseCupof(cupof)}
+                                                                    className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                                                    title="Liberar Puesto"
+                                                                >
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                                                    </svg>
+                                                                </button>
+                                                            ) : null}
+                                                            <button 
+                                                                onClick={() => handleReleaseCupof(cupof, true)}
+                                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                title="Dar de Baja (Cierre)"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -560,8 +592,9 @@ const CupofManagement = () => {
                             </div>
                             <div className="p-8 space-y-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Código CUPOF</label>
-                                    <input 
+                                    <label htmlFor="codigo_cupof" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Código CUPOF</label>
+                                    <input
+                                        id="codigo_cupof"
                                         type="text" required
                                         className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold focus:ring-2 focus:ring-primary-500 outline-none"
                                         placeholder="Ej: 0540034421"
@@ -571,8 +604,9 @@ const CupofManagement = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Escalafón</label>
-                                        <select 
+                                        <label htmlFor="escalafon_id" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Escalafón</label>
+                                        <select
+                                            id="escalafon_id"
                                             required
                                             className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
                                             value={formData.escalafon_id}
@@ -585,8 +619,9 @@ const CupofManagement = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Tipo Puesto</label>
-                                        <select 
+                                        <label htmlFor="puesto_tipo_id" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Tipo Puesto</label>
+                                        <select
+                                            id="puesto_tipo_id"
                                             required
                                             className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
                                             value={formData.puesto_tipo_id}
@@ -599,7 +634,6 @@ const CupofManagement = () => {
                                         </select>
                                     </div>
                                 </div>
-
                                 {formData.escalafon_id && (
                                     <div className="animate-slideDown">
                                         <label htmlFor="nombre_cargo" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Nombre del Cargo / Función</label>
@@ -620,9 +654,10 @@ const CupofManagement = () => {
                                 )}
 
                                 <div>
-                                    <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Institución (CUE_Anexo)</label>
+                                    <label htmlFor="cue_search" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Institución (CUE_Anexo)</label>
                                     <div className="relative">
                                         <input 
+                                            id="cue_search"
                                             type="text" required
                                             className={`w-full px-4 py-3 border-2 rounded-xl font-black outline-none transition-all ${
                                                 foundEscuela ? 'bg-green-50 border-green-200 text-green-900' : 'bg-secondary-50 border-secondary-200 focus:border-primary-500'

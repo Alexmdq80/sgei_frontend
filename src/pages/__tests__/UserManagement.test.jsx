@@ -27,8 +27,7 @@ vi.mock('../../services/userService', () => ({
         getAll: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
-        delete: vi.fn(),
-        toggleSupervisorRole: vi.fn()
+        delete: vi.fn()
     }
 }));
 
@@ -98,29 +97,13 @@ describe('UserManagement Component', () => {
 
         await waitFor(() => screen.getByText('Juan Perez'));
         
-        const editBtns = screen.getAllByTitle('Visualizar / Gestionar Roles');
+        const editBtns = screen.getAllByTitle('Visualizar Información');
         fireEvent.click(editBtns[0]);
 
         expect(screen.getByText('Información del Usuario', { selector: 'h2' })).toBeInTheDocument();
         // El nombre aparece en la tabla y en el modal, usamos getAll
         expect(screen.getAllByText('Juan Perez').length).toBeGreaterThan(1);
         expect(screen.getAllByText('juan@example.com').length).toBeGreaterThan(0);
-    });
-
-    it('debe permitir cambiar el rol de supervisor curricular', async () => {
-        userService.toggleSupervisorRole.mockResolvedValue({ message: 'Rol actualizado' });
-
-        render(<UserManagement />);
-
-        await waitFor(() => screen.getByText('Juan Perez'));
-        
-        const supervisorBtn = screen.getAllByTitle(/Hacer Supervisor Curricular/i)[0];
-        fireEvent.click(supervisorBtn);
-
-        await waitFor(() => {
-            expect(userService.toggleSupervisorRole).toHaveBeenCalledWith('1');
-            expect(mockShowNotification).toHaveBeenCalledWith('Rol actualizado', 'success');
-        });
     });
 
     it('debe llamar a userService.delete al confirmar la eliminación', async () => {

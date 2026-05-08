@@ -11,6 +11,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import UserManagement from './pages/Admin/UserManagement';
 import CupofManagement from './pages/Admin/CupofManagement';
 import PersonaManagement from './pages/Admin/PersonaManagement';
+import ComunidadEducativa from './pages/Admin/ComunidadEducativa';
 import CargoManagement from './pages/Admin/CargoManagement';
 import LectivoManagement from './pages/Admin/LectivoManagement';
 import AnioManagement from './pages/Admin/AnioManagement';
@@ -485,6 +486,15 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <PersonaManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/comunidad" 
+                        element={
+                            <ProtectedRoute>
+                                <ComunidadEducativa />
                             </ProtectedRoute>
                         } 
                     />

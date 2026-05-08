@@ -74,22 +74,6 @@ const userService = {
     },
 
     /**
-     * Alterna el rol de Supervisor Curricular para un usuario.
-     */
-    async toggleSupervisorRole(id) {
-        const response = await api.post(`/admin/usuarios/${id}/toggle-supervisor`);
-        return response.data;
-    },
-
-    /**
-     * Alterna el rol de Jefe Distrital para un usuario.
-     */
-    async toggleJefeDistritalRole(id) {
-        const response = await api.post(`/admin/usuarios/${id}/toggle-jefe-distrital`);
-        return response.data;
-    },
-
-    /**
      * Confirma la vinculación de un usuario con un registro del padrón.
      */
     async confirmPersona(id) {

@@ -3,13 +3,15 @@ import {
     UserPlus, Search, Eye, Pencil, Link, Link2Off, 
     Loader2, Lock, Unlock, Mail, Globe, MapPin, 
     ShieldCheck, Calendar, Info, X, Check, Save,
-    User, Phone, Home, Layers, Briefcase, FileText
+    User, Phone, Home, Layers, Briefcase, FileText,
+    Shield, Trash2, Award
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { parseError } from '../../utils/errorParser';
 import personaService from '../../services/personaService';
 import cupofService from '../../services/cupofService';
 import documentoTipoService from '../../services/documentoTipoService';
+import geografiaService from '../../services/geografiaService';
 
 /**
  * Componente para la gestión integral del Padrón de Personas (Agentes).
@@ -17,41 +19,54 @@ import documentoTipoService from '../../services/documentoTipoService';
 export default function PersonaManagement() {
     const { user: authUser, showNotification } = useAuth();
     
-    // El Jefe Distrital es el único autorizado para vincular con CUPOF
-    const isJefeDistrital = authUser?.roles?.some(r => r.name === 'jefe_distrital') || authUser?.es_administrador;
+    // Jerarquía de Roles para Gestión de Personas
+    const isSuperUser = authUser?.roles?.some(r => r.name === "superuser") || authUser?.es_administrador;
+    const isJefeDistrital = authUser?.roles?.some(r => r.name === "jefe_distrital");
+    const isConduccion = authUser?.roles?.some(r => ["director", "vicedirector", "secretario", "prosecretario"].includes(r.name));
 
+    // Permiso Global de Gestión (CRUD del Padrón)
+    const canManage = isSuperUser || isJefeDistrital || isConduccion;
+
+    // Estados de Datos
     const [personas, setPersonas] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState("");
     const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
     const [docTipos, setDocTipos] = useState([]);
+    const [departamentos, setDepartamentos] = useState([]);
 
-    // Estados para el Modal de Detalles
+    // Estados de Modales y Selección
     const [selectedPersona, setSelectedPersona] = useState(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-    const [isFetchingDetails, setIsFetchingDetails] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingPersonaId, setEditingPersonaId] = useState(null);
+    const [isEmailLocked, setIsEmailLocked] = useState(false);
 
-    // Estados para la Asignación de CUPOF
+    // Estados de Asignación (CUPOF)
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [cupofSearchTerm, setCupofSearchTerm] = useState("");
     const [availableCupofs, setAvailableCupofs] = useState([]);
     const [isSearchingCupof, setIsSearchingCupof] = useState(false);
-    const [cupofSearchTerm, setCupofSearchTerm] = useState('');
     const [isSavingAssignment, setIsSavingAssignment] = useState(false);
-    
     const [assignmentData, setAssignmentData] = useState({
         cupof_id: '',
-        situacion_revista: 'provisional',
+        situacion_revista: 'titular',
         fecha_inicio: new Date().toISOString().split('T')[0],
         resolucion: ''
     });
 
-    // Estados para el Modal de Creación / Edición (Persona)
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    // Estados de Roles Administrativos (Superuser Only)
+    const [isAdminRolesModalOpen, setIsAdminRolesModalOpen] = useState(false);
+    const [selectedDepartamentoId, setSelectedDepartamentoId] = useState('');
+    const [isSavingAdminRole, setIsSavingAdminRole] = useState(false);
+
+    // Estados de Carga Específicos
+    const [isFetchingDetails, setIsFetchingDetails] = useState(false);
     const [isSavingPersona, setIsSavingPersona] = useState(false);
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [isEmailLocked, setIsEmailLocked] = useState(false);
-    const [editingPersonaId, setEditingPersonaId] = useState(null);
-    const [isLinkingUser, setIsLinkingUser] = useState(null); // ID de la persona siendo vinculada
+    const [isLinkingUser, setIsLinkingUser] = useState(null);
+
+    // Formulario
     const [personaFormData, setPersonaFormData] = useState({
         apellido: '',
         nombre: '',
@@ -61,6 +76,7 @@ export default function PersonaManagement() {
     });
 
     const fetchPersonas = async (page = 1) => {
+        if (!canManage) return;
         try {
             setIsLoading(true);
             const response = await personaService.getAll({ 
@@ -71,8 +87,8 @@ export default function PersonaManagement() {
             setPersonas(response.data || []);
             setPagination(response.meta || { current_page: 1, last_page: 1, total: 0 });
         } catch (error) {
-            console.error('Error al cargar personas:', error);
-            showNotification(parseError(error, 'Error al cargar el padrón.'), 'error');
+            console.error("Error al cargar personas:", error);
+            showNotification(parseError(error, "Error al cargar el padrón."), "error");
         } finally {
             setIsLoading(false);
         }
@@ -81,20 +97,90 @@ export default function PersonaManagement() {
     const fetchDocTipos = async () => {
         try {
             const response = await documentoTipoService.getAll();
-            setDocTipos(response);
+            setDocTipos(response || []);
         } catch (error) {
             console.error('Error al cargar tipos de documento:', error);
+        }
+    };
+
+    const fetchDepartamentos = async () => {
+        try {
+            const response = await geografiaService.getDepartamentos(6); // Default provincia_id 6 (BSAS)
+            setDepartamentos(response || []);
+        } catch (error) {
+            console.error('Error al cargar departamentos:', error);
         }
     };
 
     useEffect(() => {
         fetchPersonas();
         fetchDocTipos();
+        if (isSuperUser) {
+            fetchDepartamentos();
+        }
     }, []);
 
     const handleSearch = (e) => {
         e.preventDefault();
         fetchPersonas(1);
+    };
+
+    const handleOpenAdminRolesModal = (persona) => {
+        setSelectedPersona(persona);
+        setSelectedDepartamentoId('');
+        setIsAdminRolesModalOpen(true);
+    };
+
+    const handleAssignJefeDistrital = async () => {
+        if (!selectedDepartamentoId) {
+            showNotification('Debes seleccionar un distrito.', 'warning');
+            return;
+        }
+        try {
+            setIsSavingAdminRole(true);
+            await personaService.assignJefeDistrital(selectedPersona.id, selectedDepartamentoId);
+            showNotification('Cargo de Jefe Distrital asignado con éxito.', 'success');
+            setIsAdminRolesModalOpen(false);
+            fetchPersonas(pagination.current_page);
+        } catch (error) {
+            console.error('Error al asignar Jefe Distrital:', error);
+            showNotification(parseError(error, 'No se pudo asignar el cargo.'), 'error');
+        } finally {
+            setIsSavingAdminRole(false);
+        }
+    };
+
+    const handleAssignSupervisor = async () => {
+        try {
+            setIsSavingAdminRole(true);
+            await personaService.assignSupervisor(selectedPersona.id);
+            showNotification('Cargo de Supervisor Curricular asignado con éxito.', 'success');
+            setIsAdminRolesModalOpen(false);
+            fetchPersonas(pagination.current_page);
+        } catch (error) {
+            console.error('Error al asignar Supervisor:', error);
+            showNotification(parseError(error, 'No se pudo asignar el cargo.'), 'error');
+        } finally {
+            setIsSavingAdminRole(false);
+        }
+    };
+
+    const handleRemoveAdminRole = async (role) => {
+        if (!window.confirm(`¿Estás seguro de que deseas revocar el cargo de ${role.replace('_', ' ')}?`)) {
+            return;
+        }
+        try {
+            setIsSavingAdminRole(true);
+            await personaService.removeRole(selectedPersona.id, role);
+            showNotification('Cargo revocado con éxito.', 'success');
+            setIsAdminRolesModalOpen(false);
+            fetchPersonas(pagination.current_page);
+        } catch (error) {
+            console.error('Error al remover cargo:', error);
+            showNotification(parseError(error, 'No se pudo revocar el cargo.'), 'error');
+        } finally {
+            setIsSavingAdminRole(false);
+        }
     };
 
     const handleViewPersona = async (id) => {
@@ -104,10 +190,24 @@ export default function PersonaManagement() {
             setSelectedPersona(response.data);
             setIsDetailsModalOpen(true);
         } catch (error) {
-            console.error('Error al obtener detalles de la persona:', error);
-            showNotification(parseError(error, 'No se pudieron cargar los detalles del registro.'), 'error');
+            console.error("Error al obtener detalles de la persona:", error);
+            showNotification(parseError(error, "No se pudieron cargar los detalles del registro."), "error");
         } finally {
             setIsFetchingDetails(false);
+        }
+    };
+
+    const handleDeletePersona = async (persona) => {
+        if (!window.confirm(`¿Está seguro de que deseas eliminar a ${persona.nombre_completo} del padrón? Esta acción es irreversible.`)) {
+            return;
+        }
+        try {
+            await personaService.delete(persona.id);
+            showNotification("Registro eliminado con éxito.", "success");
+            fetchPersonas(pagination.current_page);
+        } catch (error) {
+            console.error("Error al eliminar persona:", error);
+            showNotification(parseError(error, "No se pudo eliminar el registro."), "error");
         }
     };
 
@@ -117,7 +217,6 @@ export default function PersonaManagement() {
             showNotification('Ingresa al menos 3 caracteres para buscar un CUPOF.', 'warning');
             return;
         }
-
         try {
             setIsSearchingCupof(true);
             const response = await cupofService.getAll({ 
@@ -141,7 +240,6 @@ export default function PersonaManagement() {
             showNotification('Debes seleccionar un puesto (CUPOF).', 'warning');
             return;
         }
-
         try {
             setIsSavingAssignment(true);
             await cupofService.assign(assignmentData.cupof_id, {
@@ -202,13 +300,6 @@ export default function PersonaManagement() {
                 showNotification('Persona registrada con éxito en el padrón.', 'success');
             }
             setIsCreateModalOpen(false);
-            setPersonaFormData({
-                apellido: '',
-                nombre: '',
-                documento_tipo_id: '',
-                documento_numero: '',
-                email: ''
-            });
             fetchPersonas(isEditMode ? pagination.current_page : 1);
         } catch (error) {
             console.error('Error al procesar persona:', error);
@@ -223,11 +314,7 @@ export default function PersonaManagement() {
             setIsLinkingUser(personaId);
             const response = await personaService.tryLinkUser(personaId);
             showNotification(response.message, 'success');
-            
-            // Actualizar la lista localmente para mostrar el email vinculado
-            setPersonas(prev => prev.map(p => 
-                p.id === personaId ? { ...p, usuario_email: response.usuario_email } : p
-            ));
+            fetchPersonas(pagination.current_page);
         } catch (error) {
             console.error('Error al vincular usuario:', error);
             showNotification(parseError(error, 'No se pudo realizar la vinculación.', 'warning'), 'warning');
@@ -241,11 +328,7 @@ export default function PersonaManagement() {
             setIsLinkingUser(personaId);
             const response = await personaService.unlinkUser(personaId);
             showNotification(response.message, 'success');
-            
-            // Actualizar la lista localmente para quitar el email vinculado
-            setPersonas(prev => prev.map(p => 
-                p.id === personaId ? { ...p, usuario_email: null } : p
-            ));
+            fetchPersonas(pagination.current_page);
         } catch (error) {
             console.error('Error al desvincular usuario:', error);
             showNotification(parseError(error, 'No se pudo realizar la desvinculación.'), 'error');
@@ -253,6 +336,16 @@ export default function PersonaManagement() {
             setIsLinkingUser(null);
         }
     };
+
+    if (!canManage) {
+        return (
+            <div className="p-10 text-center">
+                <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 font-bold">
+                    Acceso Denegado: No tienes permisos para gestionar el padrón de personas.
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-fadeIn">
@@ -307,6 +400,7 @@ export default function PersonaManagement() {
                                     <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">Apellido y Nombre</th>
                                     <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">Documento</th>
                                     <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">Vinculación Usuario</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">Administración</th>
                                     <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider text-right">Acciones</th>
                                 </tr>
                             </thead>
@@ -370,8 +464,39 @@ export default function PersonaManagement() {
                                                 </div>
                                             )}
                                         </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-wrap gap-1">
+                                                {persona.usuario?.roles?.some(r => r.name === 'jefe_distrital') && (
+                                                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase rounded border border-amber-200">J. Distrital</span>
+                                                )}
+                                                {persona.usuario?.roles?.some(r => r.name === 'supervisor_curricular') && (
+                                                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase rounded border border-indigo-200">Supervisor</span>
+                                                )}
+                                                {!persona.usuario?.roles?.some(r => ['jefe_distrital', 'supervisor_curricular'].includes(r.name)) && (
+                                                    <span className="text-[10px] text-secondary-400 font-medium italic">Sin cargo admin.</span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
+                                                {isSuperUser && (
+                                                    <>
+                                                        <button 
+                                                            onClick={() => handleDeletePersona(persona)}
+                                                            className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Eliminar del Padrón"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleOpenAdminRolesModal(persona)}
+                                                            className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                                            title="Gestionar Roles Administrativos"
+                                                        >
+                                                            <Shield className="w-5 h-5" />
+                                                        </button>
+                                                    </>
+                                                )}
                                                 <button 
                                                     onClick={() => handleViewPersona(persona.id)}
                                                     disabled={isFetchingDetails}
@@ -443,9 +568,7 @@ export default function PersonaManagement() {
                                 <p className="text-xs text-secondary-500 font-bold tracking-widest mt-0.5 uppercase">Identificador de Padrón: {selectedPersona.id}</p>
                             </div>
                             <button onClick={() => setIsDetailsModalOpen(false)} className="text-secondary-400 hover:text-secondary-600 transition-colors focus:outline-none">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                <X className="w-6 h-6" />
                             </button>
                         </div>
                         
@@ -454,83 +577,22 @@ export default function PersonaManagement() {
                                 {/* Datos de Identidad */}
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 border-b border-secondary-100 pb-2">
-                                        <svg className="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                        </svg>
+                                        <User className="w-5 h-5 text-primary-500" />
                                         <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest">Información de Identidad</h3>
                                     </div>
-                                    
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-secondary-50 p-6 rounded-2xl border border-secondary-100">
                                         <div className="space-y-0.5">
                                             <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Apellido y Nombre</p>
                                             <p className="text-lg font-black text-secondary-900 uppercase">{selectedPersona.nombre_completo}</p>
                                         </div>
                                         <div className="space-y-0.5">
-                                            <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">CUIL / Identificación Fiscal</p>
-                                            <p className="text-lg font-bold text-primary-600 tracking-wider">{selectedPersona.cuil}</p>
-                                        </div>
-                                        <div className="space-y-0.5 border-t border-secondary-200 pt-3">
                                             <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Documento</p>
-                                            <p className="text-sm font-bold text-secondary-900">{selectedPersona.documento_tipo_nombre}: {selectedPersona.documento_numero}</p>
-                                        </div>
-                                        <div className="space-y-0.5 border-t border-secondary-200 pt-3">
-                                            <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Fecha de Nacimiento</p>
-                                            <p className="text-sm font-bold text-secondary-900">{selectedPersona.nacimiento_fecha || 'No registrada'}</p>
-                                        </div>
-                                        <div className="space-y-0.5 border-t border-secondary-200 pt-3">
-                                            <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Nacionalidad</p>
-                                            <p className="text-sm font-bold text-secondary-900 uppercase">{selectedPersona.nacionalidad || 'No especificada'}</p>
-                                        </div>
-                                        <div className="space-y-0.5 border-t border-secondary-200 pt-3">
-                                            <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Lugar de Nacimiento</p>
-                                            <p className="text-xs font-bold text-secondary-700 uppercase">
-                                                {selectedPersona.nacimiento_localidad}, {selectedPersona.nacimiento_provincia} ({selectedPersona.nacimiento_pais})
-                                            </p>
+                                            <p className="text-sm font-bold text-secondary-900 uppercase">{selectedPersona.documento_tipo_nombre}: {selectedPersona.documento_numero}</p>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Información de Contacto */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 border-b border-secondary-100 pb-2">
-                                        <Mail className="w-5 h-5 text-indigo-500" />
-                                        <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest">Contacto y Domicilio</h3>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
-                                            <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Vías de Comunicación</p>
-                                            <div className="space-y-2">
-                                                <p className="text-sm font-bold text-secondary-900 flex items-center gap-2">
-                                                    <span className="text-xs font-black text-indigo-400 w-20">MÓVIL:</span> {selectedPersona.contacto?.telefono_movil || 'S/D'}
-                                                </p>
-                                                <p className="text-sm font-bold text-secondary-900 flex items-center gap-2">
-                                                    <span className="text-xs font-black text-indigo-400 w-20">FIJO:</span> {selectedPersona.contacto?.telefono_fijo || 'S/D'}
-                                                </p>
-                                                <p className="text-sm font-bold text-secondary-900 flex items-center gap-2">
-                                                    <span className="text-xs font-black text-indigo-400 w-20">EMAIL:</span> {selectedPersona.contacto?.email || 'S/D'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="bg-amber-50/50 p-6 rounded-2xl border border-amber-100 space-y-4">
-                                            <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Domicilio Real</p>
-                                            <div className="space-y-2">
-                                                <p className="text-sm font-bold text-secondary-900">
-                                                    {selectedPersona.domicilio?.calle} {selectedPersona.domicilio?.numero}
-                                                </p>
-                                                <p className="text-xs font-bold text-secondary-500 uppercase italic">
-                                                    {selectedPersona.domicilio?.barrio ? `Barrio: ${selectedPersona.domicilio.barrio}` : 'Sin datos de barrio'}
-                                                </p>
-                                                {(selectedPersona.domicilio?.piso || selectedPersona.domicilio?.depto) && (
-                                                    <p className="text-xs font-bold text-secondary-700 uppercase">
-                                                        Piso: {selectedPersona.domicilio.piso || '-'} | Depto: {selectedPersona.domicilio.depto || '-'}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Vinculación de Sistema */}
+                                {/* Seguridad y Vinculación */}
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 border-b border-secondary-100 pb-2">
                                         <ShieldCheck className="w-5 h-5 text-green-500" />
@@ -547,7 +609,7 @@ export default function PersonaManagement() {
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-between italic">
-                                                <p className="text-sm text-secondary-500 font-medium tracking-tight">Este agente no posee una cuenta de usuario vinculada en el sistema.</p>
+                                                <p className="text-sm text-secondary-500 font-medium tracking-tight">Este agente no posee una cuenta de usuario vinculada.</p>
                                                 <span className="px-3 py-1 bg-secondary-100 text-secondary-400 text-[10px] font-black uppercase rounded-full border border-secondary-200">Desvinculado</span>
                                             </div>
                                         )}
@@ -555,7 +617,7 @@ export default function PersonaManagement() {
                                 </div>
 
                                 <div className="pt-4 flex flex-col sm:flex-row gap-3">
-                                    {isJefeDistrital && (
+                                    {(isJefeDistrital || isConduccion) && (
                                         <button
                                             type="button"
                                             onClick={() => setIsAssignModalOpen(true)}
@@ -579,150 +641,80 @@ export default function PersonaManagement() {
                 </div>
             )}
 
-            {/* MODAL DE CREACIÓN DE PERSONA */}
+            {/* MODAL DE CREACIÓN / EDICIÓN */}
             {isCreateModalOpen && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col border border-primary-100">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn border border-primary-100">
                         <div className="p-6 border-b border-secondary-100 flex items-center justify-between bg-primary-50">
                             <div>
                                 <h2 className="text-xl font-black text-primary-900 uppercase">
-                                    {isEditMode ? 'Modificar Registro de Persona' : 'Registrar Nueva Persona'}
+                                    {isEditMode ? 'Modificar Registro' : 'Registrar Persona'}
                                 </h2>
                                 <p className="text-xs text-primary-600 font-bold tracking-widest mt-0.5 uppercase">
                                     {isEditMode ? `ID: ${editingPersonaId}` : 'Alta en el Padrón'}
                                 </p>
                             </div>
-                            <button onClick={() => setIsCreateModalOpen(false)} className="text-primary-400 hover:text-primary-600 transition-colors focus:outline-none">
+                            <button onClick={() => setIsCreateModalOpen(false)} className="text-primary-400 hover:text-primary-600 transition-colors">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmitPersona} className="overflow-y-auto flex-1 p-8 space-y-6">
+                        <form onSubmit={handleSubmitPersona} className="p-8 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Apellido */}
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Apellido</label>
+                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Apellido</label>
                                     <input 
-                                        type="text" 
-                                        required
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all uppercase"
-                                        placeholder="Apellido completo"
+                                        type="text" required
+                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-primary-500 outline-none"
                                         value={personaFormData.apellido}
                                         onChange={(e) => setPersonaFormData(prev => ({ ...prev, apellido: e.target.value.toUpperCase() }))}
                                     />
                                 </div>
-                                {/* Nombre */}
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Nombre</label>
+                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Nombre</label>
                                     <input 
-                                        type="text" 
-                                        required
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all uppercase"
-                                        placeholder="Nombres"
+                                        type="text" required
+                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-primary-500 outline-none"
                                         value={personaFormData.nombre}
                                         onChange={(e) => setPersonaFormData(prev => ({ ...prev, nombre: e.target.value.toUpperCase() }))}
                                     />
                                 </div>
-                                {/* Tipo Documento */}
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Tipo Documento</label>
+                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Tipo Documento</label>
                                     <select 
                                         required
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500"
                                         value={personaFormData.documento_tipo_id}
                                         onChange={(e) => setPersonaFormData(prev => ({ ...prev, documento_tipo_id: e.target.value }))}
                                     >
                                         <option value="">Seleccionar...</option>
-                                        {docTipos.map(tipo => (
-                                            <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
-                                        ))}
+                                        {docTipos.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
                                     </select>
                                 </div>
-                                {/* Número Documento */}
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Número Documento</label>
+                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Número Documento</label>
                                     <input 
-                                        type="text" 
-                                        required
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                        placeholder="DNI / Pasaporte"
+                                        type="text" required
+                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500"
                                         value={personaFormData.documento_numero}
                                         onChange={(e) => setPersonaFormData(prev => ({ ...prev, documento_numero: e.target.value }))}
                                     />
                                 </div>
-                                {/* Email de Contacto */}
-                                <div className="space-y-1 md:col-span-2">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest ml-1">Email de Contacto (Opcional)</label>
-                                        {!isEmailLocked && personaFormData.email && (
-                                            <button 
-                                                type="button"
-                                                onClick={() => setPersonaFormData(prev => ({ ...prev, email: '' }))}
-                                                className="text-[10px] font-black text-red-500 uppercase hover:text-red-700 transition-colors"
-                                            >
-                                                Limpiar Email
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="relative">
-                                        <input 
-                                            type="email" 
-                                            disabled={isEmailLocked}
-                                            className={`w-full px-4 py-3 border rounded-xl text-sm font-bold focus:ring-2 outline-none transition-all lowercase ${
-                                                isEmailLocked 
-                                                ? 'bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed' 
-                                                : 'bg-indigo-50/30 border-indigo-200 text-secondary-900 focus:ring-indigo-500'
-                                            }`}
-                                            placeholder="correo@ejemplo.com"
-                                            value={personaFormData.email}
-                                            onChange={(e) => setPersonaFormData(prev => ({ ...prev, email: e.target.value.toLowerCase() }))}
-                                        />
-                                        {isEmailLocked && (
-                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                                <svg className="h-5 w-5 text-secondary-400" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                                                </svg>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {isEmailLocked ? (
-                                        <p className="text-[10px] text-red-600 mt-1.5 italic font-bold leading-tight flex items-center gap-1">
-                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                            </svg>
-                                            Email Bloqueado: Hay un usuario vinculado a este registro. Debe desvincular el usuario desde el listado principal para poder modificar este correo.
-                                        </p>
-                                    ) : (
-                                        <p className="text-[10px] text-indigo-600 mt-1.5 italic font-bold leading-tight">
-                                            Nota: Este email se utiliza para la vinculación digital. Si el usuario ya existe y está verificado, el sistema lo asociará automáticamente a este registro de persona.
-                                        </p>
-                                    )}
+                                <div className="md:col-span-2 space-y-1">
+                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Email (Opcional)</label>
+                                    <input 
+                                        type="email" 
+                                        disabled={isEmailLocked}
+                                        className={`w-full px-4 py-3 border rounded-xl text-sm font-bold lowercase ${isEmailLocked ? 'bg-secondary-100 text-secondary-400' : 'bg-secondary-50 focus:ring-2 focus:ring-primary-500'}`}
+                                        value={personaFormData.email}
+                                        onChange={(e) => setPersonaFormData(prev => ({ ...prev, email: e.target.value.toLowerCase() }))}
+                                    />
                                 </div>
                             </div>
-
                             <div className="pt-6 flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsCreateModalOpen(false)}
-                                    className="flex-1 px-6 py-4 bg-secondary-100 text-secondary-600 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200 transition-all"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSavingPersona}
-                                    className="flex-[2] px-6 py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {isSavingPersona ? (
-                                        <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    ) : (
-                                        <>
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                            {isEditMode ? 'Guardar Cambios' : 'Registrar Persona'}
-                                        </>
-                                    )}
+                                <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-4 bg-secondary-100 text-secondary-600 rounded-2xl font-black uppercase tracking-widest">Cancelar</button>
+                                <button type="submit" disabled={isSavingPersona} className="flex-[2] py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl disabled:opacity-50">
+                                    {isSavingPersona ? 'Guardando...' : (isEditMode ? 'Guardar Cambios' : 'Registrar Persona')}
                                 </button>
                             </div>
                         </form>
@@ -730,85 +722,46 @@ export default function PersonaManagement() {
                 </div>
             )}
 
-            {/* MODAL DE ASIGNACIÓN DE CUPOF */}
+            {/* MODAL ASIGNACIÓN CUPOF */}
             {isAssignModalOpen && selectedPersona && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-secondary-900/70 backdrop-blur-md animate-fadeIn">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col border border-primary-100">
-                        <div className="p-6 border-b border-secondary-100 flex items-center justify-between bg-primary-50">
-                            <div>
-                                <h2 className="text-xl font-black text-primary-900 uppercase">
-                                    Vincular a Cargo (CUPOF)
-                                </h2>
-                                <p className="text-xs text-primary-600 font-bold tracking-widest mt-0.5 uppercase">
-                                    Persona: {selectedPersona.apellido}, {selectedPersona.nombre}
-                                </p>
-                            </div>
-                            <button onClick={() => setIsAssignModalOpen(false)} className="text-primary-400 hover:text-primary-600 transition-colors focus:outline-none">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-primary-100">
+                        <div className="p-6 border-b border-secondary-100 bg-primary-50 flex items-center justify-between">
+                            <h2 className="text-xl font-black text-primary-900 uppercase">Vincular a Cargo (CUPOF)</h2>
+                            <button onClick={() => setIsAssignModalOpen(false)} className="text-primary-400 hover:text-primary-600"><X /></button>
                         </div>
-
-                        <div className="overflow-y-auto flex-1 p-8 space-y-6">
-                            {/* Buscador de CUPOF */}
-                            <div className="space-y-3">
-                                <label className="text-xs font-black text-secondary-400 uppercase tracking-widest ml-1">Buscar Puesto Vacante (CUE, Código o Escuela)</label>
-                                <form onSubmit={handleSearchCupof} className="flex gap-2">
-                                    <input 
-                                        type="text" 
-                                        className="flex-1 px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                        placeholder="Ej: 061234500 o 'Director'..."
-                                        value={cupofSearchTerm}
-                                        onChange={(e) => setCupofSearchTerm(e.target.value)}
-                                    />
-                                    <button 
-                                        type="submit"
-                                        disabled={isSearchingCupof}
-                                        className="px-6 py-3 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors disabled:opacity-50"
-                                    >
-                                        {isSearchingCupof ? '...' : 'Buscar'}
-                                    </button>
-                                </form>
-                            </div>
-
-                            {/* Resultados de CUPOF */}
+                        <div className="p-8 space-y-6">
+                            <form onSubmit={handleSearchCupof} className="flex gap-2">
+                                <input 
+                                    type="text" placeholder="Buscar CUPOF por código o escuela..."
+                                    className="flex-1 px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
+                                    value={cupofSearchTerm}
+                                    onChange={(e) => setCupofSearchTerm(e.target.value)}
+                                />
+                                <button type="submit" disabled={isSearchingCupof} className="px-6 py-3 bg-secondary-900 text-white rounded-xl font-bold uppercase text-xs tracking-widest disabled:opacity-50">
+                                    {isSearchingCupof ? '...' : 'Buscar'}
+                                </button>
+                            </form>
                             {availableCupofs.length > 0 && (
-                                <div className="space-y-3">
-                                    <label className="text-xs font-black text-secondary-400 uppercase tracking-widest ml-1">Seleccionar Posición</label>
-                                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                                        {availableCupofs.map(cupof => (
-                                            <button
-                                                key={cupof.id}
-                                                onClick={() => setAssignmentData(prev => ({ ...prev, cupof_id: cupof.id }))}
-                                                className={`p-4 rounded-2xl border-2 text-left transition-all ${
-                                                    assignmentData.cupof_id === cupof.id 
-                                                    ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200' 
-                                                    : 'border-secondary-100 hover:border-primary-200 bg-white'
-                                                }`}
-                                            >
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <p className="text-xs font-black text-secondary-900 uppercase">{cupof.codigo_cupof}</p>
-                                                        <p className="text-[10px] text-secondary-500 font-bold uppercase">{cupof.escuela?.nombre || 'Escuela s/d'}</p>
-                                                    </div>
-                                                    <span className="text-[9px] px-2 py-0.5 bg-secondary-100 text-secondary-600 rounded font-black uppercase">
-                                                        {cupof.tipo_puesto}
-                                                    </span>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
+                                <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                                    {availableCupofs.map(cupof => (
+                                        <button 
+                                            key={cupof.id}
+                                            onClick={() => setAssignmentData(prev => ({ ...prev, cupof_id: cupof.id }))}
+                                            className={`w-full p-4 rounded-xl border-2 text-left transition-all ${assignmentData.cupof_id === cupof.id ? 'border-primary-500 bg-primary-50 ring-2' : 'border-secondary-100 hover:border-primary-200'}`}
+                                        >
+                                            <p className="text-xs font-black text-secondary-900 uppercase">{cupof.codigo_cupof} - {cupof.tipo_puesto}</p>
+                                            <p className="text-[10px] text-secondary-500 font-bold uppercase">{cupof.escuela?.nombre}</p>
+                                        </button>
+                                    ))}
                                 </div>
                             )}
-
-                            {/* Datos de la Asignación */}
                             {assignmentData.cupof_id && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
+                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-secondary-100 animate-fadeIn">
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Situación de Revista</label>
+                                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Revista</label>
                                         <select 
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
                                             value={assignmentData.situacion_revista}
                                             onChange={(e) => setAssignmentData(prev => ({ ...prev, situacion_revista: e.target.value }))}
                                         >
@@ -818,53 +771,71 @@ export default function PersonaManagement() {
                                         </select>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Fecha de Inicio</label>
-                                        <input 
-                                            type="date" 
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                            value={assignmentData.fecha_inicio}
-                                            onChange={(e) => setAssignmentData(prev => ({ ...prev, fecha_inicio: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div className="md:col-span-2 space-y-1">
-                                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Resolución / Disposición (Opcional)</label>
-                                        <input 
-                                            type="text" 
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                            placeholder="Ej: Res. 123/26..."
-                                            value={assignmentData.resolucion}
-                                            onChange={(e) => setAssignmentData(prev => ({ ...prev, resolucion: e.target.value }))}
-                                        />
+                                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Inicio</label>
+                                        <input type="date" className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold" value={assignmentData.fecha_inicio} onChange={(e) => setAssignmentData(prev => ({ ...prev, fecha_inicio: e.target.value }))} />
                                     </div>
                                 </div>
                             )}
-
-                            <div className="pt-6 flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsAssignModalOpen(false)}
-                                    className="flex-1 px-6 py-4 bg-secondary-100 text-secondary-600 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200 transition-all"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={isSavingAssignment || !assignmentData.cupof_id}
-                                    onClick={handleSaveAssignment}
-                                    className="flex-[2] px-6 py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {isSavingAssignment ? (
-                                        <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    ) : (
-                                        <>
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                            Confirmar Asignación
-                                        </>
-                                    )}
+                            <div className="flex gap-3 pt-4">
+                                <button type="button" onClick={() => setIsAssignModalOpen(false)} className="flex-1 py-4 bg-secondary-100 text-secondary-600 rounded-2xl font-black uppercase tracking-widest">Cancelar</button>
+                                <button onClick={handleSaveAssignment} disabled={isSavingAssignment || !assignmentData.cupof_id} className="flex-[2] py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl disabled:opacity-50">
+                                    {isSavingAssignment ? 'Confirmando...' : 'Confirmar Asignación'}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL ROLES ADMINISTRATIVOS (SUPERUSER ONLY) */}
+            {isAdminRolesModalOpen && selectedPersona && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-amber-100">
+                        <div className="p-6 bg-amber-50 border-b border-secondary-100 flex items-center justify-between">
+                            <h2 className="text-xl font-black text-amber-900 uppercase">Cargos de Sistema</h2>
+                            <button onClick={() => setIsAdminRolesModalOpen(false)} className="text-amber-400 hover:text-amber-600"><X /></button>
+                        </div>
+                        <div className="p-8 space-y-8">
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-sm font-black text-secondary-800 uppercase tracking-tight">Jefe Distrital</h3>
+                                    {selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital') && (
+                                        <button onClick={() => handleRemoveAdminRole('jefe_distrital')} className="text-[10px] font-black text-red-500 uppercase hover:text-red-700">Revocar</button>
+                                    )}
+                                </div>
+                                <div className="space-y-3">
+                                    <select 
+                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-amber-500"
+                                        value={selectedDepartamentoId}
+                                        onChange={(e) => setSelectedDepartamentoId(e.target.value)}
+                                        disabled={selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital')}
+                                    >
+                                        <option value="">Seleccionar Distrito...</option>
+                                        {departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                                    </select>
+                                    {!selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital') && (
+                                        <button onClick={handleAssignJefeDistrital} disabled={isSavingAdminRole || !selectedDepartamentoId} className="w-full py-3 bg-amber-600 text-white rounded-xl font-black uppercase text-xs tracking-widest disabled:opacity-50">
+                                            {isSavingAdminRole ? '...' : 'Asignar Jefe Distrital'}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="border-t border-secondary-100 pt-6 space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-sm font-black text-secondary-800 uppercase tracking-tight">Supervisor Curricular</h3>
+                                    {selectedPersona.usuario?.roles?.some(r => r.name === 'supervisor_curricular') && (
+                                        <button onClick={() => handleRemoveAdminRole('supervisor_curricular')} className="text-[10px] font-black text-red-500 uppercase hover:text-red-700">Revocar</button>
+                                    )}
+                                </div>
+                                {!selectedPersona.usuario?.roles?.some(r => r.name === 'supervisor_curricular') && (
+                                    <button onClick={handleAssignSupervisor} disabled={isSavingAdminRole} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-xs tracking-widest disabled:opacity-50">
+                                        {isSavingAdminRole ? '...' : 'Asignar Supervisor'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="p-6 bg-secondary-50 border-t border-secondary-100">
+                            <button onClick={() => setIsAdminRolesModalOpen(false)} className="w-full py-3 bg-secondary-200 text-secondary-700 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-secondary-300">Cerrar</button>
                         </div>
                     </div>
                 </div>
