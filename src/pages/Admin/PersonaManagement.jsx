@@ -21,11 +21,13 @@ export default function PersonaManagement() {
     
     // Jerarquía de Roles para Gestión de Personas
     const isSuperUser = authUser?.roles?.some(r => r.name === "superuser") || authUser?.es_administrador;
+    const isJefeProvincial = authUser?.roles?.some(r => r.name === "jefe_provincial");
+    const isJefeRegional = authUser?.roles?.some(r => r.name === "jefe_regional");
     const isJefeDistrital = authUser?.roles?.some(r => r.name === "jefe_distrital");
     const isConduccion = authUser?.roles?.some(r => ["director", "vicedirector", "secretario", "prosecretario"].includes(r.name));
 
     // Permiso Global de Gestión (CRUD del Padrón)
-    const canManage = isSuperUser || isJefeDistrital || isConduccion;
+    const canManage = isSuperUser || isJefeProvincial || isJefeDistrital || isConduccion;
 
     // Estados de Datos
     const [personas, setPersonas] = useState([]);
@@ -56,7 +58,7 @@ export default function PersonaManagement() {
         resolucion: ''
     });
 
-    // Estados de Roles Administrativos (Superuser Only)
+    // Estados de Roles Administrativos (Hierarchy Rules)
     const [isAdminRolesModalOpen, setIsAdminRolesModalOpen] = useState(false);
     const [selectedDepartamentoId, setSelectedDepartamentoId] = useState('');
     const [isSavingAdminRole, setIsSavingAdminRole] = useState(false);
@@ -105,7 +107,7 @@ export default function PersonaManagement() {
 
     const fetchDepartamentos = async () => {
         try {
-            const response = await geografiaService.getDepartamentos(6); // Default provincia_id 6 (BSAS)
+            const response = await geografiaService.getDepartamentos(44); // ID 44 para BSAS
             setDepartamentos(response || []);
         } catch (error) {
             console.error('Error al cargar departamentos:', error);
@@ -115,7 +117,7 @@ export default function PersonaManagement() {
     useEffect(() => {
         fetchPersonas();
         fetchDocTipos();
-        if (isSuperUser) {
+        if (isSuperUser || isJefeProvincial) {
             fetchDepartamentos();
         }
     }, []);
@@ -252,6 +254,7 @@ export default function PersonaManagement() {
             showNotification('Asignación realizada con éxito.', 'success');
             setIsAssignModalOpen(false);
             setIsDetailsModalOpen(false);
+            fetchPersonas(pagination.current_page);
         } catch (error) {
             console.error('Error al asignar CUPOF:', error);
             showNotification(parseError(error, 'No se pudo completar la asignación.'), 'error');
@@ -332,6 +335,19 @@ export default function PersonaManagement() {
         } catch (error) {
             console.error('Error al desvincular usuario:', error);
             showNotification(parseError(error, 'No se pudo realizar la desvinculación.'), 'error');
+        } finally {
+            setIsLinkingUser(null);
+        }
+    };
+
+    const handleResendActivation = async (personaId) => {
+        try {
+            setIsLinkingUser(personaId);
+            const response = await personaService.resendActivation(personaId);
+            showNotification(response.message, 'success');
+        } catch (error) {
+            console.error('Error al reenviar activación:', error);
+            showNotification(parseError(error, 'No se pudo reenviar la invitación.'), 'error');
         } finally {
             setIsLinkingUser(null);
         }
@@ -479,15 +495,17 @@ export default function PersonaManagement() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                {isSuperUser && (
+                                                {(isSuperUser || isJefeProvincial) && (
                                                     <>
-                                                        <button 
-                                                            onClick={() => handleDeletePersona(persona)}
-                                                            className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                            title="Eliminar del Padrón"
-                                                        >
-                                                            <Trash2 className="w-5 h-5" />
-                                                        </button>
+                                                        {isSuperUser && (
+                                                            <button 
+                                                                onClick={() => handleDeletePersona(persona)}
+                                                                className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                title="Eliminar del Padrón"
+                                                            >
+                                                                <Trash2 className="w-5 h-5" />
+                                                            </button>
+                                                        )}
                                                         <button 
                                                             onClick={() => handleOpenAdminRolesModal(persona)}
                                                             className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -605,7 +623,22 @@ export default function PersonaManagement() {
                                                     <p className="text-[10px] font-black text-green-700 uppercase tracking-widest">Cuenta de Usuario Vinculada</p>
                                                     <p className="text-sm font-black text-secondary-900 mt-1">{selectedPersona.usuario_email}</p>
                                                 </div>
-                                                <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] font-black uppercase rounded-full border border-green-200">Activa</span>
+                                                <div className="flex items-center gap-3">
+                                                    {!selectedPersona.usuario?.email_verified_at && (
+                                                        <button 
+                                                            onClick={() => handleResendActivation(selectedPersona.id)}
+                                                            disabled={isLinkingUser === selectedPersona.id}
+                                                            className="flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase rounded-lg border border-amber-200 hover:bg-amber-200 transition-colors"
+                                                            title="Reenviar correo de activación"
+                                                        >
+                                                            {isLinkingUser === selectedPersona.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                                                            Reenviar Invitación
+                                                        </button>
+                                                    )}
+                                                    <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full border ${selectedPersona.usuario?.email_verified_at ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                                                        {selectedPersona.usuario?.email_verified_at ? 'Activa' : 'Pendiente Activación'}
+                                                    </span>
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-between italic">
@@ -787,7 +820,7 @@ export default function PersonaManagement() {
                 </div>
             )}
 
-            {/* MODAL ROLES ADMINISTRATIVOS (SUPERUSER ONLY) */}
+            {/* MODAL ROLES ADMINISTRATIVOS (HIERARCHY RULES) */}
             {isAdminRolesModalOpen && selectedPersona && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-amber-100">
@@ -796,43 +829,76 @@ export default function PersonaManagement() {
                             <button onClick={() => setIsAdminRolesModalOpen(false)} className="text-amber-400 hover:text-amber-600"><X /></button>
                         </div>
                         <div className="p-8 space-y-8">
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-sm font-black text-secondary-800 uppercase tracking-tight">Jefe Distrital</h3>
-                                    {selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital') && (
-                                        <button onClick={() => handleRemoveAdminRole('jefe_distrital')} className="text-[10px] font-black text-red-500 uppercase hover:text-red-700">Revocar</button>
-                                    )}
+                            
+                            {/* SOLO SUPERUSUARIO PUEDE ASIGNAR JEFE PROVINCIAL Y SUPERVISOR */}
+                            {isSuperUser && (
+                                <div className="space-y-6">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <h3 className="text-sm font-black text-secondary-800 uppercase tracking-tight">Jefe Provincial</h3>
+                                            {selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_provincial') && (
+                                                <button onClick={() => handleRemoveAdminRole('jefe_provincial')} className="text-[10px] font-black text-red-500 uppercase hover:text-red-700">Revocar</button>
+                                            )}
+                                        </div>
+                                        <div className="space-y-3">
+                                            <select 
+                                                className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
+                                                defaultValue="44"
+                                                disabled={selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_provincial')}
+                                            >
+                                                <option value="44">BUENOS AIRES</option>
+                                            </select>
+                                            {!selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_provincial') && (
+                                                <button onClick={() => personaService.assignJefeProvincial(selectedPersona.id, 44).then(() => { showNotification('Jefe Provincial asignado', 'success'); fetchPersonas(); setIsAdminRolesModalOpen(false); })} className="w-full py-3 bg-rose-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-md">
+                                                    Asignar Jefe Provincial
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t border-secondary-100 pt-6 space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <h3 className="text-sm font-black text-secondary-800 uppercase tracking-tight">Supervisor Curricular</h3>
+                                            {selectedPersona.usuario?.roles?.some(r => r.name === 'supervisor_curricular') && (
+                                                <button onClick={() => handleRemoveAdminRole('supervisor_curricular')} className="text-[10px] font-black text-red-500 uppercase hover:text-red-700">Revocar</button>
+                                            )}
+                                        </div>
+                                        {!selectedPersona.usuario?.roles?.some(r => r.name === 'supervisor_curricular') && (
+                                            <button onClick={handleAssignSupervisor} disabled={isSavingAdminRole} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-xs tracking-widest">
+                                                {isSavingAdminRole ? '...' : 'Asignar Supervisor'}
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <select 
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-amber-500"
-                                        value={selectedDepartamentoId}
-                                        onChange={(e) => setSelectedDepartamentoId(e.target.value)}
-                                        disabled={selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital')}
-                                    >
-                                        <option value="">Seleccionar Distrito...</option>
-                                        {departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
-                                    </select>
-                                    {!selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital') && (
-                                        <button onClick={handleAssignJefeDistrital} disabled={isSavingAdminRole || !selectedDepartamentoId} className="w-full py-3 bg-amber-600 text-white rounded-xl font-black uppercase text-xs tracking-widest disabled:opacity-50">
-                                            {isSavingAdminRole ? '...' : 'Asignar Jefe Distrital'}
-                                        </button>
-                                    )}
+                            )}
+
+                            {/* SUPERUSUARIO Y JEFE PROVINCIAL PUEDEN ASIGNAR JEFE DISTRITAL */}
+                            {(isSuperUser || isJefeProvincial) && (
+                                <div className="border-t border-secondary-100 pt-6 space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="text-sm font-black text-secondary-800 uppercase tracking-tight">Jefe Distrital</h3>
+                                        {selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital') && (
+                                            <button onClick={() => handleRemoveAdminRole('jefe_distrital')} className="text-[10px] font-black text-red-500 uppercase hover:text-red-700">Revocar</button>
+                                        )}
+                                    </div>
+                                    <div className="space-y-3">
+                                        <select 
+                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-amber-500"
+                                            value={selectedDepartamentoId}
+                                            onChange={(e) => setSelectedDepartamentoId(e.target.value)}
+                                            disabled={selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital')}
+                                        >
+                                            <option value="">Seleccionar Distrito...</option>
+                                            {departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                                        </select>
+                                        {!selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital') && (
+                                            <button onClick={handleAssignJefeDistrital} disabled={isSavingAdminRole || !selectedDepartamentoId} className="w-full py-3 bg-amber-600 text-white rounded-xl font-black uppercase text-xs tracking-widest">
+                                                {isSavingAdminRole ? '...' : 'Asignar Jefe Distrital'}
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="border-t border-secondary-100 pt-6 space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-sm font-black text-secondary-800 uppercase tracking-tight">Supervisor Curricular</h3>
-                                    {selectedPersona.usuario?.roles?.some(r => r.name === 'supervisor_curricular') && (
-                                        <button onClick={() => handleRemoveAdminRole('supervisor_curricular')} className="text-[10px] font-black text-red-500 uppercase hover:text-red-700">Revocar</button>
-                                    )}
-                                </div>
-                                {!selectedPersona.usuario?.roles?.some(r => r.name === 'supervisor_curricular') && (
-                                    <button onClick={handleAssignSupervisor} disabled={isSavingAdminRole} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-xs tracking-widest disabled:opacity-50">
-                                        {isSavingAdminRole ? '...' : 'Asignar Supervisor'}
-                                    </button>
-                                )}
-                            </div>
+                            )}
                         </div>
                         <div className="p-6 bg-secondary-50 border-t border-secondary-100">
                             <button onClick={() => setIsAdminRolesModalOpen(false)} className="w-full py-3 bg-secondary-200 text-secondary-700 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-secondary-300">Cerrar</button>

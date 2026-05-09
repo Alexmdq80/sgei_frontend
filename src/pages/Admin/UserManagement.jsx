@@ -112,8 +112,6 @@ const UserManagement = () => {
         fetchCatalogs();
     }, []);
 
-    // --- LÓGICA DE FILTRADO DE ROLES ---
-    
     // --- ACCIONES DE USUARIOS (GESTIÓN) ---
 
     const handleSearch = (e) => {
@@ -200,6 +198,29 @@ const UserManagement = () => {
         });
     };
 
+    const handleResendActivation = async (user) => {
+        openConfirm({
+            title: 'Forzar Re-Activación / Verificación',
+            message: `¿Deseas reenviar el email de activación a ${user.email}? El usuario deberá configurar su contraseña nuevamente y verificar su correo.`,
+            confirmText: 'Reenviar Invitación',
+            variant: 'warning',
+            onConfirm: async () => {
+                try {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: true }));
+                    const response = await userService.resendActivation(user.id);
+                    showNotification(response.message, 'success');
+                    fetchUsers(pagination.current_page);
+                    closeConfirm();
+                } catch (error) {
+                    showNotification(parseError(error, 'Error al reenviar la invitación.'), 'error');
+                    closeConfirm();
+                } finally {
+                    setConfirmConfig(prev => ({ ...prev, isLoading: false }));
+                }
+            }
+        });
+    };
+
     return (
         <div className="space-y-6 animate-fadeIn">
             {/* Encabezado */}
@@ -252,10 +273,11 @@ const UserManagement = () => {
                                     value={filterCueAnexo}
                                     onChange={(e) => setFilterCueAnexo(e.target.value)}
                                 />
-                                </div>
-                                </div>
-                                </div>
-                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {isUsersLoading ? (
                     <div className="p-20 flex flex-col items-center justify-center">
                         <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
@@ -319,6 +341,19 @@ const UserManagement = () => {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
+                                                {/* Botón de Reenviar Activación (SOLO SUPERUSUARIO O JEFE DISTRITAL) */}
+                                                {(isSuperUser || isJefeDistrital) && (
+                                                    <button
+                                                        onClick={() => handleResendActivation(user)}
+                                                        className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                                        title="Reenviar Invitación de Activación (Forzar Verificación)"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+
                                                 {/* Botón de Confirmar Vinculación Pendiente */}
                                                 {user.estado === 'vinculacion_pendiente' && (hasPermission('sistema.usuarios') || isSuperUser) && (
                                                     <button

@@ -61,6 +61,30 @@ const personaService = {
     },
 
     /**
+     * Reenvía manualmente el email de activación a una persona.
+     */
+    async resendActivation(id) {
+        const response = await api.post(`/admin/personas/${id}/resend-activation`);
+        return response.data;
+    },
+
+    /**
+     * Asigna el rol de Jefe Provincial a una persona.
+     */
+    async assignJefeProvincial(id, provincia_id) {
+        const response = await api.post(`/admin/personas/${id}/jefe-provincial`, { provincia_id });
+        return response.data;
+    },
+
+    /**
+     * Asigna el rol de Jefe Regional a una persona.
+     */
+    async assignJefeRegional(id, region_id) {
+        const response = await api.post(`/admin/personas/${id}/jefe-regional`, { region_id });
+        return response.data;
+    },
+
+    /**
      * Asigna el rol de Jefe Distrital a una persona.
      */
     async assignJefeDistrital(id, departamento_id) {

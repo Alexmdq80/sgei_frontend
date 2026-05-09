@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { 
+    Home, User, Users, Contact, School, LayoutDashboard, 
+    BookOpen, GraduationCap, ChevronDown, Menu, LogOut, 
+    RefreshCw, CheckCircle, AlertCircle, X 
+} from 'lucide-react';
 
 /**
  * Layout principal que envuelve las páginas protegidas.
@@ -71,7 +76,9 @@ const Layout = ({ children }) => {
             '/admin/general/condiciones',
             '/admin/general/vinculo-tipos',
             '/admin/general/vinculos',
-            '/admin/general/cierre-causas'
+            '/admin/general/cierre-causas',
+            '/admin/general/escalafones',
+            '/admin/general/puesto-tipos'
         ];
 
         const allGeneralPaths = [...instPaths, ...offerPaths, ...docPaths, ...identityPaths, ...geoPaths, ...georefPaths, ...opsPaths];
@@ -130,48 +137,27 @@ const Layout = ({ children }) => {
     }, []);
 
     const navItems = [
-        { name: 'Dashboard', path: '/', icon: (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-        )},
-        { name: 'Perfil', path: '/profile', icon: (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-        )},
+        { name: 'Dashboard', path: '/', icon: <Home className="w-6 h-6" /> },
+        { name: 'Perfil', path: '/profile', icon: <User className="w-6 h-6" /> },
     ];
 
     if (hasPermission('sistema.usuarios')) {
         navItems.push({
             name: 'Gestión de Usuarios',
             path: '/admin/usuarios',
-            icon: (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-            )
+            icon: <Users className="w-6 h-6" />
         });
         navItems.push({
             name: 'Gestión de Personas',
             path: '/admin/personas',
-            icon: (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                </svg>
-            )
+            icon: <Contact className="w-6 h-6" />
         });
     }
 
     if (hasPermission('sistema.usuarios') || user?.roles?.some(r => r.name === 'supervisor_curricular')) {
-        // Estructura agrupada para la gestión institucional (Escuelas)
         navItems.push({
             name: 'Escuelas',
-            icon: (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-            ),
+            icon: <School className="w-6 h-6" />,
             isDropdown: true,
             isOpen: isDistrictPanelOpen,
             setIsOpen: setIsDistrictPanelOpen,
@@ -185,11 +171,7 @@ const Layout = ({ children }) => {
     if (user?.roles?.some(r => r.name === 'superuser') || hasPermission('sistema.usuarios')) {
         navItems.push({ 
             name: 'Panel General', 
-            icon: (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                </svg>
-            ),
+            icon: <LayoutDashboard className="w-6 h-6" />,
             isDropdown: true,
             isOpen: isGeneralPanelOpen,
             setIsOpen: setIsGeneralPanelOpen,
@@ -287,7 +269,8 @@ const Layout = ({ children }) => {
                         { name: 'Condiciones', path: '/admin/general/condiciones' },
                         { name: 'Escalafones', path: '/admin/general/escalafones' },
                         { name: 'Tipos de Puesto', path: '/admin/general/puesto-tipos' },
-                        { name: 'Tipos de Vínculo', path: '/admin/general/vinculo-tipos' },                        { name: 'Vínculos', path: '/admin/general/vinculos' },
+                        { name: 'Tipos de Vínculo', path: '/admin/general/vinculo-tipos' },
+                        { name: 'Vínculos', path: '/admin/general/vinculos' },
                         { name: 'Causas de Cierre', path: '/admin/general/cierre-causas' },
                     ]
                 }
@@ -298,11 +281,7 @@ const Layout = ({ children }) => {
     if (user?.roles?.some(r => r.name === 'superuser') || hasPermission('planes.ver')) {
         navItems.push({ 
             name: 'Panel Curricular', 
-            icon: (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-            ),
+            icon: <BookOpen className="w-6 h-6" />,
             isDropdown: true,
             isOpen: isCurricularPanelOpen,
             setIsOpen: setIsCurricularPanelOpen,
@@ -318,15 +297,43 @@ const Layout = ({ children }) => {
         navItems.push({ 
             name: 'Propuestas Inst.', 
             path: '/academic/propuestas', 
-            icon: (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-            )
+            icon: <GraduationCap className="w-6 h-6" />
         });
     }
 
-    // FUNCIONES AUXILIARES DE RENDERIZADO
+    /**
+     * Obtiene el rol con el que el usuario está actuando actualmente.
+     */
+    const getActingRole = () => {
+        if (activeProfile) {
+            return {
+                name: activeProfile.role?.name || 'Usuario',
+                context: activeProfile.escuela?.nombre,
+                type: 'institutional'
+            };
+        }
+
+        if (user?.es_administrador || user?.roles?.some(r => r.name === 'superuser')) {
+            return { name: 'Superusuario', type: 'admin' };
+        }
+
+        const adminRoles = [
+            { id: 'jefe_provincial', name: 'Jefe Provincial' },
+            { id: 'jefe_regional', name: 'Jefe Regional' },
+            { id: 'jefe_distrital', name: 'Jefe Distrital' },
+            { id: 'supervisor_curricular', name: 'Supervisor' }
+        ];
+
+        for (const role of adminRoles) {
+            if (user?.roles?.some(r => r.name === role.id)) {
+                return { name: role.name, type: 'admin' };
+            }
+        }
+
+        return { name: 'Usuario Estándar', type: 'standard' };
+    };
+
+    const actingRole = getActingRole();
     
     const isActiveDropdown = (item) => {
         if (!item.subItems) return location.pathname === item.path;
@@ -352,9 +359,7 @@ const Layout = ({ children }) => {
                         style={{ paddingLeft: `${(depth + 1) * 1.5}rem` }}
                     >
                         <span className="text-[10px] font-black uppercase tracking-widest truncate">{item.name}</span>
-                        <svg className={`w-3 h-3 transition-transform duration-200 ${item.isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
+                        <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${item.isOpen ? 'rotate-180' : ''}`} />
                     </button>
                     {item.isOpen && (
                         <ul className={`mt-1 ml-4 space-y-1 ${depth === 0 ? 'border-l border-secondary-800' : ''}`}>
@@ -391,17 +396,13 @@ const Layout = ({ children }) => {
                         notification.type === 'success' ? 'bg-white border-green-500' : 'bg-white border-red-500'
                     }`}>
                         <div className={`p-2 rounded-xl shrink-0 ${notification.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                            {notification.type === 'success' ? (
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                            ) : (
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                            )}
+                            {notification.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                         </div>
                         <div className="flex-grow pt-0.5">
                             <p className="text-sm font-bold">{notification.type === 'success' ? 'Éxito' : 'Error'}</p>
                             <p className="text-xs text-secondary-600 mt-1">{notification.message}</p>
                         </div>
-                        <button onClick={clearNotification} className="text-secondary-400 hover:text-secondary-600"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                        <button onClick={clearNotification} className="text-secondary-400 hover:text-secondary-600"><X className="w-4 h-4" /></button>
                     </div>
                 </div>
             )}
@@ -411,7 +412,7 @@ const Layout = ({ children }) => {
                 <div className="p-6 flex items-center justify-between border-b border-secondary-800">
                     {isSidebarOpen && <span className="text-xl font-bold text-primary-400">SGEI</span>}
                     <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1 hover:bg-secondary-800 rounded">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        <Menu className="w-6 h-6" />
                     </button>
                 </div>
 
@@ -431,7 +432,7 @@ const Layout = ({ children }) => {
                                             {isSidebarOpen && (
                                                 <div className="flex items-center justify-between flex-grow ml-4">
                                                     <span className="font-medium">{item.name}</span>
-                                                    <svg className={`w-4 h-4 transition-transform duration-200 ${item.isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                                                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${item.isOpen ? 'rotate-180' : ''}`} />
                                                 </div>
                                             )}
                                         </button>
@@ -458,15 +459,17 @@ const Layout = ({ children }) => {
                 </nav>
 
                 <div className="p-4 border-t border-secondary-800">
-                    {isSidebarOpen && activeProfile && (
+                    {isSidebarOpen && (
                         <div className="mb-4 px-3 py-2 bg-secondary-800/50 rounded-xl border border-secondary-700/50">
-                            <p className="text-[9px] font-black text-secondary-500 uppercase tracking-widest">Contexto Activo</p>
-                            <p className="text-xs font-bold text-primary-400 truncate mt-1">{activeProfile.escuela.nombre}</p>
-                            <p className="text-[10px] font-medium text-secondary-300 mt-0.5">{activeProfile.role?.name}</p>
+                            <p className="text-[9px] font-black text-secondary-500 uppercase tracking-widest">Actuando como</p>
+                            <p className="text-xs font-bold text-primary-400 truncate mt-1">{actingRole.name}</p>
+                            {actingRole.context && (
+                                <p className="text-[10px] font-medium text-secondary-300 mt-0.5 truncate">{actingRole.context}</p>
+                            )}
                         </div>
                     )}
-                    <button onClick={handleLogout} className="w-full flex items-center p-3 text-red-400 hover:bg-red-900/20 hover:text-red-300 rounded-lg">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                    <button onClick={handleLogout} className="w-full flex items-center p-3 text-red-400 hover:bg-red-900/20 hover:text-red-300 rounded-lg transition-colors">
+                        <LogOut className="w-6 h-6" />
                         {isSidebarOpen && <span className="ml-4 font-medium">Salir</span>}
                     </button>
                 </div>
@@ -477,19 +480,26 @@ const Layout = ({ children }) => {
                 <header className="h-16 bg-white border-b border-secondary-200 flex items-center justify-between px-8 shrink-0">
                     <div className="flex items-center"><h2 className="text-secondary-800 font-semibold text-lg">{navItems.find(i => i.path === location.pathname)?.name || 'SGEI'}</h2></div>
                     <div className="flex items-center gap-4 relative" ref={userMenuRef}>
-                        <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center gap-3 p-1.5 hover:bg-secondary-50 rounded-xl border border-transparent group">
+                        <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center gap-3 p-1.5 hover:bg-secondary-50 rounded-xl border border-transparent group transition-all">
                             <div className="text-right hidden sm:block">
-                                <p className="text-sm font-bold text-secondary-900">{user?.nombre}</p>
-                                {activeProfile ? (
-                                    <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest truncate max-w-[150px]">{activeProfile.escuela.nombre}</p>
-                                ) : (
-                                    <p className="text-[12px] text-secondary-500">{user?.email}</p>
-                                )}
+                                <p className="text-sm font-bold text-secondary-900 group-hover:text-primary-600 transition-colors">{user?.nombre}</p>
+                                <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter border ${
+                                        actingRole.type === 'admin' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                        actingRole.type === 'institutional' ? 'bg-primary-50 text-primary-600 border-primary-100' :
+                                        'bg-secondary-100 text-secondary-500 border-secondary-200'
+                                    }`}>
+                                        {actingRole.name}
+                                    </span>
+                                    {actingRole.context && (
+                                        <p className="text-[9px] text-secondary-400 font-bold uppercase truncate max-w-[120px]">{actingRole.context}</p>
+                                    )}
+                                </div>
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-primary-200 overflow-hidden shadow-sm">
+                            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-primary-200 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
                                 {user?.avatar_url ? <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" /> : <span>{user?.nombre?.charAt(0)}</span>}
                             </div>
-                            <svg className={`w-4 h-4 text-secondary-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                            <ChevronDown className={`w-4 h-4 text-secondary-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isUserMenuOpen && (
                             <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-secondary-200 rounded-2xl shadow-2xl py-2 z-50">
@@ -498,16 +508,16 @@ const Layout = ({ children }) => {
                                     <p className="text-sm font-bold text-secondary-900 truncate">{user?.nombre}</p>
                                 </div>
                                 <Link to="/profile" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-secondary-700 hover:bg-primary-50 transition-colors">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>Mi Perfil
+                                    <User className="w-4 h-4" />Mi Perfil
                                 </Link>
                                 {(user?.escuela_usuarios?.filter(l => l.verified_at).length > 1) && (
                                     <button onClick={handleSwitchProfile} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-secondary-700 hover:bg-primary-50 transition-colors">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>Cambiar Institución/Rol
+                                        <RefreshCw className="w-4 h-4" />Cambiar Institución/Rol
                                     </button>
                                 )}
                                 <div className="border-t border-secondary-100 mt-1 pt-1">
                                     <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>Cerrar Sesión
+                                        <LogOut className="w-4 h-4" />Cerrar Sesión
                                     </button>
                                 </div>
                             </div>

@@ -51,6 +51,8 @@ import PlanManagement from './pages/Academic/PlanManagement';
 import PropuestaManagement from './pages/Academic/PropuestaManagement';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import CompleteSetup from './pages/CompleteSetup';
+import RequestActivation from './pages/RequestActivation';
 
 /**
  * Componente para proteger rutas privadas.
@@ -123,6 +125,8 @@ function App() {
                     <Route path="/register" element={<Register />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
                     <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/activar-cuenta" element={<CompleteSetup />} />
+                    <Route path="/solicitar-activacion" element={<RequestActivation />} />
 
                     {/* Ruta de Verificación de Email (Pública) */}
                     <Route path="/verificar-email" element={<VerifyEmailPage />} />

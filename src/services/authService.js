@@ -85,6 +85,26 @@ const authService = {
         await api.get(`${BACKEND_URL}/sanctum/csrf-cookie`);
         const response = await api.post('/auth/reset-password', data);
         return response.data;
+    },
+
+    /**
+     * Finaliza la activación de cuenta para usuarios invitados.
+     * @param {Object} data { email, token, password, password_confirmation }
+     */
+    async completeSetup(data) {
+        await api.get(`${BACKEND_URL}/sanctum/csrf-cookie`);
+        const response = await api.post('/auth/complete-setup', data);
+        return response.data;
+    },
+
+    /**
+     * Solicita el reenvío del email de activación (Público).
+     * @param {string} email
+     */
+    async resendActivation(email) {
+        await api.get(`${BACKEND_URL}/sanctum/csrf-cookie`);
+        const response = await api.post('/auth/resend-activation', { email });
+        return response.data;
     }
 };
 

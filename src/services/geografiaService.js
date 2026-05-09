@@ -13,6 +13,14 @@ const geografiaService = {
     },
 
     /**
+     * Obtiene todas las regiones educativas.
+     */
+    async getRegiones(params = {}) {
+        const response = await api.get('/regiones', { params });
+        return response.data;
+    },
+
+    /**
      * Obtiene los departamentos de una provincia.
      */
     async getDepartamentos(provinciaId, params = {}) {

@@ -79,6 +79,14 @@ const userService = {
     async confirmPersona(id) {
         const response = await api.post(`/admin/usuarios/${id}/confirm-persona`);
         return response.data;
+    },
+
+    /**
+     * Reenvía manualmente el email de activación a un usuario.
+     */
+    async resendActivation(id) {
+        const response = await api.post(`/admin/usuarios/${id}/resend-activation`);
+        return response.data;
     }
 };
 
