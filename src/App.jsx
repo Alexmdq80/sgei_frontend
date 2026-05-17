@@ -39,6 +39,7 @@ import SexoManagement from './pages/Admin/SexoManagement';
 import ContinenteManagement from './pages/Admin/ContinenteManagement';
 import NacionManagement from './pages/Admin/NacionManagement';
 import ProvinciaManagement from './pages/Admin/ProvinciaManagement';
+import RegionManagement from './pages/Admin/RegionManagement';
 import DepartamentoManagement from './pages/Admin/DepartamentoManagement';
 import LocalidadManagement from './pages/Admin/LocalidadManagement';
 import MunicipioManagement from './pages/Admin/MunicipioManagement';
@@ -400,6 +401,15 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <ProvinciaManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/general/regiones" 
+                        element={
+                            <ProtectedRoute>
+                                <RegionManagement />
                             </ProtectedRoute>
                         } 
                     />
