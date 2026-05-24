@@ -49,15 +49,11 @@ const Dashboard = () => {
                         <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
                             <School className="w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-black text-secondary-900 uppercase">Vinculación Escolar</h3>
+                        <h3 className="text-xl font-black text-secondary-900 uppercase">Sin Cargos Asignados</h3>
                         <p className="text-sm text-secondary-500 font-medium leading-relaxed">
-                            Si eres docente o personal de una escuela, puedes solicitar unirte a tu institución. El <span className="font-bold text-secondary-700">Equipo de Conducción</span> de la escuela validará tu identidad.
+                            Actualmente no registras cargos activos en el sistema.
+                            La vinculación institucional se realiza automáticamente a través de la oficina de personal mediante el sistema <span className="font-bold text-secondary-700">CUPOF</span>.
                         </p>
-                        <div className="pt-4">
-                            <Link to="/select-school" className="inline-flex items-center justify-center px-6 py-3 bg-secondary-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all">
-                                Buscar mi Escuela
-                            </Link>
-                        </div>
                     </div>
                 </div>
 

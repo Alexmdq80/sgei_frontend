@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import SelectSchool from './pages/SelectSchool';
 import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
+import SelectRole from './pages/SelectRole';
 import VerifyEmail from './pages/VerifyEmail';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import UserManagement from './pages/Admin/UserManagement';
@@ -61,7 +62,7 @@ import RequestActivation from './pages/RequestActivation';
  * Intercepta si el usuario requiere verificar su email.
  */
 const ProtectedRoute = ({ children }) => {
-    const { isAuthenticated, user, loading } = useAuth();
+    const { isAuthenticated, user, activeProfile, loading } = useAuth();
     const location = useLocation();
 
     if (loading) return (
@@ -79,38 +80,40 @@ const ProtectedRoute = ({ children }) => {
 
     // 1. Bypass de Seguridad (Superusuario tiene acceso total inmediato)
     const isSuperUser = user?.es_administrador || user?.roles?.some(r => r.name === 'superuser');
-    if (isSuperUser) {
-        return <Layout>{children}</Layout>;
-    }
 
-    // 2. Verificación de Email (OBLIGATORIO PARA EL RESTO)
-    // Redirigir al perfil si no está verificado
+    // 2. Verificación de Email (OBLIGATORIO)
     if (!user?.email_verified_at && location.pathname !== '/profile') {
         return <Navigate to="/profile" replace />;
     }
 
-    // 3. Usuarios Especiales (Bypass de Vinculación Escolar Post-Verificación)
-    // Una vez verificado el email, los Supervisores Curriculares y Jefe Distrital tienen acceso total
+    // 3. Lógica de Selección de Perfil/Rol (OBLIGATORIO si tiene múltiples)
+    const totalRoles = (user.roles?.length || 0) + (user.escuela_usuarios?.filter(l => l.verified_at).length || 0);
+    
+    // Si tiene múltiples roles y no ha seleccionado uno, lo mandamos a la pantalla de selección
+    if (totalRoles > 1 && !activeProfile && !isSuperUser && location.pathname !== '/select-role') {
+        return <Navigate to="/select-role" replace />;
+    }
+
+    // 4. Usuarios Especiales (Bypass de Sin Cargos Asignados Post-Verificación)
     const isSpecialUser = user?.roles?.some(r => r.name === 'supervisor_curricular' || r.name === 'jefe_distrital');
-    if (isSpecialUser) {
+    if (isSpecialUser || isSuperUser) {
         return <Layout>{children}</Layout>;
     }
 
-    // 3. Permitir siempre acceso al Perfil si está autenticado y verificado
+    // 5. Permitir siempre acceso al Perfil si está autenticado y verificado
     if (location.pathname === '/profile') {
         return <Layout>{children}</Layout>;
     }
 
-    // 4. Rutas de flujo de selección (se permite a sí misma para usuarios regulares)
-    if (location.pathname === '/select-school') {
+    // 6. Rutas de flujo de selección
+    if (location.pathname === '/select-school' || location.pathname === '/select-role') {
         return <Layout>{children}</Layout>;
     }
 
-    // 5. Restricción de Acceso para el resto de las rutas (Usuarios Regulares)
-    // Si no tiene perfil activo (contexto institucional), lo mandamos a seleccionar uno
+    // 7. Restricción de Acceso para el resto de las rutas (Usuarios Regulares)
     const activeLinks = user?.escuela_usuarios?.filter(l => l.verified_at) || [];
-    if (activeLinks.length > 0 && !localStorage.getItem('activeProfile')) {
-        return <Navigate to="/select-school" replace />;
+    if (activeLinks.length > 0 && !activeProfile) {
+        return <Navigate to="/select-role" replace />;
     }
 
     return <Layout>{children}</Layout>;
@@ -131,6 +134,16 @@ function App() {
 
                     {/* Ruta de Verificación de Email (Pública) */}
                     <Route path="/verificar-email" element={<VerifyEmailPage />} />
+
+                    {/* Ruta de Selección de Rol */}
+                    <Route 
+                        path="/select-role" 
+                        element={
+                            <ProtectedRoute>
+                                <SelectRole />
+                            </ProtectedRoute>
+                        } 
+                    />
 
                     {/* Rutas de Flujo de Escuela (Envueltas en ProtectedRoute) */}
                     <Route 

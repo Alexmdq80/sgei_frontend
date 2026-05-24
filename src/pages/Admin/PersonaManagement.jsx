@@ -1126,8 +1126,8 @@ export default function PersonaManagement() {
                                             </div>
                                         )}
 
-                                        {/* Jefe Regional (SuperUser o Jefe Provincial) */}
-                                        {(isSuperUser || isJefeProvincial) && !selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_regional') && (
+                                        {/* Jefe Regional (Solo Jefe Provincial) */}
+                                        {isJefeProvincial && !selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_regional') && (
                                             <div className="space-y-2">
                                                 <button 
                                                     onClick={() => {
@@ -1135,8 +1135,7 @@ export default function PersonaManagement() {
                                                         setActiveAssignRole(nextState);
                                                         if (nextState) {
                                                             setSelectedRegionId('');
-                                                            if (isJefeProvincial) fetchRegiones(authUser?.provincia_usuario?.provincia_id);
-                                                            else { setSelectedProvinciaId(''); setRegiones([]); }
+                                                            fetchRegiones(authUser?.provincia_usuario?.provincia_id);
                                                         }
                                                     }}
                                                     className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${activeAssignRole === 'jefe_regional' ? 'bg-primary-50 border-primary-200 ring-2 ring-primary-100' : 'bg-white border-secondary-200 hover:border-primary-300'}`}
@@ -1149,31 +1148,13 @@ export default function PersonaManagement() {
                                                 </button>
                                                 {activeAssignRole === 'jefe_regional' && (
                                                     <div className="p-4 bg-white border border-primary-100 rounded-2xl shadow-inner animate-slideDown space-y-3">
-                                                        {isSuperUser && (
-                                                            <div className="space-y-1">
-                                                                <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">1. Seleccionar Provincia</label>
-                                                                <select 
-                                                                    className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
-                                                                    value={selectedProvinciaId}
-                                                                    onChange={(e) => {
-                                                                        setSelectedProvinciaId(e.target.value);
-                                                                        setSelectedRegionId('');
-                                                                        if (e.target.value) fetchRegiones(e.target.value);
-                                                                        else setRegiones([]);
-                                                                    }}
-                                                                >
-                                                                    <option value="">Seleccionar...</option>
-                                                                    {provincias.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                                                                </select>
-                                                            </div>
-                                                        )}
                                                         <div className="space-y-1">
-                                                            <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">2. Seleccionar Región</label>
+                                                            <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Seleccionar Región</label>
                                                             <select 
                                                                 className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                                                                 value={selectedRegionId}
                                                                 onChange={(e) => setSelectedRegionId(e.target.value)}
-                                                                disabled={isLoadingGeografia || (!selectedProvinciaId && isSuperUser)}
+                                                                disabled={isLoadingGeografia}
                                                             >
                                                                 <option value="">{isLoadingGeografia ? 'Cargando...' : 'Seleccionar Región...'}</option>
                                                                 {regiones.map(reg => <option key={reg.id} value={reg.id}>REGIÓN {reg.numero}</option>)}
@@ -1191,8 +1172,8 @@ export default function PersonaManagement() {
                                             </div>
                                         )}
 
-                                        {/* Jefe Distrital (SuperUser o Jefe Regional) */}
-                                        {(isSuperUser || isJefeRegional) && !selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital') && (
+                                        {/* Jefe Distrital (Solo Jefe Regional) */}
+                                        {isJefeRegional && !selectedPersona.usuario?.roles?.some(r => r.name === 'jefe_distrital') && (
                                             <div className="space-y-2">
                                                 <button 
                                                     onClick={() => {
@@ -1200,8 +1181,7 @@ export default function PersonaManagement() {
                                                         setActiveAssignRole(nextState);
                                                         if (nextState) {
                                                             setSelectedDepartamentoId('');
-                                                            if (isJefeRegional) fetchDepartamentos(authUser?.region_usuario?.region?.provincia_id);
-                                                            else { setSelectedProvinciaId(''); setDepartamentos([]); }
+                                                            fetchDepartamentos(authUser?.region_usuario?.region?.provincia_id);
                                                         }
                                                     }}
                                                     className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${activeAssignRole === 'jefe_distrital' ? 'bg-primary-50 border-primary-200 ring-2 ring-primary-100' : 'bg-white border-secondary-200 hover:border-primary-300'}`}
@@ -1214,35 +1194,17 @@ export default function PersonaManagement() {
                                                 </button>
                                                 {activeAssignRole === 'jefe_distrital' && (
                                                     <div className="p-4 bg-white border border-primary-100 rounded-2xl shadow-inner animate-slideDown space-y-3">
-                                                        {isSuperUser && (
-                                                            <div className="space-y-1">
-                                                                <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">1. Seleccionar Provincia</label>
-                                                                <select 
-                                                                    className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
-                                                                    value={selectedProvinciaId}
-                                                                    onChange={(e) => {
-                                                                        setSelectedProvinciaId(e.target.value);
-                                                                        setSelectedDepartamentoId('');
-                                                                        if (e.target.value) fetchDepartamentos(e.target.value);
-                                                                        else setDepartamentos([]);
-                                                                    }}
-                                                                >
-                                                                    <option value="">Seleccionar...</option>
-                                                                    {provincias.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                                                                </select>
-                                                            </div>
-                                                        )}
                                                         <div className="space-y-1">
-                                                            <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">{isSuperUser ? '2. Seleccionar Distrito' : 'Seleccionar Distrito'}</label>
+                                                            <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Seleccionar Distrito</label>
                                                             <select 
                                                                 className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
                                                                 value={selectedDepartamentoId}
                                                                 onChange={(e) => setSelectedDepartamentoId(e.target.value)}
-                                                                disabled={isLoadingGeografia || (!selectedProvinciaId && isSuperUser)}
+                                                                disabled={isLoadingGeografia}
                                                             >
                                                                 <option value="">{isLoadingGeografia ? 'Cargando...' : 'Seleccionar Distrito...'}</option>
                                                                 {departamentos
-                                                                    .filter(d => !isJefeRegional || d.region_id === authUser?.region_usuario?.region_id)
+                                                                    .filter(d => d.region_id === authUser?.region_usuario?.region_id)
                                                                     .map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)
                                                                 }
                                                             </select>
@@ -1259,8 +1221,8 @@ export default function PersonaManagement() {
                                             </div>
                                         )}
 
-                                        {/* Equipo de Conducción (SuperUser o Jefe Distrital) */}
-                                        {(isSuperUser || isJefeDistrital) && (
+                                        {/* Equipo de Conducción (Solo Jefe Distrital) */}
+                                        {isJefeDistrital && (
                                             <div className="space-y-2">
                                                 <button 
                                                     onClick={() => setActiveAssignRole(activeAssignRole === 'equipo_conduccion' ? null : 'equipo_conduccion')}

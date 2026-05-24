@@ -512,10 +512,10 @@ const Layout = ({ children }) => {
                                 <Link to="/profile" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-secondary-700 hover:bg-primary-50 transition-colors">
                                     <User className="w-4 h-4" />Mi Perfil
                                 </Link>
-                                {(user?.escuela_usuarios?.filter(l => l.verified_at).length > 1) && (
-                                    <button onClick={handleSwitchProfile} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-secondary-700 hover:bg-primary-50 transition-colors">
-                                        <RefreshCw className="w-4 h-4" />Cambiar Institución/Rol
-                                    </button>
+                                {((user?.roles?.length || 0) + (user?.escuela_usuarios?.filter(l => l.verified_at).length || 0) > 1) && (
+                                    <Link to="/select-role" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-secondary-700 hover:bg-primary-50 transition-colors">
+                                        <RefreshCw className="w-4 h-4" />Cambiar Perfil/Rol
+                                    </Link>
                                 )}
                                 <div className="border-t border-secondary-100 mt-1 pt-1">
                                     <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold">
