@@ -14,9 +14,10 @@ const UserManagement = () => {
     
     const isSuperUser = authUser?.es_administrador || authUser?.roles?.some(r => r.name === 'superuser');
     const isConduccion = authUser?.roles?.some(r => ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(r.name));
+    const isHierarchical = authUser?.roles?.some(r => ['jefe_provincial', 'jefe_regional', 'jefe_distrital'].includes(r.name));
     
     // Otros roles (sin acceso según regla, pero manejados por el backend)
-    const hasAccess = isSuperUser || isConduccion;
+    const hasAccess = isSuperUser || isConduccion || isHierarchical;
     
     // Estados para Usuarios
     const [users, setUsers] = useState([]);

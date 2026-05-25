@@ -142,7 +142,14 @@ const Layout = ({ children }) => {
         { name: 'Perfil', path: '/profile', icon: <User className="w-6 h-6" /> },
     ];
 
-    if (hasPermission('sistema.usuarios')) {
+    // Lógica de acceso basada en el PERFIL ACTIVO
+    const activeRoleName = activeProfile?.role?.name;
+    const isSuperUser = user?.es_administrador || user?.roles?.some(r => r.name === 'superuser');
+    
+    // El Supervisor Curricular NO gestiona personas ni usuarios, incluso si tiene otros roles globales
+    const isActingAsSupervisor = activeRoleName === 'supervisor_curricular';
+
+    if (hasPermission('sistema.usuarios') && !isActingAsSupervisor) {
         navItems.push({
             name: 'Gestión de Usuarios',
             path: '/admin/usuarios',
@@ -155,7 +162,7 @@ const Layout = ({ children }) => {
         });
     }
 
-    if (hasPermission('sistema.usuarios') || user?.roles?.some(r => r.name === 'supervisor_curricular')) {
+    if (hasPermission('sistema.usuarios') || isActingAsSupervisor) {
         navItems.push({
             name: 'Escuelas',
             icon: <School className="w-6 h-6" />,
@@ -163,13 +170,13 @@ const Layout = ({ children }) => {
             isOpen: isDistrictPanelOpen,
             setIsOpen: setIsDistrictPanelOpen,
             subItems: [
-                ...(user?.roles?.some(r => r.name === 'supervisor_curricular') ? [] : [{ name: 'Gestión CUPOF', path: '/admin/cupofs' }]),
+                ...(isActingAsSupervisor ? [] : [{ name: 'Gestión CUPOF', path: '/admin/cupofs' }]),
                 { name: 'Comunidad Educativa', path: '/admin/comunidad' },
             ]
         });
     }
 
-    if (user?.roles?.some(r => r.name === 'superuser') || hasPermission('sistema.usuarios')) {
+    if (isSuperUser || (hasPermission('sistema.usuarios') && !isActingAsSupervisor)) {
         navItems.push({ 
             name: 'Panel General', 
             icon: <LayoutDashboard className="w-6 h-6" />,
@@ -280,7 +287,7 @@ const Layout = ({ children }) => {
         });
     }
 
-    if (user?.roles?.some(r => r.name === 'superuser') || hasPermission('planes.ver')) {
+    if (isSuperUser || hasPermission('planes.ver')) {
         navItems.push({ 
             name: 'Panel Curricular', 
             icon: <BookOpen className="w-6 h-6" />,
@@ -307,28 +314,34 @@ const Layout = ({ children }) => {
      * Obtiene el rol con el que el usuario está actuando actualmente.
      */
     const getActingRole = () => {
+        // PRIORIDAD: Perfil seleccionado explícitamente en SelectRole
         if (activeProfile) {
             return {
                 name: activeProfile.role?.name || 'Usuario',
-                context: activeProfile.escuela?.nombre,
-                type: 'institutional'
+                context: activeProfile.context || activeProfile.escuela?.nombre,
+                type: activeProfile.type === 'school' ? 'institutional' : 'admin'
             };
         }
 
+        // FALLBACK: Superusuario global o detección por roles (si no hay perfil seleccionado)
         if (user?.es_administrador || user?.roles?.some(r => r.name === 'superuser')) {
             return { name: 'Superusuario', type: 'admin' };
         }
 
         const adminRoles = [
-            { id: 'jefe_provincial', name: 'Jefe Provincial' },
-            { id: 'jefe_regional', name: 'Jefe Regional' },
-            { id: 'jefe_distrital', name: 'Jefe Distrital' },
+            { id: 'jefe_provincial', name: 'Jefe Provincial', context: user?.provincia_usuario?.provincia?.nombre },
+            { id: 'jefe_regional', name: 'Jefe Regional', context: user?.region_usuario?.region?.nombre },
+            { id: 'jefe_distrital', name: 'Jefe Distrital', context: user?.distrito_usuario?.distrito?.nombre || user?.distrito_usuario?.distrito?.departamento?.nombre },
             { id: 'supervisor_curricular', name: 'Supervisor' }
         ];
 
         for (const role of adminRoles) {
             if (user?.roles?.some(r => r.name === role.id)) {
-                return { name: role.name, type: 'admin' };
+                return { 
+                    name: role.name, 
+                    type: 'admin',
+                    context: role.context 
+                };
             }
         }
 

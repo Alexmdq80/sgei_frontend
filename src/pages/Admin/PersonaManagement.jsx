@@ -602,18 +602,20 @@ export default function PersonaManagement() {
                                                         <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                                                         <span className="text-xs font-bold text-secondary-800">{persona.usuario_email}</span>
                                                     </div>
-                                                    <button 
-                                                        onClick={() => handleUnlinkUser(persona.id)}
-                                                        disabled={isLinkingUser === persona.id}
-                                                        className="p-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all border border-red-100 group"
-                                                        title="Desvincular Usuario"
-                                                    >
-                                                        {isLinkingUser === persona.id ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                        ) : (
-                                                            <Link2Off className="w-4 h-4" />
-                                                        )}
-                                                    </button>
+                                                    {(isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital || isConduccion) && (
+                                                        <button 
+                                                            onClick={() => handleUnlinkUser(persona.id)}
+                                                            disabled={isLinkingUser === persona.id}
+                                                            className="p-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all border border-red-100 group"
+                                                            title="Desvincular Usuario"
+                                                        >
+                                                            {isLinkingUser === persona.id ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : (
+                                                                <Link2Off className="w-4 h-4" />
+                                                            )}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center justify-between gap-2">
@@ -621,18 +623,20 @@ export default function PersonaManagement() {
                                                         <span className="w-2 h-2 bg-secondary-300 rounded-full"></span>
                                                         <span className="text-xs font-medium">Sin cuenta</span>
                                                     </div>
-                                                    <button 
-                                                        onClick={() => handleLinkUser(persona.id)}
-                                                        disabled={isLinkingUser === persona.id}
-                                                        className="p-1.5 bg-primary-50 text-primary-600 hover:bg-primary-600 hover:text-white rounded-lg transition-all border border-primary-100 group"
-                                                        title="Buscar y Vincular Usuario por DNI e Email"
-                                                    >
-                                                        {isLinkingUser === persona.id ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                        ) : (
-                                                            <Link className="w-4 h-4" />
-                                                        )}
-                                                    </button>
+                                                    {(isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital || isConduccion) && (
+                                                        <button 
+                                                            onClick={() => handleLinkUser(persona.id)}
+                                                            disabled={isLinkingUser === persona.id}
+                                                            className="p-1.5 bg-primary-50 text-primary-600 hover:bg-primary-600 hover:text-white rounded-lg transition-all border border-primary-100 group"
+                                                            title="Buscar y Vincular Usuario por DNI e Email"
+                                                        >
+                                                            {isLinkingUser === persona.id ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : (
+                                                                <Link className="w-4 h-4" />
+                                                            )}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </td>

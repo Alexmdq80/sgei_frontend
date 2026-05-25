@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
  * Orquesta la visualización según el rango y vinculación del usuario.
  */
 const Dashboard = () => {
-    const { user } = useAuth();
+    const { user, activeProfile } = useAuth();
 
     // Determinar si es un usuario "Invitado" (Sin roles administrativos y sin vinculaciones escolares verificadas)
     const hasAdminRoles = user?.roles && user.roles.length > 0;
@@ -74,7 +74,10 @@ const Dashboard = () => {
                     Resumen del Sistema
                 </h1>
                 <p className="text-secondary-500 mt-1 font-medium italic">
-                    Hola {user?.nombre}, gestionando como <span className="text-primary-600 font-bold uppercase">{user?.roles?.[0]?.name?.replace('_', ' ') || 'Usuario'}</span>
+                    Hola {user?.nombre}, gestionando como <span className="text-primary-600 font-bold uppercase">{activeProfile?.role?.name?.replace('_', ' ') || user?.roles?.[0]?.name?.replace('_', ' ') || 'Usuario'}</span>
+                    {activeProfile?.context && (
+                        <span className="text-secondary-400 font-bold ml-2">— {activeProfile.context}</span>
+                    )}
                 </p>
             </header>
 
