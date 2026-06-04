@@ -155,6 +155,9 @@ const Layout = ({ children }) => {
             path: '/admin/usuarios',
             icon: <Users className="w-6 h-6" />
         });
+    }
+
+    if ((hasPermission('sistema.usuarios') || hasPermission('personal.ver')) && !isActingAsSupervisor) {
         navItems.push({
             name: 'Gestión de Personas',
             path: '/admin/personas',

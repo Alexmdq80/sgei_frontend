@@ -602,7 +602,7 @@ export default function PersonaManagement() {
                                                         <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                                                         <span className="text-xs font-bold text-secondary-800">{persona.usuario_email}</span>
                                                     </div>
-                                                    {(isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital || isConduccion) && (
+                                                    {(isSuperUser || isJefeProvincial || isConduccion) && (
                                                         <button 
                                                             onClick={() => handleUnlinkUser(persona.id)}
                                                             disabled={isLinkingUser === persona.id}
@@ -623,7 +623,7 @@ export default function PersonaManagement() {
                                                         <span className="w-2 h-2 bg-secondary-300 rounded-full"></span>
                                                         <span className="text-xs font-medium">Sin cuenta</span>
                                                     </div>
-                                                    {(isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital || isConduccion) && (
+                                                    {(isSuperUser || isJefeProvincial || isConduccion) && (
                                                         <button 
                                                             onClick={() => handleLinkUser(persona.id)}
                                                             disabled={isLinkingUser === persona.id}

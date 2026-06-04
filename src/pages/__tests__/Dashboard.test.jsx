@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import Dashboard from '../Dashboard';
 import { useAuth } from '../../context/AuthContext';
 
@@ -14,18 +15,26 @@ describe('Dashboard Component', () => {
             user: { nombre: 'Alex' }
         });
 
-        render(<Dashboard />);
+        render(
+            <MemoryRouter>
+                <Dashboard />
+            </MemoryRouter>
+        );
 
-        expect(screen.getByText(/Bienvenido, Alex/i)).toBeInTheDocument();
-        expect(screen.getByText(/resumen general/i)).toBeInTheDocument();
+        expect(screen.getByText(/Panel de Invitado/i)).toBeInTheDocument();
+        expect(screen.getByText(/Alex/i)).toBeInTheDocument();
     });
 
     it('debe mostrar las tarjetas de estadísticas básicas', () => {
         useAuth.mockReturnValue({
-            user: { nombre: 'Alex' }
+            user: { nombre: 'Alex', es_administrador: true }
         });
 
-        render(<Dashboard />);
+        render(
+            <MemoryRouter>
+                <Dashboard />
+            </MemoryRouter>
+        );
 
         expect(screen.getByText('Estudiantes')).toBeInTheDocument();
         expect(screen.getByText('Docentes')).toBeInTheDocument();

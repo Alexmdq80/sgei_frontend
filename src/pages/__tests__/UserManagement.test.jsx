@@ -97,7 +97,7 @@ describe('UserManagement Component', () => {
 
         await waitFor(() => screen.getByText('Juan Perez'));
         
-        const editBtns = screen.getAllByTitle('Visualizar Información');
+        const editBtns = screen.getAllByTitle('Editar Información');
         fireEvent.click(editBtns[0]);
 
         expect(screen.getByText('Información del Usuario', { selector: 'h2' })).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe('UserManagement Component', () => {
 
         await waitFor(() => screen.getByText('Juan Perez'));
         
-        const deleteBtn = screen.getAllByTitle('Eliminar Usuario')[0];
+        const deleteBtn = screen.getAllByTitle('Eliminar Cuenta')[0];
         fireEvent.click(deleteBtn);
 
         // Interactuar con el modal de confirmación
