@@ -128,8 +128,13 @@ export default function PersonaManagement() {
     const fetchDepartamentos = async (provinciaId = null) => {
         try {
             setIsLoadingGeografia(true);
-            const pId = provinciaId || (isJefeProvincial ? authUser?.provincia_usuario?.provincia_id : 44);
-            const response = await geografiaService.getDepartamentos(pId || 44);
+            // Jefe Regional: su provincia se deriva de su región
+            const regionalProvId = authUser?.region_usuario?.region?.provincia_id;
+            const pId = provinciaId
+                || (isJefeProvincial ? authUser?.provincia_usuario?.provincia_id : null)
+                || (isJefeRegional ? regionalProvId : null)
+                || 44;
+            const response = await geografiaService.getDepartamentos(pId);
             setDepartamentos(response || []);
         } catch (error) {
             console.error('Error al cargar departamentos:', error);
@@ -185,6 +190,11 @@ export default function PersonaManagement() {
             fetchDepartamentos();
             fetchRegiones();
         }
+        // Jefe Regional: necesita los departamentos de su provincia para asignar Jefe Distrital
+        if (isJefeRegional) {
+            const regionalProvId = authUser?.region_usuario?.region?.provincia_id;
+            fetchDepartamentos(regionalProvId || null);
+        }
         if (isJefeDistrital) {
             fetchEscuelaRoles();
             const distId = authUser?.distrito_usuario?.departamento_id;
@@ -213,9 +223,15 @@ export default function PersonaManagement() {
         setIsFetchingDetails(false);
         
         if (freshPersona) {
-            setSelectedProvinciaId(isJefeProvincial ? authUser?.provincia_usuario?.provincia_id : '');
+            // Pre-setear contexto geográfico según rol del usuario autenticado
+            const provId = isJefeProvincial
+                ? authUser?.provincia_usuario?.provincia_id
+                : isJefeRegional
+                    ? authUser?.region_usuario?.region?.provincia_id
+                    : '';
+            setSelectedProvinciaId(provId || '');
             setSelectedDepartamentoId('');
-            setSelectedRegionId('');
+            setSelectedRegionId(isJefeRegional ? (authUser?.region_usuario?.region_id || '') : '');
             setSelectedEscuelaId('');
             setSelectedEscuelaRoleId('');
             setActiveAssignRole(null);
@@ -602,7 +618,7 @@ export default function PersonaManagement() {
                                                         <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                                                         <span className="text-xs font-bold text-secondary-800">{persona.usuario_email}</span>
                                                     </div>
-                                                    {(isSuperUser || isJefeProvincial || isConduccion) && (
+                                                    {(isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital) && (
                                                         <button 
                                                             onClick={() => handleUnlinkUser(persona.id)}
                                                             disabled={isLinkingUser === persona.id}
@@ -623,7 +639,7 @@ export default function PersonaManagement() {
                                                         <span className="w-2 h-2 bg-secondary-300 rounded-full"></span>
                                                         <span className="text-xs font-medium">Sin cuenta</span>
                                                     </div>
-                                                    {(isSuperUser || isJefeProvincial || isConduccion) && (
+                                                    {(isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital) && (
                                                         <button 
                                                             onClick={() => handleLinkUser(persona.id)}
                                                             disabled={isLinkingUser === persona.id}
@@ -661,25 +677,21 @@ export default function PersonaManagement() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                {(isSuperUser || isJefeProvincial || isJefeRegional) && (
-                                                    <>
-                                                        {isSuperUser && (
-                                                            <button 
-                                                                onClick={() => handleDeletePersona(persona)}
-                                                                className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                                title="Eliminar del Padrón"
-                                                            >
-                                                                <Trash2 className="w-5 h-5" />
-                                                            </button>
-                                                        )}
-                                                        <button 
-                                                            onClick={() => handleOpenAdminRolesModal(persona)}
-                                                            className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                                            title="Gestionar Roles Administrativos"
-                                                        >
-                                                            <Shield className="w-5 h-5" />
-                                                        </button>
-                                                    </>
+                                                <button 
+                                                    onClick={() => handleDeletePersona(persona)}
+                                                    className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Eliminar del Padrón"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                                {(isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital) && (
+                                                    <button 
+                                                        onClick={() => handleOpenAdminRolesModal(persona)}
+                                                        className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                                        title="Gestionar Roles Administrativos"
+                                                    >
+                                                        <Shield className="w-5 h-5" />
+                                                    </button>
                                                 )}
                                                 <button 
                                                     onClick={() => handleViewPersona(persona.id)}

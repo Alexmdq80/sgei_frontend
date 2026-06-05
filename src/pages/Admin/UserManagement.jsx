@@ -15,7 +15,11 @@ const UserManagement = () => {
     const isSuperUser = authUser?.es_administrador || authUser?.roles?.some(r => r.name === 'superuser');
     const isConduccion = authUser?.roles?.some(r => ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(r.name));
     const isJefeProvincial = authUser?.roles?.some(r => r.name === 'jefe_provincial');
+    const isJefeRegional = authUser?.roles?.some(r => r.name === 'jefe_regional');
+    const isJefeDistrital = authUser?.roles?.some(r => r.name === 'jefe_distrital');
     
+    // SEGÚN SPEC: Solo Superuser, J.Provincial y Conducción tienen acceso a Gestión de Usuarios.
+    // J.Regional, J.Distrital y Supervisor Curricular: SIN ACCESO.
     const hasAccess = isSuperUser || isConduccion || isJefeProvincial;
     
     // Estados para Usuarios
@@ -387,8 +391,8 @@ const UserManagement = () => {
                                                     </button>
                                                 )}
 
-                                                {/* Botón de Confirmar Vinculación Pendiente (Conducción o SuperUser) */}
-                                                {user.estado === 'vinculacion_pendiente' && (isSuperUser || isConduccion) && (
+                                                {/* Botón de Confirmar Vinculación Pendiente: Solo Jefaturas y SuperUser, NO Conducción */}
+                                                {user.estado === 'vinculacion_pendiente' && (isSuperUser || isJefeProvincial) && (
                                                     <button
                                                         onClick={() => handleConfirmVinculation(user)}
                                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white text-[10px] font-black uppercase rounded-lg hover:bg-amber-700 transition-all shadow-md active:scale-95 animate-pulse"
