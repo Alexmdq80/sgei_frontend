@@ -289,7 +289,7 @@ const CupofManagement = () => {
                         {isJefeDistrital ? 'Designación de Equipos de Conducción' : 'Administración de la Planta Orgánica Funcional (POF)'}
                     </p>
                 </div>
-                {(isConduccion || isSuperUser) && (
+                {(isConduccion || isSuperUser || isJefeDistrital) && (
                     <button 
                         onClick={() => {
                             setFormData({
@@ -645,7 +645,12 @@ const CupofManagement = () => {
                                             onChange={(e) => setFormData({...formData, nombre_cargo: e.target.value})}
                                         >
                                             <option value="">Seleccione Cargo...</option>
-                                            {cargos.map(c => (
+                                            {cargos
+                                                .filter(c => {
+                                                    if (!isJefeDistrital || isSuperUser) return true;
+                                                    return isHierarchicalCargo(c.nombre);
+                                                })
+                                                .map(c => (
                                                 <option key={c.id} value={c.nombre}>
                                                     {c.nombre}
                                                 </option>

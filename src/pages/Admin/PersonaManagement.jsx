@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { parseError } from '../../utils/errorParser';
 import personaService from '../../services/personaService';
+import escuelaService from '../../services/escuelaService';
 import cupofService from '../../services/cupofService';
 import documentoTipoService from '../../services/documentoTipoService';
 import geografiaService from '../../services/geografiaService';
@@ -324,11 +325,11 @@ export default function PersonaManagement() {
         }
         try {
             setIsSavingAdminRole(true);
-            await cupofService.assignInstitutionalRole({
-                usuario_id: selectedPersona.usuario_id,
-                escuela_id: selectedEscuelaId,
-                role_id: selectedEscuelaRoleId
-            });
+            await escuelaService.assignDirect(
+                selectedPersona.usuario_id,
+                selectedEscuelaId,
+                selectedEscuelaRoleId
+            );
             showNotification('Cargo de Equipo de Conducción asignado con éxito.', 'success');
             await refreshSelectedPersona();
             setActiveAssignRole(null);
@@ -346,7 +347,7 @@ export default function PersonaManagement() {
         }
         try {
             setIsSavingAdminRole(true);
-            await cupofService.removeInstitutionalRole(linkId);
+            await escuelaService.deleteLink(linkId);
             showNotification('Rol institucional revocado con éxito.', 'success');
             await refreshSelectedPersona();
             fetchPersonas(pagination.current_page);
