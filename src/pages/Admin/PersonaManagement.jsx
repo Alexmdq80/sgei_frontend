@@ -685,7 +685,7 @@ export default function PersonaManagement() {
                                                 >
                                                     <Trash2 className="w-5 h-5" />
                                                 </button>
-                                                {(isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital) && (
+                                                {(isSuperUser || isJefeProvincial || isJefeRegional) && (
                                                     <button 
                                                         onClick={() => handleOpenAdminRolesModal(persona)}
                                                         className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
