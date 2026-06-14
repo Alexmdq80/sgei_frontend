@@ -159,8 +159,8 @@ const CupofManagement = () => {
     const fetchEscuelas = async () => {
         try {
             const filters = {};
-            if (isJefeDistrital) {
-                const distId = user?.distrito_usuario?.departamento_id;
+            if (isJefeDistrital && !isSuperUser) {
+                const distId = user?.distrito_usuario?.departamento_id || user?.distritoUsuario?.departamento_id;
                 if (distId) filters.departamento_id = distId;
             }
             const data = await escuelaService.search('', filters);
@@ -215,8 +215,8 @@ const CupofManagement = () => {
             try {
                 setIsSearchingEscuela(true);
                 const searchFilters = {};
-                if (isJefeDistrital) {
-                    const distId = user?.distrito_usuario?.departamento_id;
+                if (isJefeDistrital && !isSuperUser) {
+                    const distId = user?.distrito_usuario?.departamento_id || user?.distritoUsuario?.departamento_id;
                     if (distId) searchFilters.departamento_id = distId;
                 }
                 const data = await escuelaService.search(cueSearch, searchFilters);
@@ -759,7 +759,7 @@ const CupofManagement = () => {
                                                     onChange={(e) => {
                                                         const escId = e.target.value;
                                                         setFormData({...formData, escuela_id: escId});
-                                                        const esc = escuelas.find(i => i.id === escId);
+                                                        const esc = escuelas.find(i => String(i.id) === String(escId));
                                                         if (esc) {
                                                             setFoundEscuela(esc);
                                                             setCueSearch(esc.cue_anexo);
