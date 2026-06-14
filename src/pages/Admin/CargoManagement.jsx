@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { parseError } from '../../utils/errorParser';
 import cargoService from '../../services/cargoService';
+import escalafonService from '../../services/escalafonService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
 /**
@@ -11,12 +12,15 @@ import ConfirmationModal from '../../components/ConfirmationModal';
 const CargoManagement = () => {
     const { showNotification } = useAuth();
     const [cargos, setCargos] = useState([]);
+    const [escalafones, setEscalafones] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCargo, setEditingCargo] = useState(null);
     
     const [formData, setFormData] = useState({
         nombre: '',
+        tipo: 'cargo',
+        escalafon_id: '',
         requiere_cursos: false,
         activo: true
     });
@@ -29,25 +33,29 @@ const CargoManagement = () => {
         variant: 'primary'
     });
 
-    const fetchCargos = async () => {
+    const fetchData = async () => {
         try {
             setIsLoading(true);
-            const data = await cargoService.getAll(); // Cambiado para que traiga todos (backend admin) si es posible
-            setCargos(data);
+            const [cargosData, escalafonesData] = await Promise.all([
+                cargoService.getAll(),
+                escalafonService.getAll()
+            ]);
+            setCargos(cargosData);
+            setEscalafones(escalafonesData);
         } catch (error) {
-            showNotification(parseError(error, 'Error al cargar los cargos.'), 'error');
+            showNotification(parseError(error, 'Error al cargar los datos.'), 'error');
         } finally {
             setIsLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchCargos();
+        fetchData();
     }, []);
 
     const handleOpenCreate = () => {
         setEditingCargo(null);
-        setFormData({ nombre: '', requiere_cursos: false, activo: true });
+        setFormData({ nombre: '', tipo: 'cargo', escalafon_id: '', requiere_cursos: false, activo: true });
         setIsModalOpen(true);
     };
 
@@ -55,6 +63,8 @@ const CargoManagement = () => {
         setEditingCargo(cargo);
         setFormData({
             nombre: cargo.nombre,
+            tipo: cargo.tipo || 'cargo',
+            escalafon_id: cargo.escalafon_id || '',
             requiere_cursos: !!cargo.requiere_cursos,
             activo: !!cargo.activo
         });
@@ -64,17 +74,21 @@ const CargoManagement = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            // Asegurar que escalafon_id sea null si está vacío
+            const dataToSave = {
+                ...formData,
+                escalafon_id: formData.escalafon_id === '' ? null : formData.escalafon_id
+            };
+
             if (editingCargo) {
-                // El servicio cargoService debe extenderse para soportar update/store
-                // Por ahora asumimos que los métodos existen o los crearemos
-                await cargoService.update(editingCargo.id, formData);
+                await cargoService.update(editingCargo.id, dataToSave);
                 showNotification('Cargo actualizado con éxito.', 'success');
             } else {
-                await cargoService.create(formData);
+                await cargoService.create(dataToSave);
                 showNotification('Cargo creado con éxito.', 'success');
             }
             setIsModalOpen(false);
-            fetchCargos();
+            fetchData();
         } catch (error) {
             showNotification(parseError(error, 'Error al guardar el cargo.'), 'error');
         }
@@ -90,7 +104,7 @@ const CargoManagement = () => {
                 try {
                     await cargoService.delete(cargo.id);
                     showNotification('Cargo eliminado con éxito.', 'success');
-                    fetchCargos();
+                    fetchData();
                     setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                 } catch (error) {
                     showNotification(parseError(error, 'Error al eliminar el cargo.'), 'error');
@@ -126,21 +140,34 @@ const CargoManagement = () => {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
-                            <thead className="bg-secondary-50 border-b border-secondary-200">
-                                <tr>
-                                    <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">ID</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Nombre</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-center">Requiere Cursos</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-center">Estado</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-right">Acciones</th>
-                                </tr>
-                            </thead>
+                                <thead className="bg-secondary-50 border-b border-secondary-200">
+                                    <tr>
+                                        <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">ID</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Nombre / Escalafón</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-center">Tipo</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-center">Requiere Cursos</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-center">Estado</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-right">Acciones</th>
+                                    </tr>
+                                </thead>
                             <tbody className="divide-y divide-secondary-100">
                                 {cargos.map((cargo) => (
                                     <tr key={cargo.id} className="hover:bg-secondary-50 transition-colors group">
                                         <td className="px-6 py-4 text-xs font-mono text-secondary-400">#{cargo.id}</td>
                                         <td className="px-6 py-4">
                                             <p className="text-sm font-black text-secondary-900 tracking-tight uppercase">{cargo.nombre}</p>
+                                            <p className="text-[10px] font-bold text-primary-600 uppercase tracking-tighter">
+                                                {cargo.escalafon?.nombre || 'Sin Escalafón'}
+                                            </p>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className={`px-2 py-1 text-[10px] font-black rounded-lg uppercase ${
+                                                cargo.tipo === 'horas' ? 'bg-blue-100 text-blue-700' :
+                                                cargo.tipo === 'modulos' ? 'bg-purple-100 text-purple-700' :
+                                                'bg-amber-100 text-amber-700'
+                                            }`}>
+                                                {cargo.tipo || 'cargo'}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             {cargo.requiere_cursos ? (
@@ -211,6 +238,36 @@ const CargoManagement = () => {
                                         value={formData.nombre}
                                         onChange={(e) => setFormData({...formData, nombre: e.target.value})}
                                     />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Tipo de Designación</label>
+                                        <select
+                                            required
+                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold focus:ring-2 focus:ring-primary-500 outline-none uppercase appearance-none"
+                                            value={formData.tipo}
+                                            onChange={(e) => setFormData({...formData, tipo: e.target.value})}
+                                        >
+                                            <option value="cargo">Cargo</option>
+                                            <option value="horas">Horas</option>
+                                            <option value="modulos">Módulos</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Escalafón</label>
+                                        <select
+                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold focus:ring-2 focus:ring-primary-500 outline-none uppercase appearance-none"
+                                            value={formData.escalafon_id}
+                                            onChange={(e) => setFormData({...formData, escalafon_id: e.target.value})}
+                                        >
+                                            <option value="">Sin Escalafón</option>
+                                            {escalafones.map(esc => (
+                                                <option key={esc.id} value={esc.id}>{esc.nombre}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                                 
                                 <div className="flex items-center justify-between p-4 bg-secondary-50 rounded-2xl border border-secondary-200">

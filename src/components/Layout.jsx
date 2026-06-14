@@ -165,6 +165,14 @@ const Layout = ({ children }) => {
         });
     }
 
+    const isJefeDistrital = user?.roles?.some(r => r.name === 'jefe_distrital');
+    
+    // El Jefe Distrital y el Equipo de Conducción pueden gestionar CUPOF.
+    const canAccessCupof = isSuperUser || 
+                           isJefeDistrital || 
+                           activeRoleName === 'jefe_distrital' || 
+                           ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeRoleName);
+
     if (hasPermission('sistema.usuarios') || isActingAsSupervisor) {
         navItems.push({
             name: 'Escuelas',
@@ -173,7 +181,7 @@ const Layout = ({ children }) => {
             isOpen: isDistrictPanelOpen,
             setIsOpen: setIsDistrictPanelOpen,
             subItems: [
-                ...(isActingAsSupervisor ? [] : [{ name: 'Gestión CUPOF', path: '/admin/cupofs' }]),
+                ...(canAccessCupof ? [{ name: 'Gestión CUPOF', path: '/admin/cupofs' }] : []),
                 { name: 'Comunidad Educativa', path: '/admin/comunidad' },
             ]
         });

@@ -19,8 +19,13 @@ const CupofManagement = () => {
     
     // Roles del usuario
     const isSuperUser = user?.roles?.some(r => r.name === 'superuser');
+    const isJefeProvincial = user?.roles?.some(r => r.name === 'jefe_provincial');
+    const isJefeRegional = user?.roles?.some(r => r.name === 'jefe_regional');
     const isJefeDistrital = user?.roles?.some(r => r.name === 'jefe_distrital');
     const isConduccion = ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeProfile?.role?.name);
+
+    // SEGÚN POLÍTICAS: Solo Superuser, Equipo de Conducción y Jefes Distritales tienen acceso.
+    const hasAccess = isSuperUser || isConduccion || isJefeDistrital;
 
     // Función auxiliar para determinar si un cargo es jerárquico
     const isHierarchicalCargo = (nombreCargo) => {
@@ -33,6 +38,7 @@ const CupofManagement = () => {
     const canManageCupof = (cupof) => {
         if (isSuperUser) return true;
         const hierarchical = isHierarchicalCargo(cupof.nombre_cargo);
+        // Jefe Distrital: Solo puede gestionar cargos jerárquicos
         if (isJefeDistrital) return hierarchical;
         // Equipo de Conducción ahora puede gestionar TODO en su escuela (jerárquico y operativo)
         if (isConduccion) return true;
@@ -190,17 +196,17 @@ const CupofManagement = () => {
 
     // Carga de catálogos iniciales
     useEffect(() => {
-        if (user) {
+        if (user && hasAccess) {
             fetchEscuelas();
             fetchCargos();
             fetchCatalogs();
         }
-    }, [user]);
+    }, [user, hasAccess]);
 
     // Búsqueda de escuela específica por CUE para el Modal
     useEffect(() => {
         const searchEscuelaByCue = async () => {
-            if (cueSearch.length < 7) {
+            if (!hasAccess || cueSearch.length < 7) {
                 setFoundEscuela(null);
                 setFormData(prev => ({ ...prev, escuela_id: '' }));
                 return;
@@ -233,13 +239,30 @@ const CupofManagement = () => {
 
         const timer = setTimeout(searchEscuelaByCue, 500);
         return () => clearTimeout(timer);
-    }, [cueSearch]);
+    }, [cueSearch, hasAccess]);
 
     // Recargar datos principales al cambiar filtros o tab
     useEffect(() => {
+        if (!hasAccess) return;
         if (activeTab === 'pof') fetchCupofs();
         if (activeTab === 'personas') fetchPersonas();
-    }, [activeTab, filters.escuela_id, filters.estado_cupof, filters.escalafon_id]);
+    }, [activeTab, filters.escuela_id, filters.estado_cupof, filters.escalafon_id, hasAccess]);
+
+    if (!hasAccess) {
+        return (
+            <main className="flex-grow p-8 overflow-y-auto bg-secondary-50/30">
+                <div className="p-10 text-center bg-white rounded-3xl border border-secondary-200 shadow-sm animate-fadeIn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info w-12 h-12 text-primary-500 mx-auto mb-4" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 16v-4"></path>
+                        <path d="M12 8h.01"></path>
+                    </svg>
+                    <h2 className="text-xl font-black text-secondary-900 uppercase">Perfil Institucional Requerido</h2>
+                    <p className="text-secondary-500 mt-2 font-medium">Debe seleccionar una institución para visualizar su planta funcional.</p>
+                </div>
+            </main>
+        );
+    }
 
     // --- ACCIONES ---
 
@@ -258,8 +281,13 @@ const CupofManagement = () => {
     const handleAssignPersona = async (e) => {
         e.preventDefault();
         try {
-            await cupofService.assign(selectedCupof.id, assignData);
+            const response = await cupofService.assign(selectedCupof.id, assignData);
             showNotification('Persona asignada exitosamente al puesto.', 'success');
+
+            if (response.warning) {
+                showNotification(response.warning, 'warning', 8000);
+            }
+
             setIsAssignModalOpen(false);
             fetchCupofs();
         } catch (error) {
@@ -298,8 +326,10 @@ const CupofManagement = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Gestión CUPOF</h1>
-                    <p className="text-secondary-500 mt-1 font-medium">
-                        {isJefeDistrital ? 'Designación de Equipos de Conducción' : 'Administración de la Planta Orgánica Funcional (POF)'}
+                    <p className="text-secondary-500 mt-1 font-medium italic">
+                        {isSuperUser ? 'Administración global de la Planta Orgánica Funcional (POF)' : 
+                         isJefeDistrital ? 'Gestión de Equipos de Conducción - Ámbito Distrital' :
+                         'Administración de la Planta Funcional de su Institución'}
                     </p>
                 </div>
                 {(isConduccion || isSuperUser || isJefeDistrital) && (
@@ -677,7 +707,8 @@ const CupofManagement = () => {
                                             <option value="">Seleccione Cargo...</option>
                                             {cargos
                                                 .filter(c => {
-                                                    if (!isJefeDistrital || isSuperUser) return true;
+                                                    if (isSuperUser || isConduccion) return true;
+                                                    // Jefaturas (Provincial, Regional, Distrital) solo jerárquicos
                                                     return isHierarchicalCargo(c.nombre);
                                                 })
                                                 .map(c => (

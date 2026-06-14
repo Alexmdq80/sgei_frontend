@@ -18,9 +18,8 @@ const UserManagement = () => {
     const isJefeRegional = authUser?.roles?.some(r => r.name === 'jefe_regional');
     const isJefeDistrital = authUser?.roles?.some(r => r.name === 'jefe_distrital');
     
-    // SEGÚN SPEC: Solo Superuser, J.Provincial y Conducción tienen acceso a Gestión de Usuarios.
-    // J.Regional, J.Distrital y Supervisor Curricular: SIN ACCESO.
-    const hasAccess = isSuperUser || isConduccion || isJefeProvincial;
+    // Solo Superuser, Jefaturas (Provincial, Regional, Distrital) y Conducción tienen acceso.
+    const hasAccess = isSuperUser || isConduccion || isJefeProvincial || isJefeRegional || isJefeDistrital;
     
     // Estados para Usuarios
     const [users, setUsers] = useState([]);
@@ -229,15 +228,17 @@ const UserManagement = () => {
 
     if (!hasAccess) {
         return (
-            <div className="p-10 text-center bg-white rounded-3xl border border-secondary-200 shadow-sm animate-fadeIn">
-                <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <main className="flex-grow p-8 overflow-y-auto bg-secondary-50/30">
+                <div className="p-10 text-center bg-white rounded-3xl border border-secondary-200 shadow-sm animate-fadeIn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info w-12 h-12 text-primary-500 mx-auto mb-4" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 16v-4"></path>
+                        <path d="M12 8h.01"></path>
                     </svg>
+                    <h2 className="text-xl font-black text-secondary-900 uppercase">Acceso Restringido</h2>
+                    <p className="text-secondary-500 mt-2 font-medium">No posee los permisos necesarios para gestionar la nómina de usuarios.</p>
                 </div>
-                <h2 className="text-xl font-black text-secondary-900 uppercase">Acceso Denegado</h2>
-                <p className="text-secondary-500 mt-2 font-medium">No tienes los privilegios necesarios para gestionar usuarios.</p>
-            </div>
+            </main>
         );
     }
 
@@ -248,7 +249,11 @@ const UserManagement = () => {
                 <div>
                     <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Gestión de Usuarios</h1>
                     <p className="text-secondary-500 mt-1 font-medium italic">
-                        {isSuperUser ? 'Administración global de cuentas de acceso' : 'Gestión de usuarios vinculados a su institución'}
+                        {isSuperUser ? 'Administración global de cuentas de acceso' : 
+                         isJefeProvincial ? 'Gestión de Usuarios - Ámbito Provincial' :
+                         isJefeRegional ? 'Gestión de Usuarios - Ámbito Regional' :
+                         isJefeDistrital ? 'Gestión de Usuarios - Ámbito Distrital' :
+                         'Gestión de usuarios vinculados a su institución'}
                     </p>
                 </div>
                 {isSuperUser && (
@@ -324,58 +329,83 @@ const UserManagement = () => {
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead className="bg-secondary-50 border-b border-secondary-200">
-                                <tr>
-                                    <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">Identidad</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">Roles Globales</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider text-right">Acciones</th>
-                                </tr>
+                            <tr>
+                                <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">Identidad</th>
+                                <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">Roles y Jurisdicciones</th>
+                                <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider text-right">Acciones</th>
+                            </tr>
                             </thead>
                             <tbody className="divide-y divide-secondary-100">
-                                {users.map((user) => (
-                                    <tr key={user.id} className="hover:bg-secondary-50 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-white shadow-sm">
-                                                    {user.nombre?.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-bold text-secondary-900">{user.nombre}</p>
-                                                    <p className="text-xs text-secondary-500">{user.email}</p>
-                                                    {user.persona ? (
-                                                        <p className="text-[10px] text-green-600 font-bold mt-0.5 uppercase tracking-tighter flex items-center gap-1">
-                                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                            </svg>
-                                                            Padrón Vinculado
-                                                        </p>
-                                                    ) : user.documento_numero && (
-                                                        <p className="text-[10px] text-primary-600 font-black mt-0.5">{user.documento_tipo?.nombre}: {user.documento_numero}</p>
-                                                    )}
-                                                    {user.estado === 'vinculacion_pendiente' && (
-                                                        <div className="mt-1">
-                                                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black uppercase rounded border border-amber-200 shadow-sm animate-pulse">
-                                                                Confirmación de Padrón Requerida
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
+                            {users.map((user) => (
+                                <tr key={user.id} className="hover:bg-secondary-50 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-white shadow-sm">
+                                                {user.nombre?.charAt(0).toUpperCase()}
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {user.es_administrador && (
-                                                    <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-black uppercase rounded shadow-sm">Admin</span>
+                                            <div>
+                                                <p className="text-sm font-bold text-secondary-900">{user.nombre}</p>
+                                                {(user.es_administrador || user.roles?.some(r => r.name === 'superuser')) ? (
+                                                    <p className="text-[10px] text-secondary-400 italic">Información de contacto protegida</p>
+                                                ) : (
+                                                    <>
+                                                        <p className="text-xs text-secondary-500">{user.email}</p>
+                                                        {user.persona ? (
+                                                            <p className="text-[10px] text-green-600 font-bold mt-0.5 uppercase tracking-tighter flex items-center gap-1">
+                                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                                </svg>
+                                                                Padrón Vinculado
+                                                            </p>
+                                                        ) : user.documento_numero && (
+                                                            <p className="text-[10px] text-primary-600 font-black mt-0.5">{user.documento_tipo?.nombre}: {user.documento_numero}</p>
+                                                        )}
+                                                    </>
                                                 )}
-                                                {user.roles?.map(role => (
+                                                {user.estado === 'vinculacion_pendiente' && (
+                                                    <div className="mt-1">
+                                                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black uppercase rounded border border-amber-200 shadow-sm animate-pulse">
+                                                            Confirmación de Padrón Requerida
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {user.es_administrador && (
+                                                <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-black uppercase rounded shadow-sm">Admin</span>
+                                            )}
+                                            {user.roles?.map(role => {
+                                                let scopeLabel = '';
+                                                if (role.name === 'jefe_provincial') {
+                                                    scopeLabel = user.provincia_usuario?.provincia?.nombre ? ` (${user.provincia_usuario.provincia.nombre})` : '';
+                                                } else if (role.name === 'jefe_regional') {
+                                                    scopeLabel = user.region_usuario?.region?.numero ? ` (Región ${user.region_usuario.region.numero})` : '';
+                                                } else if (role.name === 'jefe_distrital') {
+                                                    scopeLabel = user.distrito_usuario?.distrito?.nombre ? ` (${user.distrito_usuario.distrito.nombre})` : '';
+                                                }
+
+                                                return (
                                                     <span key={role.id} className="px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-black uppercase rounded shadow-sm">
-                                                        {role.name.replace('_', ' ')}
+                                                        {role.name.replace('_', ' ')}{scopeLabel}
                                                     </span>
-                                                ))}
-                                                {(!user.es_administrador && (!user.roles || user.roles.length === 0)) && (
-                                                    <span className="px-2 py-0.5 bg-secondary-100 text-secondary-500 text-[10px] font-bold uppercase rounded italic">Usuario Estándar</span>
-                                                )}
-                                            </div>
-                                        </td>
+                                                );
+                                            })}
+
+                                            {/* Roles Institucionales (Equipo de Conducción / Comunidad Educativa) */}
+                                            {user.escuela_usuarios?.map(eu => (
+                                                <span key={eu.id} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded border border-indigo-100 shadow-sm" title={eu.escuela?.nombre}>
+                                                    {eu.role?.name?.replace('_', ' ')}: {eu.escuela?.nombre?.length > 25 ? eu.escuela.nombre.substring(0, 22) + '...' : eu.escuela?.nombre}
+                                                </span>
+                                            ))}
+
+                                            {(!user.es_administrador && (!user.roles || user.roles.length === 0) && (!user.escuela_usuarios || user.escuela_usuarios.length === 0)) && (
+                                                <span className="px-2 py-0.5 bg-secondary-100 text-secondary-500 text-[10px] font-bold uppercase rounded italic">Usuario Estándar</span>
+                                            )}
+                                        </div>
+                                    </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
                                                 {/* Botón de Reenviar Activación (SOLO SUPERUSUARIO) */}
@@ -512,7 +542,9 @@ const UserManagement = () => {
                                         </div>
                                         <div className="space-y-0.5 border-t md:border-t-0 md:border-l border-secondary-200 pt-3 md:pt-0 md:pl-5">
                                             <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Email</p>
-                                            <p className="text-sm font-bold text-secondary-900">{editingUser?.email}</p>
+                                            <p className="text-sm font-bold text-secondary-900">
+                                                {(editingUser?.es_administrador || editingUser?.roles?.some(r => r.name === 'superuser')) ? 'Protegido' : editingUser?.email}
+                                            </p>
                                         </div>
                                     </div>
 
@@ -520,13 +552,13 @@ const UserManagement = () => {
                                         <div className="space-y-0.5">
                                             <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Tipo Doc.</p>
                                             <p className="text-sm font-bold text-secondary-700">
-                                                {docTipos.find(t => t.id == editingUser?.documento_tipo_id)?.nombre || 'S/D'}
+                                                {(editingUser?.es_administrador || editingUser?.roles?.some(r => r.name === 'superuser')) ? 'Protegido' : (docTipos.find(t => t.id == editingUser?.documento_tipo_id)?.nombre || 'S/D')}
                                             </p>
                                         </div>
                                         <div className="space-y-0.5 border-t md:border-t-0 md:border-l border-secondary-200 pt-3 md:pt-0 md:pl-5">
                                             <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Número Doc.</p>
                                             <p className="text-sm font-bold text-secondary-900 tracking-wider">
-                                                {editingUser?.documento_numero || 'S/N'}
+                                                {(editingUser?.es_administrador || editingUser?.roles?.some(r => r.name === 'superuser')) ? 'Protegido' : (editingUser?.documento_numero || 'S/N')}
                                             </p>
                                         </div>
                                     </div>
