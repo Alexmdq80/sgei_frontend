@@ -167,13 +167,13 @@ const Layout = ({ children }) => {
 
     const isJefeDistrital = user?.roles?.some(r => r.name === 'jefe_distrital');
     
-    // El Jefe Distrital y el Equipo de Conducción pueden gestionar CUPOF.
+    const isConduccion = ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeRoleName);
     const canAccessCupof = isSuperUser || 
                            isJefeDistrital || 
                            activeRoleName === 'jefe_distrital' || 
-                           ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeRoleName);
+                           isConduccion;
 
-    if (hasPermission('sistema.usuarios') || isActingAsSupervisor) {
+    if (hasPermission('sistema.usuarios') || isActingAsSupervisor || isConduccion) {
         navItems.push({
             name: 'Escuelas',
             icon: <School className="w-6 h-6" />,
@@ -312,7 +312,6 @@ const Layout = ({ children }) => {
         });
     }
 
-    const isConduccion = ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeProfile?.role?.name);
     if (isConduccion || user?.roles?.some(r => r.name === 'superuser')) {
         navItems.push({ 
             name: 'Propuestas Inst.', 

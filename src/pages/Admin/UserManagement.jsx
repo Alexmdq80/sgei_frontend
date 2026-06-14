@@ -422,7 +422,7 @@ const UserManagement = () => {
                                                 )}
 
                                                 {/* Botón de Confirmar Vinculación Pendiente: Solo Jefaturas y SuperUser, NO Conducción */}
-                                                {user.estado === 'vinculacion_pendiente' && (isSuperUser || isJefeProvincial) && (
+                                                {user.estado === 'vinculacion_pendiente' && (isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital) && (
                                                     <button
                                                         onClick={() => handleConfirmVinculation(user)}
                                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white text-[10px] font-black uppercase rounded-lg hover:bg-amber-700 transition-all shadow-md active:scale-95 animate-pulse"

@@ -86,11 +86,12 @@ const ProtectedRoute = ({ children }) => {
         return <Navigate to="/profile" replace />;
     }
 
-    // 3. Lógica de Selección de Perfil/Rol (OBLIGATORIO si tiene múltiples)
+    // 3. Lógica de Selección de Perfil/Rol (OBLIGATORIO si tiene al menos uno)
     const totalRoles = (user.roles?.length || 0) + (user.escuela_usuarios?.filter(l => l.verified_at).length || 0);
     
-    // Si tiene múltiples roles y no ha seleccionado uno, lo mandamos a la pantalla de selección
-    if (totalRoles > 1 && !activeProfile && !isSuperUser && location.pathname !== '/select-role') {
+    // Si tiene roles y no ha seleccionado un perfil activo, lo mandamos a la pantalla de selección
+    // (SelectRole se encargará de auto-seleccionar si solo hay uno)
+    if (totalRoles >= 1 && !activeProfile && !isSuperUser && location.pathname !== '/select-role') {
         return <Navigate to="/select-role" replace />;
     }
 
