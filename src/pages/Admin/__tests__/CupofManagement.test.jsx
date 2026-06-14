@@ -104,15 +104,12 @@ describe('CupofManagement Component', () => {
       fireEvent.click(btnNuevo);
     });
 
-    // Seleccionar Escalafón para que aparezca el campo de Cargo
-    const selectEscalafon = screen.getByLabelText(/Escalafón/i);
-    fireEvent.change(selectEscalafon, { target: { value: '1' } });
-    
-    // Verificar que el select de cargos tiene las opciones de la API
-    const selectCargo = screen.getByLabelText(/Nombre del Cargo/i);
+    // El campo de Cargo ahora es visible directamente
+    const selectCargo = screen.getByLabelText(/Cargo \/ Función/i);
     expect(selectCargo).toBeInTheDocument();
     
-    expect(screen.getByText('PRECEPTOR/A')).toBeInTheDocument();
-    expect(screen.getByText('DIRECTOR/A')).toBeInTheDocument();
+    // Las opciones ahora incluyen el escalafón (mocked as null/Sin Escalafón o el valor real)
+    expect(screen.getByText(/PRECEPTOR\/A/)).toBeInTheDocument();
+    expect(screen.getByText(/DIRECTOR\/A/)).toBeInTheDocument();
   });
 });

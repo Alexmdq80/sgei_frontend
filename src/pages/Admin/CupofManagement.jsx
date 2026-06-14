@@ -662,61 +662,64 @@ const CupofManagement = () => {
                                         onChange={(e) => setFormData({...formData, codigo_cupof: e.target.value})}
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label htmlFor="escalafon_id" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Escalafón</label>
-                                        <select
-                                            id="escalafon_id"
-                                            required
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
-                                            value={formData.escalafon_id}
-                                            onChange={(e) => setFormData({...formData, escalafon_id: e.target.value})}
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            {escalafones.map(e => (
-                                                <option key={e.id} value={e.id}>{e.nombre}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="puesto_tipo_id" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Tipo Puesto</label>
-                                        <select
-                                            id="puesto_tipo_id"
-                                            required
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
-                                            value={formData.puesto_tipo_id}
-                                            onChange={(e) => setFormData({...formData, puesto_tipo_id: e.target.value})}
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            {puestoTipos.map(p => (
-                                                <option key={p.id} value={p.id}>{p.nombre}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                
+                                <div>
+                                    <label htmlFor="nombre_cargo" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Cargo / Función</label>
+                                    <select
+                                        id="nombre_cargo"
+                                        required
+                                        className="w-full px-4 py-3 bg-white border-2 border-primary-100 rounded-xl font-bold text-primary-900 focus:border-primary-500 outline-none transition-all"
+                                        value={formData.nombre_cargo}
+                                        onChange={(e) => {
+                                            const cargoNombre = e.target.value;
+                                            const cargo = cargos.find(c => c.nombre === cargoNombre);
+                                            if (cargo) {
+                                                const tipoMap = {
+                                                    'cargo': 'CARGO',
+                                                    'horas': 'HORAS CÁTEDRA',
+                                                    'modulos': 'MÓDULOS'
+                                                };
+                                                const pt = puestoTipos.find(p => p.nombre === tipoMap[cargo.tipo]);
+                                                setFormData({
+                                                    ...formData,
+                                                    nombre_cargo: cargo.nombre,
+                                                    escalafon_id: cargo.escalafon_id,
+                                                    puesto_tipo_id: pt ? pt.id : ''
+                                                });
+                                            } else {
+                                                setFormData({ ...formData, nombre_cargo: '', escalafon_id: '', puesto_tipo_id: '' });
+                                            }
+                                        }}
+                                    >
+                                        <option value="">Seleccione Cargo...</option>
+                                        {cargos
+                                            .filter(c => {
+                                                if (isSuperUser || isConduccion) return true;
+                                                return isHierarchicalCargo(c.nombre);
+                                            })
+                                            .map(c => (
+                                            <option key={c.id} value={c.nombre}>
+                                                {c.nombre} ({c.escalafon?.nombre || 'Sin Escalafón'})
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
+
                                 {formData.escalafon_id && (
-                                    <div className="animate-slideDown">
-                                        <label htmlFor="nombre_cargo" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Nombre del Cargo / Función</label>
-                                        <select
-                                            id="nombre_cargo"
-                                            required
-                                            className="w-full px-4 py-3 bg-white border-2 border-primary-100 rounded-xl font-bold text-primary-900 focus:border-primary-500 outline-none transition-all"
-                                            value={formData.nombre_cargo}
-                                            onChange={(e) => setFormData({...formData, nombre_cargo: e.target.value})}
-                                        >
-                                            <option value="">Seleccione Cargo...</option>
-                                            {cargos
-                                                .filter(c => {
-                                                    if (isSuperUser || isConduccion) return true;
-                                                    // Jefaturas (Provincial, Regional, Distrital) solo jerárquicos
-                                                    return isHierarchicalCargo(c.nombre);
-                                                })
-                                                .map(c => (
-                                                <option key={c.id} value={c.nombre}>
-                                                    {c.nombre}
-                                                </option>
-                                            ))}
-                                        </select>                                    </div>
+                                    <div className="flex gap-4 animate-fadeIn">
+                                        <div className="flex-1">
+                                            <p className="text-[10px] font-black text-secondary-400 uppercase mb-1">Escalafón</p>
+                                            <div className="px-4 py-2 bg-secondary-100 rounded-xl text-xs font-bold text-secondary-600 border border-secondary-200">
+                                                {escalafones.find(e => e.id === formData.escalafon_id)?.nombre || 'N/A'}
+                                            </div>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-[10px] font-black text-secondary-400 uppercase mb-1">Tipo de Puesto</p>
+                                            <div className="px-4 py-2 bg-secondary-100 rounded-xl text-xs font-bold text-secondary-600 border border-secondary-200">
+                                                {puestoTipos.find(p => p.id === formData.puesto_tipo_id)?.nombre || 'N/A'}
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
 
                                 <div>
