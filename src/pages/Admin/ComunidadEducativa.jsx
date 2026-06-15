@@ -16,6 +16,7 @@ export default function ComunidadEducativa() {
     const [personas, setPersonas] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [relacionFilter, setRelacionFilter] = useState('');
     const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
 
     // Estados para el Modal de Detalles
@@ -34,6 +35,7 @@ export default function ComunidadEducativa() {
             const response = await personaService.getComunidad({ 
                 escuela_id: activeProfile.escuela_id,
                 search: searchTerm,
+                relacion: relacionFilter,
                 page,
                 per_page: 15
             });
@@ -49,7 +51,7 @@ export default function ComunidadEducativa() {
 
     useEffect(() => {
         fetchComunidad();
-    }, [activeProfile?.escuela_id]);
+    }, [activeProfile?.escuela_id, relacionFilter]);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -98,9 +100,9 @@ export default function ComunidadEducativa() {
                 </div>
             </div>
 
-            {/* Buscador */}
+            {/* Buscador y Filtros */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-secondary-200">
-                <form onSubmit={handleSearch} className="flex gap-3 w-full lg:max-w-md">
+                <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-4">
                     <div className="relative flex-1">
                         <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
                             <Search className="w-5 h-5" />
@@ -113,9 +115,30 @@ export default function ComunidadEducativa() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <button type="submit" className="px-6 py-2.5 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors">
-                        Buscar
-                    </button>
+
+                    <div className="flex gap-3">
+                        <select 
+                            className="px-4 py-2.5 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all text-sm font-bold min-w-[180px]"
+                            value={relacionFilter}
+                            onChange={(e) => {
+                                setRelacionFilter(e.target.value);
+                                // Nota: fetchComunidad se llamará via useEffect si añadimos la dependencia o manualmente
+                            }}
+                        >
+                            <option value="">Todas las relaciones</option>
+                            <option value="ESTUDIANTE">ESTUDIANTES</option>
+                            <option value="DOCENTE">DOCENTES</option>
+                            <option value="AUXILIAR">AUXILIARES</option>
+                            <option value="ADMINISTRATIVO">ADMINISTRATIVOS</option>
+                            <option value="PADRE">PADRES</option>
+                            <option value="MADRE">MADRES</option>
+                            <option value="TUTOR">TUTORES</option>
+                        </select>
+
+                        <button type="submit" className="px-6 py-2.5 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors">
+                            Buscar
+                        </button>
+                    </div>
                 </form>
             </div>
 
@@ -157,10 +180,28 @@ export default function ComunidadEducativa() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {/* Aquí se podría inferir la relación si el backend la enviara */}
-                                            <span className="px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-black uppercase rounded border border-green-100">
-                                                Vinculado
-                                            </span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {persona.relaciones && persona.relaciones.length > 0 ? (
+                                                    persona.relaciones.map((rel, idx) => (
+                                                        <span 
+                                                            key={idx}
+                                                            className={`px-2 py-0.5 text-[10px] font-black uppercase rounded border ${
+                                                                rel.includes('ESTUDIANTE') 
+                                                                    ? 'bg-blue-50 text-blue-700 border-blue-100' 
+                                                                    : rel.includes('DOCENTE')
+                                                                    ? 'bg-primary-50 text-primary-700 border-primary-100'
+                                                                    : 'bg-green-50 text-green-700 border-green-100'
+                                                            }`}
+                                                        >
+                                                            {rel}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="px-2 py-0.5 bg-secondary-50 text-secondary-500 text-[10px] font-black uppercase rounded border border-secondary-100">
+                                                        Sin definir
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <button 
