@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/userService';
 import documentoTipoService from '../services/documentoTipoService';
+import defaultAvatar from '../assets/default_avatar.jpg';
 
 /**
  * Página de gestión del perfil de usuario.
@@ -19,7 +20,7 @@ const Profile = () => {
     const [documentoTipos, setDocumentoTipos] = useState([]);
     const [passwordData, setPasswordData] = useState({ current_password: '', password: '', password_confirmation: '' });
     const [avatar, setAvatar] = useState(null);
-    const [preview, setPreview] = useState(user?.avatar_url || null);
+    const [preview, setPreview] = useState(user?.avatar_url || defaultAvatar);
     const [isSubmittingProfile, setIsSubmittingProfile] = useState(false);
     const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
     const [isSubmittingAvatar, setIsSubmittingAvatar] = useState(false);
@@ -252,6 +253,31 @@ const Profile = () => {
                                 </div>
                             )}
                             <div className="relative group">
+                                <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-secondary-200 bg-secondary-100">
+                                    <img 
+                                        src={preview || defaultAvatar} 
+                                        alt="Avatar del usuario" 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            // Si la imagen en el storage de Laragon no existe físicamente,
+                                            // cancelamos el error y clavamos la de src/assets/
+                                            e.target.onerror = null; 
+                                            e.target.src = defaultAvatar;
+                                        }}
+                                    />
+                                </div>
+                                {user?.email_verified_at && (
+                                    <label className="absolute bottom-0 right-0 p-2 bg-primary-600 text-white rounded-full cursor-pointer shadow-lg hover:bg-primary-700 transition-colors">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        <input type="file" className="hidden" onChange={handleAvatarChange} accept="image/*" />
+                                    </label>
+                                )}
+                            </div>
+
+                            {/* <div className="relative group">
                                 <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-secondary-200">
                                     {preview ? (
                                         <img src={preview} alt="Preview" className="w-full h-full object-cover" />
@@ -270,7 +296,7 @@ const Profile = () => {
                                         <input type="file" className="hidden" onChange={handleAvatarChange} accept="image/*" />
                                     </label>
                                 )}
-                            </div>
+                            </div> */}
                             
                             <div className="w-full mt-8 space-y-3">
                                 <button

@@ -6,6 +6,7 @@ import {
     BookOpen, GraduationCap, ChevronDown, Menu, LogOut, 
     RefreshCw, CheckCircle, AlertCircle, X 
 } from 'lucide-react';
+import defaultAvatar from '../assets/default_avatar.jpg';
 
 /**
  * Layout principal que envuelve las páginas protegidas.
@@ -521,8 +522,20 @@ const Layout = ({ children }) => {
                                     )}
                                 </div>
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-primary-200 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
+                            {/* <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-primary-200 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
                                 {user?.avatar_url ? <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" /> : <span>{user?.nombre?.charAt(0)}</span>}
+                            </div> */}
+                            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center border-2 border-primary-200 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
+                                <img 
+                                    src={user?.avatar_url || defaultAvatar} 
+                                    alt="Avatar" 
+                                    className="w-full h-full object-cover" 
+                                    onError={(e) => {
+                                        // Si la URL del backend viene con dato pero el archivo no existe en la carpeta
+                                        e.target.onerror = null;
+                                        e.target.src = defaultAvatar;
+                                    }}
+                                />
                             </div>
                             <ChevronDown className={`w-4 h-4 text-secondary-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                         </button>
