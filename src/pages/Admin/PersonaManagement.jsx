@@ -29,7 +29,7 @@ export default function PersonaManagement() {
     const isConduccion = authUser?.roles?.some(r => ["director", "vicedirector", "secretario", "prosecretario"].includes(r.name));
 
     // Permiso Global de Gestión (CRUD del Padrón)
-    const canManage = isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital || isConduccion;
+    const canManage = isSuperUser;
 
     // Estados de Datos
     const [personas, setPersonas] = useState([]);

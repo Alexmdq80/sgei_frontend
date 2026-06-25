@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
     Home, User, Users, Contact, School, LayoutDashboard, 
     BookOpen, GraduationCap, ChevronDown, Menu, LogOut, 
-    RefreshCw, CheckCircle, AlertCircle, X 
+    RefreshCw, CheckCircle, AlertCircle, X, Shield
 } from 'lucide-react';
 import defaultAvatar from '../assets/default_avatar.jpg';
 
@@ -150,19 +150,30 @@ const Layout = ({ children }) => {
     // El Supervisor Curricular NO gestiona personas ni usuarios, incluso si tiene otros roles globales
     const isActingAsSupervisor = activeRoleName === 'supervisor_curricular';
 
-    if (hasPermission('sistema.usuarios') && !isActingAsSupervisor) {
+    if (isSuperUser) {
         navItems.push({
             name: 'Gestión de Usuarios',
             path: '/admin/usuarios',
             icon: <Users className="w-6 h-6" />
         });
-    }
-
-    if ((hasPermission('sistema.usuarios') || hasPermission('personal.ver')) && !isActingAsSupervisor) {
         navItems.push({
             name: 'Gestión de Personas',
             path: '/admin/personas',
             icon: <Contact className="w-6 h-6" />
+        });
+        navItems.push({
+            name: 'Jefes Provinciales',
+            path: '/admin/jefes-provinciales',
+            icon: <Shield className="w-6 h-6" />
+        });
+    }
+
+    const isProvincialAdmin = activeRoleName === 'jefe_provincial';
+    if (isSuperUser || isProvincialAdmin) {
+        navItems.push({
+            name: 'Jefes Regionales',
+            path: '/admin/jefes-regionales',
+            icon: <Shield className="w-6 h-6 text-blue-400" />
         });
     }
 

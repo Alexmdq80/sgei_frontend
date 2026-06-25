@@ -18,8 +18,8 @@ const UserManagement = () => {
     const isJefeRegional = authUser?.roles?.some(r => r.name === 'jefe_regional');
     const isJefeDistrital = authUser?.roles?.some(r => r.name === 'jefe_distrital');
     
-    // Solo Superuser, Jefaturas (Provincial, Regional, Distrital) y Conducción tienen acceso.
-    const hasAccess = isSuperUser || isConduccion || isJefeProvincial || isJefeRegional || isJefeDistrital;
+    // Solo Superuser tiene acceso global a la gestión de usuarios.
+    const hasAccess = isSuperUser;
     
     // Estados para Usuarios
     const [users, setUsers] = useState([]);

@@ -10,6 +10,8 @@ import SelectRole from './pages/SelectRole';
 import VerifyEmail from './pages/VerifyEmail';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import UserManagement from './pages/Admin/UserManagement';
+import ProvinciaUsuarioManagement from './pages/Admin/ProvinciaUsuarioManagement';
+import RegionUsuarioManagement from './pages/Admin/RegionUsuarioManagement';
 import CupofManagement from './pages/Admin/CupofManagement';
 import PersonaManagement from './pages/Admin/PersonaManagement';
 import ComunidadEducativa from './pages/Admin/ComunidadEducativa';
@@ -181,6 +183,24 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <UserManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/jefes-provinciales" 
+                        element={
+                            <ProtectedRoute>
+                                <ProvinciaUsuarioManagement />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    <Route 
+                        path="/admin/jefes-regionales" 
+                        element={
+                            <ProtectedRoute>
+                                <RegionUsuarioManagement />
                             </ProtectedRoute>
                         } 
                     />
