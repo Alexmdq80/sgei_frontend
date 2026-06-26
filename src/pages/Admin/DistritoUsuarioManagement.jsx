@@ -6,8 +6,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { parseError } from '../../utils/errorParser';
 import distritoUsuarioService from '../../services/distritoUsuarioService';
-import userService from '../../services/userService';
 import departamentoService from '../../services/departamentoService';
+import PersonaCombobox from '../../components/PersonaCombobox';
 
 /**
  * Gestión de Jefes Distritales.
@@ -21,10 +21,10 @@ export default function DistritoUsuarioManagement() {
     const [isModalOpen, setIsCreateModalOpen] = useState(false);
 
     // Datos para el formulario
-    const [users, setUsers] = useState([]);
+    const [selectedPersona, setSelectedPersona] = useState(null);
     const [districts, setDistricts] = useState([]);
     const [formData, setFormData] = useState({
-        usuario_id: '',
+        persona_id: '',
         departamento_id: ''
     });
 
@@ -46,34 +46,32 @@ export default function DistritoUsuarioManagement() {
         }
     };
 
-    const fetchUsers = async (search = '') => {
-        try {
-            const response = await userService.getAll({ search });
-            setUsers(response.data || []);
-        } catch (error) {
-            console.error('Error al cargar usuarios');
-        }
-    };
-
     useEffect(() => {
         fetchData();
-        fetchUsers();
     }, []);
 
     const handleCreate = async (e) => {
         e.preventDefault();
+        if (!selectedPersona) return;
         try {
             setIsSaving(true);
-            await distritoUsuarioService.assign(formData);
+            await personaService.assignJefeDistrital(selectedPersona.id, formData.departamento_id);
             showNotification('Jefe Distrital asignado con éxito.', 'success');
             setIsCreateModalOpen(false);
-            setFormData({ usuario_id: '', departamento_id: '' });
+            setSelectedPersona(null);
+            setFormData({ persona_id: '', departamento_id: '' });
             fetchData();
         } catch (error) {
             showNotification(parseError(error, 'No se pudo asignar el jefe distrital.'), 'error');
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handleCloseModal = () => {
+        setIsCreateModalOpen(false);
+        setSelectedPersona(null);
+        setFormData({ persona_id: '', departamento_id: '' });
     };
 
     const handleDelete = async (id) => {
@@ -190,31 +188,27 @@ export default function DistritoUsuarioManagement() {
             {/* MODAL DE ASIGNACIÓN */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn">
-                        <div className="p-6 border-b border-secondary-100 flex items-center justify-between bg-primary-50">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-visible animate-scaleIn">
+                        <div className="p-6 border-b border-secondary-100 flex items-center justify-between bg-primary-50 rounded-t-3xl">
                             <h2 className="text-xl font-black text-primary-900 uppercase">Asignar Jefe Distrital</h2>
-                            <button onClick={() => setIsCreateModalOpen(false)} className="text-primary-400 hover:text-primary-600">
+                            <button type="button" onClick={handleCloseModal} className="text-primary-400 hover:text-primary-600">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreate} className="p-8 space-y-6">
+                        <form onSubmit={handleCreate} className="p-8 space-y-6 min-h-[340px]">
                             <div className="space-y-4">
                                 <div>
-                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Seleccionar Usuario</label>
-                                    <select 
-                                        required
-                                        className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                        value={formData.usuario_id}
-                                        onChange={(e) => setFormData({...formData, usuario_id: e.target.value})}
-                                    >
-                                        <option value="">Buscar usuario...</option>
-                                        {users.map(u => (
-                                            <option key={u.id} value={u.id}>
-                                                {u.nombre} ({u.email})
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Persona</label>
+                                    <div className="mt-1">
+                                        <PersonaCombobox
+                                            value={selectedPersona}
+                                            onChange={(p) => {
+                                                setSelectedPersona(p);
+                                                setFormData({ ...formData, persona_id: p?.id || '' });
+                                            }}
+                                        />
+                                    </div>
                                 </div>
 
                                 <div>
@@ -236,14 +230,14 @@ export default function DistritoUsuarioManagement() {
                             <div className="pt-4 flex gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => setIsCreateModalOpen(false)}
+                                    onClick={handleCloseModal}
                                     className="flex-1 px-6 py-4 bg-secondary-100 text-secondary-600 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200 transition-all"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={isSaving}
+                                    disabled={isSaving || !selectedPersona || !formData.departamento_id}
                                     className="flex-[2] px-6 py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
                                     {isSaving ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Confirmar'}
