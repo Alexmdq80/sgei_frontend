@@ -199,7 +199,17 @@ const Layout = ({ children }) => {
         });
     }
 
-    if (isSuperUser || (hasPermission('sistema.usuarios') && !isActingAsSupervisor)) {
+    const isRestrictedFromGeneralPanel = [
+        'jefe_provincial', 
+        'jefe_regional', 
+        'jefe_distrital',
+        'director', 
+        'vicedirector', 
+        'secretario', 
+        'prosecretario'
+    ].includes(activeRoleName);
+
+    if (isSuperUser || (hasPermission('sistema.usuarios') && !isActingAsSupervisor && !isRestrictedFromGeneralPanel)) {
         navItems.push({ 
             name: 'Panel General', 
             icon: <LayoutDashboard className="w-6 h-6" />,
@@ -310,7 +320,10 @@ const Layout = ({ children }) => {
         });
     }
 
-    if (isSuperUser || hasPermission('planes.ver')) {
+    const hasCurricularVerPermission = hasPermission('planes.ver') || 
+        ['jefe_provincial', 'jefe_regional', 'jefe_distrital', 'director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeRoleName);
+
+    if (isSuperUser || hasCurricularVerPermission) {
         navItems.push({ 
             name: 'Panel Curricular', 
             icon: <BookOpen className="w-6 h-6" />,

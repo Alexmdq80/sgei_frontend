@@ -67,6 +67,23 @@ const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, user, activeProfile, loading } = useAuth();
     const location = useLocation();
 
+    // 0. Control de Acceso para Panel General
+    const activeRoleName = activeProfile?.role?.name;
+    const isSuperUser = user?.es_administrador || user?.roles?.some(r => r.name === 'superuser');
+    const isRestrictedFromGeneralPanel = [
+        'jefe_provincial', 
+        'jefe_regional', 
+        'jefe_distrital',
+        'director', 
+        'vicedirector', 
+        'secretario', 
+        'prosecretario'
+    ].includes(activeRoleName);
+
+    if (location.pathname.startsWith('/admin/general') && isRestrictedFromGeneralPanel && !isSuperUser) {
+        return <Navigate to="/" replace />;
+    }
+
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-secondary-50">
             <div className="flex flex-col items-center">
