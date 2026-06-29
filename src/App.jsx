@@ -97,8 +97,8 @@ const ProtectedRoute = ({ children }) => {
         return <Navigate to="/login" />;
     }
 
-    // 1. Bypass de Seguridad (Superusuario tiene acceso total inmediato)
-    const isSuperUser = user?.es_administrador || user?.roles?.some(r => r.name === 'superuser');
+
+
 
     // 2. Verificación de Email (OBLIGATORIO)
     if (!user?.email_verified_at && location.pathname !== '/profile') {
