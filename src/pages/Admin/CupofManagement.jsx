@@ -188,7 +188,11 @@ const CupofManagement = () => {
             setEscalafones(eRes || []);
             setPuestoTipos(pRes || []);
         } catch (error) {
-            console.error('Error al cargar catálogos de escalafón/puesto');
+            console.error('Error al cargar catálogos de escalafón/puesto', {
+                status: error?.response?.status,
+                data: error?.response?.data,
+                message: error?.message,
+            });
         }
     };
 

@@ -2,7 +2,7 @@ import api from './api';
 
 const escalafonService = {
     getAll: async () => {
-        const response = await api.get('/admin/escalafones');
+        const response = await api.get('/escalafones');
         return response.data;
     },
     getById: async (id) => {

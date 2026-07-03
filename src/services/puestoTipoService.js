@@ -2,7 +2,7 @@ import api from './api';
 
 const puestoTipoService = {
     getAll: async () => {
-        const response = await api.get('/admin/puesto-tipos');
+        const response = await api.get('/puesto-tipos');
         return response.data;
     },
     getById: async (id) => {
