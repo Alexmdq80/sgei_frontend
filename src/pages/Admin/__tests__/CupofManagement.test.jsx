@@ -25,6 +25,8 @@ vi.mock('../../../services/cargoService', () => ({
 vi.mock('../../../services/escuelaService', () => ({
   default: {
     search: vi.fn(),
+    getNiveles: vi.fn(),
+    getSectores: vi.fn(),
   }
 }));
 
@@ -80,6 +82,8 @@ describe('CupofManagement Component', () => {
     cupofService.getAll.mockResolvedValue([]);
     cargoService.getAll.mockResolvedValue(mockCargos);
     escuelaService.search.mockResolvedValue(mockEscuelas);
+    escuelaService.getNiveles.mockResolvedValue([]);
+    escuelaService.getSectores.mockResolvedValue([]);
     personaService.getAll.mockResolvedValue({ data: [] });
     escalafonService.getAll.mockResolvedValue([{ id: 1, nombre: 'DOCENTE' }]);
     puestoTipoService.getAll.mockResolvedValue([{ id: 1, nombre: 'CARGO' }]);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { parseError } from '../../utils/errorParser';
 import cupofService from '../../services/cupofService';
@@ -7,6 +7,7 @@ import escuelaService from '../../services/escuelaService';
 import cargoService from '../../services/cargoService';
 import escalafonService from '../../services/escalafonService';
 import puestoTipoService from '../../services/puestoTipoService';
+import geografiaService from '../../services/geografiaService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
 /**
@@ -52,8 +53,14 @@ const CupofManagement = () => {
         escuela_id: activeProfile?.escuela_id || '',
         estado_cupof: '',
         escalafon_id: '',
-        search: ''
+        search: '',
+        localidad_id: '',
+        nivel_id: '',
+        sector_id: '',
+        numero: '',
+        school_name: ''
     });
+    const [filterLocalidades, setFilterLocalidades] = useState([]);
 
     // Estados para Padrón de Personas
     const [personas, setPersonas] = useState([]);
@@ -77,7 +84,17 @@ const CupofManagement = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [showEscuelaList, setShowEscuelaList] = useState(false);
+
+    // Estados para el selector geográfico del modal (Región → Departamento → Localidad → Escuela)
+    const [modalRegiones, setModalRegiones] = useState([]);
+    const [modalDepartamentos, setModalDepartamentos] = useState([]);
+    const [modalLocalidades, setModalLocalidades] = useState([]);
+    const [modalEscuelasFiltradas, setModalEscuelasFiltradas] = useState([]);
+    const [modalFiltro, setModalFiltro] = useState({ region_id: '', departamento_id: '', localidad_id: '', nivel_id: '', sector_id: '', numero: '', nombre: '' });
+    const [isLoadingModalEscuelas, setIsLoadingModalEscuelas] = useState(false);
     const [selectedCupof, setSelectedCupof] = useState(null);
+    const [niveles, setNiveles] = useState([]);
+    const [sectores, setSectores] = useState([]);
     const [formData, setFormData] = useState({
         codigo_cupof: '',
         escuela_id: '',
@@ -181,14 +198,18 @@ const CupofManagement = () => {
 
     const fetchCatalogs = async () => {
         try {
-            const [eRes, pRes] = await Promise.all([
+            const [eRes, pRes, nRes, sRes] = await Promise.all([
                 escalafonService.getAll(),
-                puestoTipoService.getAll()
+                puestoTipoService.getAll(),
+                escuelaService.getNiveles(),
+                escuelaService.getSectores()
             ]);
             setEscalafones(eRes || []);
             setPuestoTipos(pRes || []);
+            setNiveles(nRes || []);
+            setSectores(sRes || []);
         } catch (error) {
-            console.error('Error al cargar catálogos de escalafón/puesto', {
+            console.error('Error al cargar catálogos de escalafón/puesto/niveles/sectores', {
                 status: error?.response?.status,
                 data: error?.response?.data,
                 message: error?.message,
@@ -206,6 +227,88 @@ const CupofManagement = () => {
             fetchCatalogs();
         }
     }, [user, hasAccess]);
+
+    // Carga de localidades para el filtro de la página principal del Jefe Distrital
+    useEffect(() => {
+        if (isJefeDistrital && user) {
+            const distId = user?.distrito_usuario?.departamento_id || user?.distritoUsuario?.departamento_id;
+            if (distId) {
+                geografiaService.getLocalidades(distId)
+                    .then(data => setFilterLocalidades(Array.isArray(data) ? data : (data?.data || [])))
+                    .catch(() => setFilterLocalidades([]));
+            }
+        }
+    }, [user, isJefeDistrital]);
+
+    // Carga de regiones para el selector del modal (solo cuando se abre en modo listado)
+    useEffect(() => {
+        if (!showEscuelaList || !isCreateModalOpen) return;
+        
+        if (isJefeDistrital && !isSuperUser) {
+            const distId = user?.distrito_usuario?.departamento_id || user?.distritoUsuario?.departamento_id;
+            if (distId) {
+                setModalFiltro(prev => ({ ...prev, departamento_id: distId, region_id: '', localidad_id: '', nivel_id: '', sector_id: '', numero: '' }));
+            }
+            return;
+        }
+
+        geografiaService.getRegiones()
+            .then(data => setModalRegiones(Array.isArray(data) ? data : (data?.data || [])))
+            .catch(() => {});
+    }, [showEscuelaList, isCreateModalOpen, isJefeDistrital, isSuperUser, user]);
+
+    // Efecto: al cambiar región, carga departamentos de esa región
+    useEffect(() => {
+        setModalDepartamentos([]);
+        setModalLocalidades([]);
+        setModalFiltro(prev => ({ ...prev, departamento_id: '', localidad_id: '' }));
+        if (!modalFiltro.region_id) return;
+        geografiaService.getDepartamentos(null, { region_id: modalFiltro.region_id })
+            .then(data => setModalDepartamentos(Array.isArray(data) ? data : (data?.data || [])))
+            .catch(() => setModalDepartamentos([]));
+    }, [modalFiltro.region_id]);
+
+    // Efecto: al cambiar departamento, carga localidades de ese departamento
+    useEffect(() => {
+        setModalLocalidades([]);
+        setModalFiltro(prev => ({ ...prev, localidad_id: '' }));
+        if (!modalFiltro.departamento_id) return;
+        geografiaService.getLocalidades(modalFiltro.departamento_id)
+            .then(data => setModalLocalidades(Array.isArray(data) ? data : (data?.data || [])))
+            .catch(() => setModalLocalidades([]));
+    }, [modalFiltro.departamento_id]);
+
+    // Efecto: al cambiar localidad, departamento o nombre → carga escuelas filtradas
+    useEffect(() => {
+        if (!showEscuelaList || !isCreateModalOpen) return;
+
+        const fetchModalEscuelas = async () => {
+            setIsLoadingModalEscuelas(true);
+            try {
+                const distId = user?.distrito_usuario?.departamento_id || user?.distritoUsuario?.departamento_id;
+                const params = {
+                    search: modalFiltro.nombre || undefined,
+                    localidad_id: modalFiltro.localidad_id || undefined,
+                    nivel_id: modalFiltro.nivel_id || undefined,
+                    sector_id: modalFiltro.sector_id || undefined,
+                    numero: modalFiltro.numero || undefined,
+                    // Si hay departamento seleccionado y no hay localidad, filtra por departamento
+                    ...(!modalFiltro.localidad_id && modalFiltro.departamento_id ? { departamento_id: modalFiltro.departamento_id } : {}),
+                    // Para Jefe Distrital, siempre restringe al departamento de su distrito
+                    ...(isJefeDistrital && !isSuperUser && distId && !modalFiltro.departamento_id ? { departamento_id: distId } : {}),
+                };
+                const data = await escuelaService.search('', params);
+                setModalEscuelasFiltradas(Array.isArray(data) ? data : (data?.data || []));
+            } catch {
+                setModalEscuelasFiltradas([]);
+            } finally {
+                setIsLoadingModalEscuelas(false);
+            }
+        };
+
+        const timer = setTimeout(fetchModalEscuelas, 350);
+        return () => clearTimeout(timer);
+    }, [modalFiltro.localidad_id, modalFiltro.departamento_id, modalFiltro.nivel_id, modalFiltro.sector_id, modalFiltro.numero, modalFiltro.nombre, showEscuelaList, isCreateModalOpen]);
 
     // Búsqueda de escuela específica por CUE para el Modal
     useEffect(() => {
@@ -250,7 +353,7 @@ const CupofManagement = () => {
         if (!hasAccess) return;
         if (activeTab === 'pof') fetchCupofs();
         if (activeTab === 'personas') fetchPersonas();
-    }, [activeTab, filters.escuela_id, filters.estado_cupof, filters.escalafon_id, hasAccess]);
+    }, [activeTab, filters.escuela_id, filters.estado_cupof, filters.escalafon_id, filters.localidad_id, filters.nivel_id, filters.sector_id, filters.numero, filters.school_name, hasAccess]);
 
     if (!hasAccess) {
         return (
@@ -366,6 +469,12 @@ const CupofManagement = () => {
                                 setFoundEscuela(null);
                             }
                             
+                            // Reset modal filters
+                            setModalFiltro({ region_id: '', departamento_id: '', localidad_id: '', nivel_id: '', sector_id: '', numero: '', nombre: '' });
+                            setModalDepartamentos([]);
+                            setModalLocalidades([]);
+                            setModalEscuelasFiltradas([]);
+
                             setShowEscuelaList(false);
                             setIsCreateModalOpen(true);
                         }}
@@ -403,41 +512,134 @@ const CupofManagement = () => {
             {activeTab === 'pof' && (
                 <div className="bg-white rounded-3xl shadow-sm border border-secondary-200 overflow-hidden">
                     {/* Filtros */}
-                    <div className="p-6 border-b border-secondary-100 bg-secondary-50/50 flex flex-wrap gap-4">
-                        {(isJefeDistrital || isSuperUser) && (
+                    <div className="p-6 border-b border-secondary-100 bg-secondary-50/50 space-y-3">
+                        {/* Fila 1: filtros rápidos */}
+                        <div className="flex flex-wrap gap-3">
+                            {/* Selector de escuela: solo para isSuperUser (no Jefe Distrital — usa filtros geográficos abajo) */}
+                            {isSuperUser && (
+                                <select 
+                                    id="filter_escuela_id"
+                                    name="escuela_id"
+                                    aria-label="Filtrar por Escuela"
+                                    className="flex-1 min-w-[200px] px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                                    value={filters.escuela_id}
+                                    onChange={(e) => setFilters({...filters, escuela_id: e.target.value})}
+                                >
+                                    <option value="">Todas las Escuelas</option>
+                                    {escuelas.map(e => (
+                                        <option key={e.id} value={e.id}>{e.nombre} - ({e.cue_anexo})</option>
+                                    ))}
+                                </select>
+                            )}
+
                             <select 
-                                className="flex-1 min-w-[200px] px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                value={filters.escuela_id}
-                                onChange={(e) => setFilters({...filters, escuela_id: e.target.value})}
+                                id="filter_estado_cupof"
+                                name="estado_cupof"
+                                aria-label="Filtrar por Estado de CUPOF"
+                                className="px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none"
+                                value={filters.estado_cupof}
+                                onChange={(e) => setFilters({...filters, estado_cupof: e.target.value})}
                             >
-                                <option value="">Todas las Escuelas</option>
-                                {escuelas.map(e => (
-                                    <option key={e.id} value={e.id}>{e.nombre} - ({e.cue_anexo})</option>
+                                <option value="">Todos los Estados</option>
+                                <option value="disponible">Disponible</option>
+                                <option value="ocupado">Ocupado</option>
+                                <option value="baja">Baja (Cerrado)</option>
+                            </select>
+
+                            <select 
+                                id="filter_escalafon_id"
+                                name="escalafon_id"
+                                aria-label="Filtrar por Escalafón"
+                                className="px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none"
+                                value={filters.escalafon_id}
+                                onChange={(e) => setFilters({...filters, escalafon_id: e.target.value})}
+                            >
+                                <option value="">Todos los Escalafones</option>
+                                {escalafones.map(e => (
+                                    <option key={e.id} value={e.id}>{e.nombre}</option>
                                 ))}
                             </select>
+                        </div>
+
+                        {/* Fila 2: filtros geográficos de escuela (solo Jefe Distrital) */}
+                        {isJefeDistrital && !isSuperUser && (
+                            <div className="flex flex-wrap gap-3 pt-1 border-t border-secondary-200">
+                                <select
+                                    id="filter_localidad_id"
+                                    name="localidad_id"
+                                    aria-label="Filtrar por Localidad"
+                                    className="flex-1 min-w-[160px] px-3 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                                    value={filters.localidad_id}
+                                    onChange={(e) => setFilters({...filters, localidad_id: e.target.value})}
+                                >
+                                    <option value="">Todas las Localidades</option>
+                                    {filterLocalidades.map(l => (
+                                        <option key={l.id} value={l.id}>{l.nombre}</option>
+                                    ))}
+                                </select>
+
+                                <select
+                                    id="filter_nivel_id"
+                                    name="nivel_id"
+                                    aria-label="Filtrar por Nivel"
+                                    className="px-3 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                                    value={filters.nivel_id}
+                                    onChange={(e) => setFilters({...filters, nivel_id: e.target.value})}
+                                >
+                                    <option value="">Todos los Niveles</option>
+                                    {niveles.map(n => (
+                                        <option key={n.id} value={n.id}>{n.nombre}</option>
+                                    ))}
+                                </select>
+
+                                <select
+                                    id="filter_sector_id"
+                                    name="sector_id"
+                                    aria-label="Filtrar por Sector"
+                                    className="px-3 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                                    value={filters.sector_id}
+                                    onChange={(e) => setFilters({...filters, sector_id: e.target.value})}
+                                >
+                                    <option value="">Todos los Sectores</option>
+                                    {sectores.map(s => (
+                                        <option key={s.id} value={s.id}>{s.nombre}</option>
+                                    ))}
+                                </select>
+
+                                <input
+                                    id="filter_numero"
+                                    name="numero"
+                                    aria-label="Filtrar por Número de Escuela"
+                                    type="text"
+                                    placeholder="Nº escuela"
+                                    className="w-24 px-3 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                                    value={filters.numero}
+                                    onChange={(e) => setFilters({...filters, numero: e.target.value})}
+                                />
+
+                                <input
+                                    id="filter_school_name"
+                                    name="school_name"
+                                    aria-label="Buscar por nombre de escuela"
+                                    type="text"
+                                    placeholder="Buscar escuela..."
+                                    className="flex-1 min-w-[160px] px-3 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                                    value={filters.school_name}
+                                    onChange={(e) => setFilters({...filters, school_name: e.target.value})}
+                                />
+
+                                {/* Botón limpiar filtros geográficos */}
+                                {(filters.localidad_id || filters.nivel_id || filters.sector_id || filters.numero || filters.school_name) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFilters(prev => ({...prev, localidad_id: '', nivel_id: '', sector_id: '', numero: '', school_name: ''}))}
+                                        className="px-3 py-2.5 bg-secondary-100 hover:bg-secondary-200 text-secondary-600 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                                    >
+                                        Limpiar
+                                    </button>
+                                )}
+                            </div>
                         )}
-
-                        <select 
-                            className="px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none"
-                            value={filters.estado_cupof}
-                            onChange={(e) => setFilters({...filters, estado_cupof: e.target.value})}
-                        >
-                            <option value="">Todos los Estados</option>
-                            <option value="disponible">Disponible</option>
-                            <option value="ocupado">Ocupado</option>
-                            <option value="baja">Baja (Cerrado)</option>
-                        </select>
-
-                        <select 
-                            className="px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none"
-                            value={filters.escalafon_id}
-                            onChange={(e) => setFilters({...filters, escalafon_id: e.target.value})}
-                        >
-                            <option value="">Todos los Escalafones</option>
-                            {escalafones.map(e => (
-                                <option key={e.id} value={e.id}>{e.nombre}</option>
-                            ))}
-                        </select>
                     </div>
 
                     {isLoading ? (
@@ -571,6 +773,9 @@ const CupofManagement = () => {
                     <div className="p-6 border-b border-secondary-100 bg-secondary-50/50 flex flex-wrap gap-4">
                         <div className="flex-1 min-w-[300px] relative">
                             <input 
+                                id="filter_persona_search"
+                                name="persona_search"
+                                aria-label="Buscar en Padrón"
                                 type="text"
                                 className="w-full pl-12 pr-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
                                 placeholder="Buscar por Nombre, Apellido o DNI en el Padrón..."
@@ -727,7 +932,7 @@ const CupofManagement = () => {
                                 )}
 
                                 <div>
-                                    <label htmlFor="cue_search" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Institución (CUE_Anexo)</label>
+                                    <label htmlFor={!isConduccion && !showEscuelaList ? "cue_search" : undefined} className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Institución (CUE_Anexo)</label>
                                     
                                     {isConduccion ? (
                                         <div className="p-4 bg-secondary-100 border border-secondary-200 rounded-xl font-bold text-secondary-600 flex items-center gap-3">
@@ -738,7 +943,8 @@ const CupofManagement = () => {
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="flex gap-2 mb-2">
+                                            {/* Tabs: Por CUE / Por Filtros */}
+                                            <div className="flex gap-2 mb-3">
                                                 <button 
                                                     type="button"
                                                     onClick={() => setShowEscuelaList(false)}
@@ -751,34 +957,175 @@ const CupofManagement = () => {
                                                     onClick={() => setShowEscuelaList(true)}
                                                     className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showEscuelaList ? 'bg-secondary-900 text-white' : 'bg-secondary-100 text-secondary-500 hover:bg-secondary-200'}`}
                                                 >
-                                                    Ver Listado
+                                                    Por Filtros
                                                 </button>
                                             </div>
 
                                             {showEscuelaList ? (
-                                                <select 
-                                                    required
-                                                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-primary-500"
-                                                    value={formData.escuela_id}
-                                                    onChange={(e) => {
-                                                        const escId = e.target.value;
-                                                        setFormData({...formData, escuela_id: escId});
-                                                        const esc = escuelas.find(i => String(i.id) === String(escId));
-                                                        if (esc) {
-                                                            setFoundEscuela(esc);
-                                                            setCueSearch(esc.cue_anexo);
-                                                        }
-                                                    }}
-                                                >
-                                                    <option value="">Seleccionar Institución...</option>
-                                                    {escuelas.map(esc => (
-                                                        <option key={esc.id} value={esc.id}>{esc.nombre} - ({esc.cue_anexo})</option>
-                                                    ))}
-                                                </select>
+                                                /* ── Selector geográfico secuencial ── */
+                                                <div className="space-y-2 animate-fadeIn">
+                                                    {/* Región (Solo no Jefe Distrital) */}
+                                                    {!(isJefeDistrital && !isSuperUser) && (
+                                                        <div>
+                                                            <label htmlFor="modal_region_id" className="block text-[9px] font-black text-secondary-400 uppercase mb-1">Región Educativa</label>
+                                                            <select
+                                                                id="modal_region_id"
+                                                                name="region_id"
+                                                                className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all"
+                                                                value={modalFiltro.region_id}
+                                                                onChange={e => setModalFiltro(prev => ({ ...prev, region_id: e.target.value, localidad_id: '' }))}
+                                                            >
+                                                                <option value="">Todas las Regiones</option>
+                                                                {modalRegiones.map(r => (
+                                                                    <option key={r.id} value={r.id}>Región {r.numero ?? r.id}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Departamento (Solo no Jefe Distrital) */}
+                                                    {!(isJefeDistrital && !isSuperUser) && (
+                                                        <div>
+                                                            <label htmlFor="modal_departamento_id" className="block text-[9px] font-black text-secondary-400 uppercase mb-1">Departamento</label>
+                                                            <select
+                                                                id="modal_departamento_id"
+                                                                name="departamento_id"
+                                                                className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all disabled:opacity-50"
+                                                                value={modalFiltro.departamento_id}
+                                                                onChange={e => setModalFiltro(prev => ({ ...prev, departamento_id: e.target.value, localidad_id: '' }))}
+                                                                disabled={!modalFiltro.region_id && modalDepartamentos.length === 0}
+                                                            >
+                                                                <option value="">Todos los Departamentos</option>
+                                                                {modalDepartamentos.map(d => (
+                                                                    <option key={d.id} value={d.id}>{d.nombre}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Localidad */}
+                                                    <div>
+                                                        <label htmlFor="modal_localidad_id" className="block text-[9px] font-black text-secondary-400 uppercase mb-1">Localidad</label>
+                                                        <select
+                                                            id="modal_localidad_id"
+                                                            name="localidad_id"
+                                                            className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all disabled:opacity-50"
+                                                            value={modalFiltro.localidad_id}
+                                                            onChange={e => setModalFiltro(prev => ({ ...prev, localidad_id: e.target.value }))}
+                                                            disabled={!modalFiltro.departamento_id && modalLocalidades.length === 0}
+                                                        >
+                                                            <option value="">Todas las Localidades</option>
+                                                            {modalLocalidades.map(l => (
+                                                                <option key={l.id} value={l.id}>{l.nombre}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+
+                                                    {/* Nivel y Sector Grid */}
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label htmlFor="modal_nivel_id" className="block text-[9px] font-black text-secondary-400 uppercase mb-1">Nivel</label>
+                                                            <select
+                                                                id="modal_nivel_id"
+                                                                name="nivel_id"
+                                                                className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all"
+                                                                value={modalFiltro.nivel_id}
+                                                                onChange={e => setModalFiltro(prev => ({ ...prev, nivel_id: e.target.value }))}
+                                                            >
+                                                                <option value="">Todos</option>
+                                                                {niveles.map(n => (
+                                                                    <option key={n.id} value={n.id}>{n.nombre}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label htmlFor="modal_sector_id" className="block text-[9px] font-black text-secondary-400 uppercase mb-1">Sector</label>
+                                                            <select
+                                                                id="modal_sector_id"
+                                                                name="sector_id"
+                                                                className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all"
+                                                                value={modalFiltro.sector_id}
+                                                                onChange={e => setModalFiltro(prev => ({ ...prev, sector_id: e.target.value }))}
+                                                            >
+                                                                <option value="">Todos</option>
+                                                                {sectores.map(s => (
+                                                                    <option key={s.id} value={s.id}>{s.nombre}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Número y Nombre Grid */}
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        <div className="col-span-1">
+                                                            <label htmlFor="modal_numero" className="block text-[9px] font-black text-secondary-400 uppercase mb-1">Número</label>
+                                                            <input
+                                                                id="modal_numero"
+                                                                name="numero"
+                                                                type="text"
+                                                                className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all"
+                                                                placeholder="Ej: 12"
+                                                                value={modalFiltro.numero}
+                                                                onChange={e => setModalFiltro(prev => ({ ...prev, numero: e.target.value }))}
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-2 relative">
+                                                            <label htmlFor="modal_nombre" className="block text-[9px] font-black text-secondary-400 uppercase mb-1">Buscar por Nombre</label>
+                                                            <input
+                                                                id="modal_nombre"
+                                                                name="nombre"
+                                                                type="text"
+                                                                className="w-full pl-8 pr-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all"
+                                                                placeholder="Nombre..."
+                                                                value={modalFiltro.nombre}
+                                                                onChange={e => setModalFiltro(prev => ({ ...prev, nombre: e.target.value }))}
+                                                            />
+                                                            <svg className="w-3.5 h-3.5 absolute left-2.5 top-[2.1rem] text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                            </svg>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Lista de escuelas filtradas */}
+                                                    <div className="mt-1 border border-secondary-200 rounded-xl overflow-hidden">
+                                                        {isLoadingModalEscuelas ? (
+                                                            <div className="flex items-center justify-center gap-2 p-4 text-secondary-400">
+                                                                <div className="w-4 h-4 border-2 border-secondary-200 border-t-primary-500 rounded-full animate-spin"></div>
+                                                                <span className="text-[10px] font-bold">Buscando...</span>
+                                                            </div>
+                                                        ) : modalEscuelasFiltradas.length === 0 ? (
+                                                            <p className="p-4 text-[10px] text-center text-secondary-400 font-bold">Sin resultados para estos filtros.</p>
+                                                        ) : (
+                                                            <div className="max-h-40 overflow-y-auto divide-y divide-secondary-100">
+                                                                {modalEscuelasFiltradas.map(esc => (
+                                                                    <button
+                                                                        key={esc.id}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setFoundEscuela(esc);
+                                                                            setFormData(prev => ({ ...prev, escuela_id: esc.id }));
+                                                                            setCueSearch(esc.cue_anexo);
+                                                                        }}
+                                                                        className={`w-full text-left px-3 py-2.5 transition-colors text-xs ${
+                                                                            String(formData.escuela_id) === String(esc.id)
+                                                                                ? 'bg-primary-50 text-primary-800 font-black'
+                                                                                : 'hover:bg-secondary-50 text-secondary-700 font-bold'
+                                                                        }`}
+                                                                    >
+                                                                        <p className="truncate">{esc.nombre}</p>
+                                                                        <p className="text-[9px] text-secondary-400 font-bold mt-0.5">CUE: {esc.cue_anexo}</p>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             ) : (
+                                                /* ── Búsqueda por CUE ── */
                                                 <div className="relative">
                                                     <input 
                                                         id="cue_search"
+                                                        name="cue_search"
                                                         type="text" required
                                                         className={`w-full px-4 py-3 border-2 rounded-xl font-black outline-none transition-all ${
                                                             foundEscuela ? 'bg-green-50 border-green-200 text-green-900' : 'bg-secondary-50 border-secondary-200 focus:border-primary-500'
@@ -836,9 +1183,11 @@ const CupofManagement = () => {
                             </div>
                             <div className="p-8 space-y-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Buscar en Padrón (DNI/Nombre)</label>
+                                    <label htmlFor="persona_search" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Buscar en Padrón (DNI/Nombre)</label>
                                     <div className="flex gap-2">
                                         <input 
+                                            id="persona_search"
+                                            name="persona_search"
                                             type="text"
                                             className="flex-1 px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold focus:ring-2 focus:ring-primary-500 outline-none"
                                             placeholder="Buscar por DNI o Apellido..."
@@ -861,6 +1210,8 @@ const CupofManagement = () => {
                                         </button>
                                     </div>
                                     <select 
+                                        id="assign_persona_id"
+                                        name="persona_id"
                                         required
                                         className="w-full mt-2 px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
                                         value={assignData.persona_id}
@@ -878,8 +1229,10 @@ const CupofManagement = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Situación Revista</label>
+                                        <label htmlFor="situacion_revista" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Situación Revista</label>
                                         <select 
+                                            id="situacion_revista"
+                                            name="situacion_revista"
                                             className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
                                             value={assignData.situacion_revista}
                                             onChange={(e) => setAssignData({...assignData, situacion_revista: e.target.value})}
@@ -890,8 +1243,10 @@ const CupofManagement = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Fecha Inicio</label>
+                                        <label htmlFor="fecha_inicio" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Fecha Inicio</label>
                                         <input 
+                                            id="fecha_inicio"
+                                            name="fecha_inicio"
                                             type="date" required
                                             className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
                                             value={assignData.fecha_inicio}
