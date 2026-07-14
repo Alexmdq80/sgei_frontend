@@ -8,6 +8,7 @@ import cargoService from '../../services/cargoService';
 import escalafonService from '../../services/escalafonService';
 import puestoTipoService from '../../services/puestoTipoService';
 import geografiaService from '../../services/geografiaService';
+import documentoTipoService from '../../services/documentoTipoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
 
 /**
@@ -70,6 +71,18 @@ const CupofManagement = () => {
     // Nuevos estados para la búsqueda en el modal de asignación
     const [assignSearchResults, setAssignSearchResults] = useState([]);
     const [isSearchingPersona, setIsSearchingPersona] = useState(false);
+
+    // Estados para creación de persona en el modal de asignación
+    const [documentoTipos, setDocumentoTipos] = useState([]);
+    const [showCreatePersonaForm, setShowCreatePersonaForm] = useState(false);
+    const [isSavingNewPersona, setIsSavingNewPersona] = useState(false);
+    const [newPersonaFormData, setNewPersonaFormData] = useState({
+        apellido: '',
+        nombre: '',
+        documento_tipo_id: '',
+        documento_numero: '',
+        email: ''
+    });
 
     // Catálogos
     const [escuelas, setEscuelas] = useState([]);
@@ -198,22 +211,48 @@ const CupofManagement = () => {
 
     const fetchCatalogs = async () => {
         try {
-            const [eRes, pRes, nRes, sRes] = await Promise.all([
+            const [eRes, pRes, nRes, sRes, dRes] = await Promise.all([
                 escalafonService.getAll(),
                 puestoTipoService.getAll(),
                 escuelaService.getNiveles(),
-                escuelaService.getSectores()
+                escuelaService.getSectores(),
+                documentoTipoService.getAll()
             ]);
             setEscalafones(eRes || []);
             setPuestoTipos(pRes || []);
             setNiveles(nRes || []);
             setSectores(sRes || []);
+            setDocumentoTipos(dRes || []);
         } catch (error) {
-            console.error('Error al cargar catálogos de escalafón/puesto/niveles/sectores', {
+            console.error('Error al cargar catálogos de escalafón/puesto/niveles/sectores/documentos', {
                 status: error?.response?.status,
                 data: error?.response?.data,
                 message: error?.message,
             });
+        }
+    };
+
+    const handleRegisterAndSelectPersona = async (e) => {
+        e.preventDefault();
+        try {
+            setIsSavingNewPersona(true);
+            const response = await personaService.create(newPersonaFormData);
+            showNotification('Persona registrada con éxito en el padrón.', 'success');
+            
+            const createdPersona = response.data;
+            if (createdPersona) {
+                setAssignSearchResults(prev => [createdPersona, ...prev]);
+                setAssignData(prev => ({
+                    ...prev,
+                    persona_id: createdPersona.id
+                }));
+            }
+            setShowCreatePersonaForm(false);
+        } catch (error) {
+            console.error('Error al registrar persona:', error);
+            showNotification(parseError(error, 'No se pudo registrar la persona.'), 'error');
+        } finally {
+            setIsSavingNewPersona(false);
         }
     };
 
@@ -725,6 +764,14 @@ const CupofManagement = () => {
                                                                             fecha_inicio: new Date().toISOString().split('T')[0],
                                                                             resolucion: ''
                                                                         });
+                                                                        setShowCreatePersonaForm(false);
+                                                                        setNewPersonaFormData({
+                                                                            apellido: '',
+                                                                            nombre: '',
+                                                                            documento_tipo_id: '',
+                                                                            documento_numero: '',
+                                                                            email: ''
+                                                                        });
                                                                         setIsAssignModalOpen(true); 
                                                                     }}
                                                                     className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -1176,94 +1223,194 @@ const CupofManagement = () => {
             {isAssignModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn">
-                        <form onSubmit={handleAssignPersona}>
-                            <div className="p-6 border-b border-secondary-100 bg-secondary-50">
-                                <h2 className="text-xl font-black text-secondary-900">Asignar Personal</h2>
-                                <p className="text-xs text-secondary-500 font-bold">Asignando a CUPOF: {selectedCupof?.codigo_cupof}</p>
-                            </div>
-                            <div className="p-8 space-y-4">
-                                <div>
-                                    <label htmlFor="persona_search" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Buscar en Padrón (DNI/Nombre)</label>
-                                    <div className="flex gap-2">
-                                        <input 
-                                            id="persona_search"
-                                            name="persona_search"
-                                            type="text"
-                                            className="flex-1 px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold focus:ring-2 focus:ring-primary-500 outline-none"
-                                            placeholder="Buscar por DNI o Apellido..."
-                                            value={personaSearch}
-                                            onChange={(e) => setPersonaSearch(e.target.value)}
-                                        />
-                                        <button 
-                                            type="button" 
-                                            onClick={searchPersonaForAssign} 
-                                            disabled={isSearchingPersona}
-                                            className="px-4 bg-secondary-900 text-white rounded-xl disabled:opacity-50"
-                                        >
-                                            {isSearchingPersona ? (
-                                                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                            ) : (
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                                </svg>
-                                            )}
-                                        </button>
-                                    </div>
-                                    <select 
-                                        id="assign_persona_id"
-                                        name="persona_id"
-                                        required
-                                        className="w-full mt-2 px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
-                                        value={assignData.persona_id}
-                                        onChange={(e) => setAssignData({...assignData, persona_id: e.target.value})}
-                                    >
-                                        <option value="">
-                                            {isSearchingPersona ? 'Buscando...' : 'Seleccionar Persona...'}
-                                        </option>
-                                        {assignSearchResults.map(p => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.apellido}, {p.nombre} ({p.documento_numero})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
+                        {showCreatePersonaForm ? (
+                            <form onSubmit={handleRegisterAndSelectPersona}>
+                                <div className="p-6 border-b border-secondary-100 bg-secondary-50 flex justify-between items-center">
                                     <div>
-                                        <label htmlFor="situacion_revista" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Situación Revista</label>
+                                        <h2 className="text-xl font-black text-secondary-900">Registrar Persona</h2>
+                                        <p className="text-xs text-secondary-500 font-bold">Alta rápida en el Padrón</p>
+                                    </div>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setShowCreatePersonaForm(false)}
+                                        className="text-xs text-primary-600 font-black hover:underline uppercase tracking-wider"
+                                    >
+                                        ← Volver
+                                    </button>
+                                </div>
+                                <div className="p-8 space-y-4">
+                                    <div>
+                                        <label htmlFor="new_apellido" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Apellido</label>
+                                        <input 
+                                            id="new_apellido"
+                                            type="text" required
+                                            className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-primary-500 outline-none"
+                                            value={newPersonaFormData.apellido}
+                                            onChange={(e) => setNewPersonaFormData(prev => ({ ...prev, apellido: e.target.value.toUpperCase() }))}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="new_nombre" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Nombre</label>
+                                        <input 
+                                            id="new_nombre"
+                                            type="text" required
+                                            className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-primary-500 outline-none"
+                                            value={newPersonaFormData.nombre}
+                                            onChange={(e) => setNewPersonaFormData(prev => ({ ...prev, nombre: e.target.value.toUpperCase() }))}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label htmlFor="new_documento_tipo_id" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Tipo Doc</label>
+                                            <select 
+                                                id="new_documento_tipo_id"
+                                                required
+                                                className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none"
+                                                value={newPersonaFormData.documento_tipo_id}
+                                                onChange={(e) => setNewPersonaFormData(prev => ({ ...prev, documento_tipo_id: e.target.value }))}
+                                            >
+                                                <option value="">Seleccionar...</option>
+                                                {documentoTipos.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label htmlFor="new_documento_numero" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Nº Doc</label>
+                                            <input 
+                                                id="new_documento_numero"
+                                                type="text" required
+                                                className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none"
+                                                value={newPersonaFormData.documento_numero}
+                                                onChange={(e) => setNewPersonaFormData(prev => ({ ...prev, documento_numero: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label htmlFor="new_email" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Email (Opcional)</label>
+                                        <input 
+                                            id="new_email"
+                                            type="email"
+                                            className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold lowercase focus:ring-2 focus:ring-primary-500 outline-none"
+                                            value={newPersonaFormData.email}
+                                            onChange={(e) => setNewPersonaFormData(prev => ({ ...prev, email: e.target.value.toLowerCase() }))}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="p-6 bg-secondary-50 border-t border-secondary-100 flex gap-3">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setShowCreatePersonaForm(false)} 
+                                        className="flex-1 py-4 bg-white border border-secondary-300 text-secondary-700 rounded-2xl font-bold uppercase tracking-widest text-xs transition-all animate-fadeIn"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSavingNewPersona}
+                                        className="flex-[2] py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-primary-700 shadow-lg transition-all disabled:opacity-50"
+                                    >
+                                        {isSavingNewPersona ? 'Registrando...' : 'Registrar y Seleccionar'}
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleAssignPersona}>
+                                <div className="p-6 border-b border-secondary-100 bg-secondary-50">
+                                    <h2 className="text-xl font-black text-secondary-900">Asignar Personal</h2>
+                                    <p className="text-xs text-secondary-500 font-bold">Asignando a CUPOF: {selectedCupof?.codigo_cupof}</p>
+                                </div>
+                                <div className="p-8 space-y-4">
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label htmlFor="persona_search" className="block text-[10px] font-black text-secondary-400 uppercase">Buscar en Padrón (DNI/Nombre)</label>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setShowCreatePersonaForm(true)}
+                                                className="text-xs text-primary-600 font-bold hover:underline"
+                                            >
+                                                + Registrar Nueva Persona
+                                            </button>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <input 
+                                                id="persona_search"
+                                                name="persona_search"
+                                                type="text"
+                                                className="flex-1 px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold focus:ring-2 focus:ring-primary-500 outline-none"
+                                                placeholder="Buscar por DNI o Apellido..."
+                                                value={personaSearch}
+                                                onChange={(e) => setPersonaSearch(e.target.value)}
+                                            />
+                                            <button 
+                                                type="button" 
+                                                onClick={searchPersonaForAssign} 
+                                                disabled={isSearchingPersona}
+                                                className="px-4 bg-secondary-900 text-white rounded-xl disabled:opacity-50"
+                                            >
+                                                {isSearchingPersona ? (
+                                                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                                ) : (
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        </div>
                                         <select 
-                                            id="situacion_revista"
-                                            name="situacion_revista"
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
-                                            value={assignData.situacion_revista}
-                                            onChange={(e) => setAssignData({...assignData, situacion_revista: e.target.value})}
+                                            id="assign_persona_id"
+                                            name="persona_id"
+                                            required
+                                            className="w-full mt-2 px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
+                                            value={assignData.persona_id}
+                                            onChange={(e) => setAssignData({...assignData, persona_id: e.target.value})}
                                         >
-                                            <option value="titular">Titular</option>
-                                            <option value="provisional">Provisional</option>
-                                            <option value="suplente">Suplente</option>
+                                            <option value="">
+                                                {isSearchingPersona ? 'Buscando...' : 'Seleccionar Persona...'}
+                                            </option>
+                                            {assignSearchResults.map(p => (
+                                                <option key={p.id} value={p.id}>
+                                                    {p.apellido}, {p.nombre} ({p.documento_numero})
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
-                                    <div>
-                                        <label htmlFor="fecha_inicio" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Fecha Inicio</label>
-                                        <input 
-                                            id="fecha_inicio"
-                                            name="fecha_inicio"
-                                            type="date" required
-                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
-                                            value={assignData.fecha_inicio}
-                                            onChange={(e) => setAssignData({...assignData, fecha_inicio: e.target.value})}
-                                        />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label htmlFor="situacion_revista" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Situación Revista</label>
+                                            <select 
+                                                id="situacion_revista"
+                                                name="situacion_revista"
+                                                className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
+                                                value={assignData.situacion_revista}
+                                                onChange={(e) => setAssignData({...assignData, situacion_revista: e.target.value})}
+                                            >
+                                                <option value="titular">Titular</option>
+                                                <option value="provisional">Provisional</option>
+                                                <option value="suplente">Suplente</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label htmlFor="fecha_inicio" className="block text-[10px] font-black text-secondary-400 uppercase mb-1">Fecha Inicio</label>
+                                            <input 
+                                                id="fecha_inicio"
+                                                name="fecha_inicio"
+                                                type="date" required
+                                                className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl font-bold outline-none"
+                                                value={assignData.fecha_inicio}
+                                                onChange={(e) => setAssignData({...assignData, fecha_inicio: e.target.value})}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="p-6 bg-secondary-50 border-t border-secondary-100 flex gap-3">
-                                <button type="button" onClick={() => setIsAssignModalOpen(false)} className="flex-1 py-4 bg-white border border-secondary-300 text-secondary-700 rounded-2xl font-bold uppercase tracking-widest transition-all">
-                                    Cancelar
-                                </button>
-                                <button type="submit" className="flex-[2] py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg transition-all">
-                                    Confirmar Asignación
-                                </button>
-                            </div>
-                        </form>
+                                <div className="p-6 bg-secondary-50 border-t border-secondary-100 flex gap-3">
+                                    <button type="button" onClick={() => setIsAssignModalOpen(false)} className="flex-1 py-4 bg-white border border-secondary-300 text-secondary-700 rounded-2xl font-bold uppercase tracking-widest transition-all">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit" className="flex-[2] py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg transition-all">
+                                        Confirmar Asignación
+                                    </button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div>
             )}
