@@ -177,6 +177,15 @@ const Layout = ({ children }) => {
         });
     }
 
+    const isRegionalAdmin = activeRoleName === 'jefe_regional';
+    if (isSuperUser || isProvincialAdmin || isRegionalAdmin) {
+        navItems.push({
+            name: 'Jefes Distritales',
+            path: '/admin/jefes-distritales',
+            icon: <Shield className="w-6 h-6 text-indigo-400" />,
+        });
+    }
+
     const isJefeDistrital = user?.roles?.some(r => r.name === 'jefe_distrital');
     
     const isConduccion = ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeRoleName);

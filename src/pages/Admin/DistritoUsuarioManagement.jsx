@@ -30,7 +30,7 @@ export default function DistritoUsuarioManagement() {
 
     const [searchTerm, setSearchTerm] = useState('');
 
-    const fetchData = async () => {
+    /*const fetchData = async () => {
         try {
             setIsLoading(true);
             const [assocRes, distRes] = await Promise.all([
@@ -38,7 +38,24 @@ export default function DistritoUsuarioManagement() {
                 departamentoService.getAll()
             ]);
             setAssociations(assocRes);
-            setDistricts(distRes || []);
+            setDistricts(distRes?.data || distRes || []);
+           // setDistricts(distRes || []); //
+        } catch (error) {
+            showNotification(parseError(error, 'Error al cargar datos de distritos.'), 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };*/
+
+    const fetchData = async () => {
+        try {
+            setIsLoading(true);
+            const [assocRes, distRes] = await Promise.all([
+                distritoUsuarioService.getAll(),
+                departamentoService.getAll({ per_page: 500 }) // <-- Cambiar aquí
+            ]);
+            setAssociations(assocRes);
+            setDistricts(distRes?.data || distRes || []);
         } catch (error) {
             showNotification(parseError(error, 'Error al cargar datos de distritos.'), 'error');
         } finally {

@@ -209,7 +209,7 @@ export default function RegionUsuarioManagement() {
                                             <div className="flex items-center gap-2">
                                                 <MapPin className="w-4 h-4 text-primary-500" />
                                                 <span className="text-sm font-bold text-secondary-700 uppercase">
-                                                    Región {assoc.region?.numero} ({assoc.region?.provincia?.nombre})
+                                                    Región {assoc.region?.numero} ({assoc.region?.provincia?.nombre}) 
                                                 </span>
                                             </div>
                                         </td>
@@ -300,7 +300,7 @@ export default function RegionUsuarioManagement() {
                                         <option value="">Seleccionar región...</option>
                                         {regions.map(r => (
                                             <option key={r.id} value={r.id}>
-                                                Región {r.numero} ({r.provincia?.nombre || 'Provincia'})
+                                                Región {r.numero} {/*({r.provincia?.nombre || 'Provincia'})*/}
                                             </option>
                                         ))}
                                     </select>

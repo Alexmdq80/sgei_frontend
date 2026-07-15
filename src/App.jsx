@@ -12,6 +12,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import UserManagement from './pages/Admin/UserManagement';
 import ProvinciaUsuarioManagement from './pages/Admin/ProvinciaUsuarioManagement';
 import RegionUsuarioManagement from './pages/Admin/RegionUsuarioManagement';
+import DistritoUsuarioManagement from './pages/Admin/DistritoUsuarioManagement';
 import CupofManagement from './pages/Admin/CupofManagement';
 import PersonaManagement from './pages/Admin/PersonaManagement';
 import ComunidadEducativa from './pages/Admin/ComunidadEducativa';
@@ -221,6 +222,17 @@ function App() {
                             </ProtectedRoute>
                         } 
                     />
+ 
+                    <Route 
+                        path="/admin/jefes-distritales"
+                        element={
+                            <ProtectedRoute>
+                                <DistritoUsuarioManagement />
+                            </ProtectedRoute>
+
+                        }
+                    />
+
                     
                     <Route 
                         path="/admin/cupofs" 
