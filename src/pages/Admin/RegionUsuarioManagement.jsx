@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { 
-    Shield, Search, UserPlus, Trash2, 
+import {
+    Shield, Search, UserPlus, Trash2,
     Loader2, MapPin, User, Mail, Info, X, Link, Link2Off, UserCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -35,9 +35,12 @@ export default function RegionUsuarioManagement() {
         region_id: ''
     });
 
+    const [provincias, setProvincias] = useState([]);
+    const [selectedProvinciaId, setSelectedProvinciaId] = useState('');
+
     const [searchTerm, setSearchTerm] = useState('');
 
-    const fetchData = async () => {
+    /*const fetchData = async () => {
         try {
             setIsLoading(true);
             const provinciaId = isJefeProvincial ? user?.provincia_usuario?.provincia_id : null;
@@ -53,6 +56,46 @@ export default function RegionUsuarioManagement() {
             showNotification(parseError(error, 'Error al cargar datos de regiones.'), 'error');
         } finally {
             setIsLoading(false);
+        }
+    };*/
+    const fetchData = async () => {
+        try {
+            setIsLoading(true);
+            const provinciaId = isJefeProvincial ? user?.provincia_usuario?.provincia_id : null;
+
+            const [assocRes, regionsRes, provRes] = await Promise.all([
+                regionUsuarioService.getAll(),
+                // Cargar regiones por defecto solo si ya tenemos la provincia (Jefe Provincial)
+                isJefeProvincial ? geografiaService.getRegiones({ provincia_id: provinciaId }) : Promise.resolve([]),
+                // Cargar provincias solo si es Superusuario
+                isSuperUser ? geografiaService.getProvincias() : Promise.resolve([])
+            ]);
+
+            setAssociations(assocRes || []);
+            setRegions(regionsRes || []);
+            if (isSuperUser) {
+                setProvincias(provRes?.data || provRes || []);
+            }
+        } catch (error) {
+            showNotification(parseError(error, 'Error al cargar datos de regiones.'), 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleProvinciaChange = async (provId) => {
+        setSelectedProvinciaId(provId);
+        setFormData(prev => ({ ...prev, region_id: '' })); // Resetear región seleccionada
+
+        if (provId) {
+            try {
+                const regRes = await geografiaService.getRegiones({ provincia_id: provId });
+                setRegions(regRes?.data || regRes || []);
+            } catch (error) {
+                showNotification('Error al cargar regiones de la provincia seleccionada.', 'error');
+            }
+        } else {
+            setRegions([]);
         }
     };
 
@@ -83,6 +126,7 @@ export default function RegionUsuarioManagement() {
     const handleCloseModal = () => {
         setIsCreateModalOpen(false);
         setSelectedPersona(null);
+        setSelectedProvinciaId('');
         setFormData({ persona_id: '', region_id: '' });
     };
 
@@ -111,7 +155,7 @@ export default function RegionUsuarioManagement() {
         }
     };
 
-    const filteredAssociations = associations.filter(a => 
+    const filteredAssociations = associations.filter(a =>
         a.usuario?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.usuario?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         `región ${a.region?.numero}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -143,7 +187,7 @@ export default function RegionUsuarioManagement() {
                         {isSuperUser ? 'Administración de Autoridades Regionales (Global)' : `Autoridades Regionales - Provincia de ${user?.provincia_usuario?.provincia?.nombre || ''}`}
                     </p>
                 </div>
-                <button 
+                <button
                     onClick={() => setIsCreateModalOpen(true)}
                     className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-primary-700 transition-all active:scale-95"
                 >
@@ -209,7 +253,7 @@ export default function RegionUsuarioManagement() {
                                             <div className="flex items-center gap-2">
                                                 <MapPin className="w-4 h-4 text-primary-500" />
                                                 <span className="text-sm font-bold text-secondary-700 uppercase">
-                                                    Región {assoc.region?.numero} ({assoc.region?.provincia?.nombre}) 
+                                                    Región {assoc.region?.numero} ({assoc.region?.provincia?.nombre})
                                                 </span>
                                             </div>
                                         </td>
@@ -243,7 +287,7 @@ export default function RegionUsuarioManagement() {
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button 
+                                            <button
                                                 onClick={() => handleDelete(assoc.id)}
                                                 className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                 title="Eliminar Asignación"
@@ -288,19 +332,60 @@ export default function RegionUsuarioManagement() {
                                         />
                                     </div>
                                 </div>
+                                {isSuperUser && (
+                                    <div>
+                                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Provincia</label>
+                                        <select
+                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2
+                                                    focus:ring-primary-500 outline-none transition-all mb-4"
+                                            value={selectedProvinciaId}
+                                            onChange={(e) => handleProvinciaChange(e.target.value)}
+                                        >
+                                            <option value="">Seleccionar provincia...</option>
+                                            {provincias.map(p => (
+                                                <option key={p.id} value={p.id}>{p.nombre}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
-                                <div>
+                                {/*<div>
                                     <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Región Educativa</label>
-                                    <select 
+                                    <select
                                         required
                                         className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
                                         value={formData.region_id}
-                                        onChange={(e) => setFormData({...formData, region_id: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, region_id: e.target.value })}
                                     >
                                         <option value="">Seleccionar región...</option>
                                         {regions.map(r => (
                                             <option key={r.id} value={r.id}>
-                                                Región {r.numero} {/*({r.provincia?.nombre || 'Provincia'})*/}
+                                                Región {r.numero} */}{/*({r.provincia?.nombre || 'Provincia'})*/}
+                                {/*</option>
+                                        ))}
+                                    </select>
+                                </div>*/}
+                                <div>
+                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Región Educativa</label>
+                                    <select
+                                        required
+                                        disabled={isSuperUser && !selectedProvinciaId}
+                                        className={`w-full px-4 py-3 border rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none
+                                                transition-all ${(isSuperUser && !selectedProvinciaId)
+                                                ? 'bg-secondary-100 text-secondary-400 border-secondary-200 cursor-not-allowed'
+                                                : 'bg-secondary-50 border-secondary-200 text-secondary-900'
+                                            }`}
+                                        value={formData.region_id}
+                                        onChange={(e) => setFormData({ ...formData, region_id: e.target.value })}
+                                    >
+                                        <option value="">
+                                            {isSuperUser && !selectedProvinciaId
+                                                ? "Primero selecciona una provincia..."
+                                                : "Seleccionar región..."}
+                                        </option>
+                                        {regions.map(r => (
+                                            <option key={r.id} value={r.id}>
+                                                Región {r.numero}
                                             </option>
                                         ))}
                                     </select>

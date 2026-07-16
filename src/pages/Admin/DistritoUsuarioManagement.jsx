@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
-import { 
-    Shield, Search, UserPlus, Trash2, 
-    Loader2, MapPin, User, Mail, Info, X 
+import {
+    Shield, Search, UserPlus, Trash2,
+    Loader2, MapPin, User, Mail, Info, X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { parseError } from '../../utils/errorParser';
 import distritoUsuarioService from '../../services/distritoUsuarioService';
 import departamentoService from '../../services/departamentoService';
 import PersonaCombobox from '../../components/PersonaCombobox';
+import personaService from '../../services/personaService';
+import geografiaService from '../../services/geografiaService'
 
 /**
  * Gestión de Jefes Distritales.
  * Exclusivo para Superusuarios. Permite vincular usuarios con distritos (departamentos).
  */
 export default function DistritoUsuarioManagement() {
-    const { showNotification } = useAuth();
+    const { showNotification, user } = useAuth();
     const [associations, setAssociations] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -30,38 +32,105 @@ export default function DistritoUsuarioManagement() {
 
     const [searchTerm, setSearchTerm] = useState('');
 
+    const [provincias, setProvincias] = useState([]);
+    const [selectedProvinciaId, setSelectedProvinciaId] = useState('');
+
+    const [regions, setRegions] = useState([]);
+    const [selectedRegionId, setSelectedRegionId] = useState('');
+
+    // Determinar el rol del usuario logueado
+    const esSuperuser = user?.es_administrador || user?.roles?.some(r => r.name === 'superuser');
+    const esJefeProvincial = user?.roles?.some(r => r.name === 'jefe_provincial');
+    const esJefeRegional = user?.roles?.some(r => r.name === 'jefe_regional');
+    const mostrarFiltroRegion = esSuperuser || esJefeProvincial;
+
     /*const fetchData = async () => {
         try {
             setIsLoading(true);
-            const [assocRes, distRes] = await Promise.all([
+
+            // Obtener parámetros según el rol
+            const provinciaId = esJefeProvincial ? user?.provincia_usuario?.provincia_id : null;
+            const regionId = esJefeRegional ? user?.region_usuario?.region_id : null;
+
+            const [assocRes, distRes, regRes] = await Promise.all([
                 distritoUsuarioService.getAll(),
-                departamentoService.getAll()
+                // Si es Jefe Regional, pasamos region_id en los query params extras
+                geografiaService.getDepartamentos(provinciaId, regionId ? { region_id: regionId } : {}),
+                mostrarFiltroRegion ? geografiaService.getRegiones(provinciaId ? { provincia_id: provinciaId } : {}) : Promise.
+                    resolve([])
             ]);
-            setAssociations(assocRes);
-            setDistricts(distRes?.data || distRes || []);
-           // setDistricts(distRes || []); //
+
+            setAssociations(assocRes || []);
+            setDistricts(distRes || []);
+            if (mostrarFiltroRegion) {
+                setRegions(regRes?.data || regRes || []);
+            }
         } catch (error) {
             showNotification(parseError(error, 'Error al cargar datos de distritos.'), 'error');
         } finally {
             setIsLoading(false);
         }
     };*/
-
     const fetchData = async () => {
         try {
             setIsLoading(true);
-            const [assocRes, distRes] = await Promise.all([
+
+            const provinciaId = esJefeProvincial ? user?.provincia_usuario?.provincia_id : null;
+            const regionId = esJefeRegional ? user?.region_usuario?.region_id : null;
+
+            const [assocRes, distRes, regRes] = await Promise.all([
                 distritoUsuarioService.getAll(),
-                departamentoService.getAll({ per_page: 500 }) // <-- Cambiar aquí
+                // Para el superusuario no cargamos distritos inicialmente, se cargan al elegir provincia
+                !esSuperuser ? geografiaService.getDepartamentos(provinciaId, regionId ? { region_id: regionId } : {}) : Promise.
+                    resolve([]),
+                // Para el superusuario no cargamos regiones inicialmente
+                esJefeProvincial ? geografiaService.getRegiones({ provincia_id: provinciaId }) : Promise.resolve([])
             ]);
-            setAssociations(assocRes);
-            setDistricts(distRes?.data || distRes || []);
+
+            setAssociations(assocRes || []);
+            setDistricts(distRes || []);
+            setRegions(regRes?.data || regRes || []);
+
+            // Cargar catálogo de provincias si es Superusuario
+            if (esSuperuser) {
+                const provRes = await geografiaService.getProvincias();
+                setProvincias(provRes?.data || provRes || []);
+            }
         } catch (error) {
             showNotification(parseError(error, 'Error al cargar datos de distritos.'), 'error');
         } finally {
             setIsLoading(false);
         }
     };
+
+    const handleProvinciaChange = async (provId) => {
+        setSelectedProvinciaId(provId);
+        setSelectedRegionId(''); // Resetear región
+        setFormData(prev => ({ ...prev, departamento_id: '' })); // Resetear distrito
+
+        if (provId) {
+            try {
+                const [regRes, depRes] = await Promise.all([
+                    geografiaService.getRegiones({ provincia_id: provId }),
+                    geografiaService.getDepartamentos(provId)
+                ]);
+                setRegions(regRes?.data || regRes || []);
+                setDistricts(depRes || []);
+            } catch (error) {
+                showNotification('Error al cargar datos de la provincia seleccionada.', 'error');
+            }
+        } else {
+            setRegions([]);
+            setDistricts([]);
+        }
+    };
+
+    const filteredDistricts = selectedRegionId
+        ? districts.filter(d => {
+            const dRegionId = d.region_id || d.region?.id;
+            return dRegionId && String(dRegionId) === String(selectedRegionId);
+        })
+        : districts;
 
     useEffect(() => {
         fetchData();
@@ -88,6 +157,8 @@ export default function DistritoUsuarioManagement() {
     const handleCloseModal = () => {
         setIsCreateModalOpen(false);
         setSelectedPersona(null);
+        setSelectedProvinciaId('');
+        setSelectedRegionId('');
         setFormData({ persona_id: '', departamento_id: '' });
     };
 
@@ -102,7 +173,7 @@ export default function DistritoUsuarioManagement() {
         }
     };
 
-    const filteredAssociations = associations.filter(a => 
+    const filteredAssociations = associations.filter(a =>
         a.usuario?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.distrito?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -115,7 +186,7 @@ export default function DistritoUsuarioManagement() {
                     <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Gestión de Jefes Distritales</h1>
                     <p className="text-secondary-500 mt-1 font-medium italic">Administración de Autoridades Regionales</p>
                 </div>
-                <button 
+                <button
                     onClick={() => setIsCreateModalOpen(true)}
                     className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-primary-700 transition-all active:scale-95"
                 >
@@ -182,7 +253,7 @@ export default function DistritoUsuarioManagement() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button 
+                                            <button
                                                 onClick={() => handleDelete(assoc.id)}
                                                 className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                 title="Eliminar Asignación"
@@ -227,8 +298,74 @@ export default function DistritoUsuarioManagement() {
                                         />
                                     </div>
                                 </div>
+                                {esSuperuser && (
+                                    <div>
+                                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Provincia</label>
+                                        <select
+                                            className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2
+                                                    focus:ring-primary-500 outline-none transition-all mb-4"
+                                            value={selectedProvinciaId}
+                                            onChange={(e) => handleProvinciaChange(e.target.value)}
+                                        >
+                                            <option value="">Seleccionar provincia...</option>
+                                            {provincias.map(p => (
+                                                <option key={p.id} value={p.id}>{p.nombre}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
+                                {mostrarFiltroRegion && (
+                                    <div>
+                                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Región</label>
+                                        <select
+                                            disabled={esSuperuser && !selectedProvinciaId}
+                                            className={`w-full px-4 py-3 border rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none
+                                                transition-all mb-4 ${(esSuperuser && !selectedProvinciaId)
+                                                    ? 'bg-secondary-100 text-secondary-400 border-secondary-200 cursor-not-allowed'
+                                                    : 'bg-secondary-50 border-secondary-200 text-secondary-900'
+                                                }`}
+                                            value={selectedRegionId}
+                                            onChange={(e) => {
+                                                setSelectedRegionId(e.target.value);
+                                                setFormData({ ...formData, departamento_id: '' });
+                                            }}
+                                        >
+                                            <option value="">
+                                                {esSuperuser && !selectedProvinciaId
+                                                    ? "Primero selecciona una provincia..."
+                                                    : "Seleccionar región..."}
+                                            </option>
+                                            {regions.map(r => (
+                                                <option key={r.id} value={r.id}>Región {r.numero}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                                 <div>
+                                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Distrito (Departamento)</label>
+                                    <select
+                                        required
+                                        disabled={mostrarFiltroRegion && !selectedRegionId}
+                                        className={`w-full px-4 py-3 border rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none
+                                                transition-all ${(mostrarFiltroRegion && !selectedRegionId)
+                                                ? 'bg-secondary-100 text-secondary-400 border-secondary-200 cursor-not-allowed'
+                                                : 'bg-secondary-50 border-secondary-200 text-secondary-900'
+                                            }`}
+                                        value={formData.departamento_id}
+                                        onChange={(e) => setFormData({ ...formData, departamento_id: e.target.value })}
+                                    >
+                                        <option value="">
+                                            {mostrarFiltroRegion && !selectedRegionId
+                                                ? "Primero selecciona una región..."
+                                                : "Seleccionar distrito..."}
+                                        </option>
+                                        {filteredDistricts.map(d => (
+                                            <option key={d.id} value={d.id}>{d.nombre}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {/*<div>
                                     <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest ml-1">Distrito (Departamento)</label>
                                     <select 
                                         required
@@ -237,11 +374,11 @@ export default function DistritoUsuarioManagement() {
                                         onChange={(e) => setFormData({...formData, departamento_id: e.target.value})}
                                     >
                                         <option value="">Seleccionar distrito...</option>
-                                        {districts.map(d => (
+                                        {filteredDistricts.map(d => (
                                             <option key={d.id} value={d.id}>{d.nombre}</option>
                                         ))}
                                     </select>
-                                </div>
+                                </div>*/}
                             </div>
 
                             <div className="pt-4 flex gap-3">
