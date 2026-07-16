@@ -323,9 +323,9 @@ const PersonaCombobox = ({ value, onChange, disabled = false }) => {
                     <input
                         type="email"
                         placeholder="correo@ejemplo.com"
-                        className="w-full px-3 py-2 mt-0.5 bg-secondary-50 border border-secondary-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                        className="w-full px-3 py-2 mt-0.5 bg-secondary-50 border border-secondary-200 rounded-lg text-sm font-bold lowercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
                         value={newPersona.email}
-                        onChange={e => setNewPersona({ ...newPersona, email: e.target.value })}
+                        onChange={e => setNewPersona({ ...newPersona, email: e.target.value.toLowerCase() })}
                     />
                 </div>
 
