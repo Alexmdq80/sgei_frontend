@@ -39,6 +39,11 @@ export default function RegionUsuarioManagement() {
     const [selectedProvinciaId, setSelectedProvinciaId] = useState('');
 
     const [searchTerm, setSearchTerm] = useState('');
+    // Detecta si la persona ya es Jefe Regional de la misma región que se está eligiendo
+    const yaEsJefeDeEsaRegion =
+        selectedPersona?.usuario?.roles?.some(r => r.name === 'jefe_regional') &&
+        formData.region_id !== '' &&
+        String(selectedPersona?.usuario?.region_usuario?.region_id) === String(formData.region_id);
 
     /*const fetchData = async () => {
         try {
@@ -392,6 +397,14 @@ export default function RegionUsuarioManagement() {
                                 </div>
                             </div>
 
+                            {yaEsJefeDeEsaRegion && (
+                                <p className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-
+                                    2">
+                                    <Info className="w-4 h-4 flex-shrink-0" />
+                                    Esta persona ya es Jefe Regional de la región seleccionada.
+                                </p>
+                            )}
+
                             <div className="pt-4 flex gap-3">
                                 <button
                                     type="button"
@@ -402,7 +415,7 @@ export default function RegionUsuarioManagement() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={isSaving || !selectedPersona || !formData.region_id}
+                                    disabled={isSaving || !selectedPersona || !formData.region_id || yaEsJefeDeEsaRegion}
                                     className="flex-[2] px-6 py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
                                     {isSaving ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Confirmar'}

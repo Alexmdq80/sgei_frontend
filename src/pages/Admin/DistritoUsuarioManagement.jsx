@@ -43,34 +43,39 @@ export default function DistritoUsuarioManagement() {
     const esJefeProvincial = user?.roles?.some(r => r.name === 'jefe_provincial');
     const esJefeRegional = user?.roles?.some(r => r.name === 'jefe_regional');
     const mostrarFiltroRegion = esSuperuser || esJefeProvincial;
+    // Detecta si la persona ya es Jefe Distrital del mismo distrito que se está eligiendo
+    const yaEsJefeDeEseDistrito =
+        selectedPersona?.usuario?.roles?.some(r => r.name === 'jefe_distrital') &&
+        formData.departamento_id !== '' &&
+        String(selectedPersona?.usuario?.distrito_usuario?.departamento_id) === String(formData.departamento_id);
 
     /*const fetchData = async () => {
-        try {
-            setIsLoading(true);
+    try {
+        setIsLoading(true);
 
-            // Obtener parámetros según el rol
-            const provinciaId = esJefeProvincial ? user?.provincia_usuario?.provincia_id : null;
-            const regionId = esJefeRegional ? user?.region_usuario?.region_id : null;
+        // Obtener parámetros según el rol
+        const provinciaId = esJefeProvincial ? user?.provincia_usuario?.provincia_id : null;
+        const regionId = esJefeRegional ? user?.region_usuario?.region_id : null;
 
-            const [assocRes, distRes, regRes] = await Promise.all([
-                distritoUsuarioService.getAll(),
-                // Si es Jefe Regional, pasamos region_id en los query params extras
-                geografiaService.getDepartamentos(provinciaId, regionId ? { region_id: regionId } : {}),
-                mostrarFiltroRegion ? geografiaService.getRegiones(provinciaId ? { provincia_id: provinciaId } : {}) : Promise.
-                    resolve([])
-            ]);
+        const [assocRes, distRes, regRes] = await Promise.all([
+            distritoUsuarioService.getAll(),
+            // Si es Jefe Regional, pasamos region_id en los query params extras
+            geografiaService.getDepartamentos(provinciaId, regionId ? { region_id: regionId } : {}),
+            mostrarFiltroRegion ? geografiaService.getRegiones(provinciaId ? { provincia_id: provinciaId } : {}) : Promise.
+                resolve([])
+        ]);
 
-            setAssociations(assocRes || []);
-            setDistricts(distRes || []);
-            if (mostrarFiltroRegion) {
-                setRegions(regRes?.data || regRes || []);
-            }
-        } catch (error) {
-            showNotification(parseError(error, 'Error al cargar datos de distritos.'), 'error');
-        } finally {
-            setIsLoading(false);
+        setAssociations(assocRes || []);
+        setDistricts(distRes || []);
+        if (mostrarFiltroRegion) {
+            setRegions(regRes?.data || regRes || []);
         }
-    };*/
+    } catch (error) {
+        showNotification(parseError(error, 'Error al cargar datos de distritos.'), 'error');
+    } finally {
+        setIsLoading(false);
+    }
+};*/
     const fetchData = async () => {
         try {
             setIsLoading(true);
@@ -381,6 +386,14 @@ export default function DistritoUsuarioManagement() {
                                 </div>*/}
                             </div>
 
+                            {yaEsJefeDeEseDistrito && (
+                                <p className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-
+                            2">
+                                    <Info className="w-4 h-4 flex-shrink-0" />
+                                    Esta persona ya es Jefe Distrital del distrito seleccionado.
+                                </p>
+                            )}
+
                             <div className="pt-4 flex gap-3">
                                 <button
                                     type="button"
@@ -391,12 +404,13 @@ export default function DistritoUsuarioManagement() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={isSaving || !selectedPersona || !formData.departamento_id}
+                                    disabled={isSaving || !selectedPersona || !formData.departamento_id || yaEsJefeDeEseDistrito} 
                                     className="flex-[2] px-6 py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
                                     {isSaving ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Confirmar'}
                                 </button>
                             </div>
+
                         </form>
                     </div>
                 </div>
