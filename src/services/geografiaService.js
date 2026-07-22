@@ -23,10 +23,19 @@ const geografiaService = {
     /**
      * Obtiene los departamentos de una provincia.
      */
-    async getDepartamentos(provinciaId, params = {}) {
+    /*async getDepartamentos(provinciaId, params = {}) {
         const response = await api.get('/departamentos', {
             params: { ...params, provincia_id: provinciaId }
         });
+        return response.data;
+    },*/
+
+    async getDepartamentos(provinciaId, params = {}) {
+        const queryParams = { ...params };
+        if (provinciaId) {
+            queryParams.provincia_id = provinciaId;
+        }
+        const response = await api.get('/departamentos', { params: queryParams });
         return response.data;
     },
 

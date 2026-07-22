@@ -4,6 +4,8 @@ import { parseError } from '../../utils/errorParser';
 import userService from '../../services/userService';
 import documentoTipoService from '../../services/documentoTipoService';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import geografiaService from '../../services/geografiaService';
+import escuelaService from '../../services/escuelaService';
 
 /**
  * Página de administración integral de usuarios.
@@ -38,6 +40,17 @@ const UserManagement = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     
+    // Filtros geográficos
+    const [filterProvinciaId, setFilterProvinciaId] = useState('');
+    const [filterRegionId, setFilterRegionId] = useState('');
+    const [filterDistritoId, setFilterDistritoId] = useState('');
+
+    // Catálogos geográficos
+    const [provincias, setProvincias] = useState([]);
+    const [regiones, setRegiones] = useState([]);
+    const [departamentos, setDepartamentos] = useState([]);
+    const [isLoadingGeografia, setIsLoadingGeografia] = useState(false);
+
     const [formData, setFormData] = useState({
         nombre: '',
         email: '',
@@ -76,8 +89,77 @@ const UserManagement = () => {
     };
 
     // --- CARGA DE DATOS ---
+    // --- CARGA DE CATÁLOGOS GEOGRÁFICOS ---
 
-    const fetchUsers = async (page = 1) => {
+    const fetchProvincias = async () => {
+        try {
+            const response = await geografiaService.getProvincias();
+            setProvincias(response.data || response || []);
+        } catch (error) {
+            console.error('Error al cargar provincias:', error);
+        }
+    };
+
+    const fetchRegiones = async (provinciaId) => {
+        if (!provinciaId) { setRegiones([]); return; }
+        try {
+            setIsLoadingGeografia(true);
+            const response = await geografiaService.getRegiones({ provincia_id: provinciaId });
+            setRegiones(response.data || response || []);
+        } catch (error) {
+            console.error('Error al cargar regiones:', error);
+            setRegiones([]);
+        } finally {
+            setIsLoadingGeografia(false);
+        }
+    };
+    
+    const fetchDepartamentos = async (provinciaId, regionId) => {
+        if (!provinciaId && !regionId) { setDepartamentos([]); return; }
+        try {
+            setIsLoadingGeografia(true);
+            const params = regionId ? { region_id: regionId } : {};
+            const response = await geografiaService.getDepartamentos(provinciaId, params);
+            setDepartamentos(response.data || response || []);
+        } catch (error) {
+            console.error('Error al cargar departamentos:', error);
+            setDepartamentos([]);
+        } finally {
+            setIsLoadingGeografia(false);
+        }
+    };
+
+    // Cargar provincias al montar el componente
+    useEffect(() => {
+        fetchProvincias();
+    }, []);
+
+    // Cuando cambia la provincia, cargar regiones y resetear región y distrito
+    useEffect(() => {
+        setFilterRegionId('');
+        setFilterDistritoId('');
+        if (filterProvinciaId) {
+            fetchRegiones(filterProvinciaId);
+            fetchDepartamentos(filterProvinciaId);
+        } else {
+            setRegiones([]);
+            setDepartamentos([]);
+        }
+    }, [filterProvinciaId]);
+
+    // Cuando cambia la región, cargar departamentos y resetear distrito
+    useEffect(() => {
+        setFilterDistritoId('');
+        if (filterRegionId && filterProvinciaId) {
+            fetchDepartamentos(null, filterRegionId);
+        } else if (filterProvinciaId) {
+            fetchDepartamentos(filterProvinciaId);
+        } else {
+            setDepartamentos([]);
+        }
+    }, [filterRegionId]);
+
+    /*const fetchUsers = async (page = 1) => {
         try {
             setIsUsersLoading(true);
             const response = await userService.getAll({ 
@@ -92,6 +174,29 @@ const UserManagement = () => {
             console.error('Error al cargar usuarios:', error);
             showNotification(parseError(error, 'Error al cargar el listado de usuarios.'), 'error');
         } finally {
+            setIsUsersLoading(false);
+        }
+    };*/
+    const fetchUsers = async (page = 1) => {
+        try {
+            setIsUsersLoading(true);
+            const response = await userService.getAll({ 
+                search: userSearch, 
+                cue_anexo: filterCueAnexo,
+                provincia_id: filterProvinciaId || undefined,
+                region_id: filterRegionId || undefined,
+                departamento_id: filterDistritoId || undefined,
+                page,
+                per_page: 10 
+            });
+            setUsers(response.data || []);
+            setPagination(response.meta || { current_page: 1, last_page: 1, total: 0 });
+        } 
+        catch (error) {
+            console.error('Error al cargar usuarios:', error);
+            showNotification(parseError(error, 'Error al cargar el listado de usuarios.'), 'error');
+        } 
+        finally {
             setIsUsersLoading(false);
         }
     };
@@ -112,6 +217,11 @@ const UserManagement = () => {
             fetchUsers(1);
         }
     }, [filterCueAnexo]);
+
+    // Refrescar usuarios al cambiar filtros geográficos
+    useEffect(() => {
+            fetchUsers(1);
+        }, [filterProvinciaId, filterRegionId, filterDistritoId]);
 
     useEffect(() => {
         fetchCatalogs();
@@ -256,21 +366,6 @@ const UserManagement = () => {
                          'Gestión de usuarios vinculados a su institución'}
                     </p>
                 </div>
-                {isSuperUser && (
-                    <button 
-                        onClick={() => {
-                            setEditingUser(null);
-                            setFormData({ nombre: '', email: '', password: '', documento_tipo_id: '', documento_numero: '' });
-                            setIsModalOpen(true);
-                        }}
-                        className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold shadow-lg hover:bg-primary-700 transition-all active:scale-95"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        Nuevo Usuario
-                    </button>
-                )}
             </div>
 
             {/* Contenido: Listado de Usuarios */}
@@ -315,6 +410,50 @@ const UserManagement = () => {
                                     value={filterCueAnexo}
                                     onChange={(e) => setFilterCueAnexo(e.target.value)}
                                 />
+                            </div>
+
+                            {/* Filtro Provincia */}
+                            <div className="flex-1 lg:flex-none">
+                                <select
+                                    value={filterProvinciaId}
+                                    onChange={(e) => setFilterProvinciaId(e.target.value)}
+                                    className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                                >
+                                    <option value="">Todas las Provincias</option>
+                                    {provincias.map(p => (
+                                        <option key={p.id} value={p.id}>{p.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Filtro Región */}
+                            <div className="flex-1 lg:flex-none">
+                                <select
+                                    value={filterRegionId}
+                                    onChange={(e) => setFilterRegionId(e.target.value)}
+                                    disabled={!filterProvinciaId}
+                                    className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <option value="">Todas las Regiones</option>
+                                    {regiones.map(r => (
+                                        <option key={r.id} value={r.id}>Región {r.numero}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Filtro Distrito / Departamento */}
+                            <div className="flex-1 lg:flex-none">
+                                <select
+                                    value={filterDistritoId}
+                                    onChange={(e) => setFilterDistritoId(e.target.value)}
+                                    disabled={!filterProvinciaId}
+                                    className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <option value="">Todos los Distritos</option>
+                                    {departamentos.map(d => (
+                                        <option key={d.id} value={d.id}>{d.nombre}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     </div>
