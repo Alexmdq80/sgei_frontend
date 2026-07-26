@@ -61,8 +61,8 @@ const SelectRole = () => {
         }
 
         // 2. Roles Institucionales (Escuelas)
-        if (user.escuela_usuarios) {
-            user.escuela_usuarios
+        if (user.escuelas_personas) {
+            user.escuelas_personas
                 .filter(link => link.verified_at)
                 .forEach(link => {
                     availableRoles.push({

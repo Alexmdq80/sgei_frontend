@@ -107,8 +107,8 @@ const ProtectedRoute = ({ children }) => {
     }
 
     // 3. Lógica de Selección de Perfil/Rol (OBLIGATORIO si tiene al menos uno)
-    const totalRoles = (user.roles?.length || 0) + (user.escuela_usuarios?.filter(l => l.verified_at).length || 0);
-    
+    const totalRoles = (user.roles?.length || 0) + (user.escuelas_personas?.filter(l => l.verified_at).length || 0);
+
     // Si tiene roles y no ha seleccionado un perfil activo, lo mandamos a la pantalla de selección
     // (SelectRole se encargará de auto-seleccionar si solo hay uno)
     if (totalRoles >= 1 && !activeProfile && !isSuperUser && location.pathname !== '/select-role') {
@@ -132,7 +132,7 @@ const ProtectedRoute = ({ children }) => {
     }
 
     // 7. Restricción de Acceso para el resto de las rutas (Usuarios Regulares)
-    const activeLinks = user?.escuela_usuarios?.filter(l => l.verified_at) || [];
+    const activeLinks = user?.escuelas_personas?.filter(l => l.verified_at) || [];
     if (activeLinks.length > 0 && !activeProfile) {
         return <Navigate to="/select-role" replace />;
     }

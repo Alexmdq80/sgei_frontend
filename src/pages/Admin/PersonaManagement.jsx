@@ -326,7 +326,7 @@ export default function PersonaManagement() {
         try {
             setIsSavingAdminRole(true);
             await escuelaService.assignDirect(
-                selectedPersona.usuario_id,
+                selectedPersona.id,
                 selectedEscuelaId,
                 selectedEscuelaRoleId
             );

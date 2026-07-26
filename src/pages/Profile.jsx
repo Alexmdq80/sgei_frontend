@@ -173,7 +173,7 @@ const Profile = () => {
     };
 
     // Filtrar vinculaciones verificadas (las que vienen del CUPOF)
-    const verifiedLinks = user?.escuela_usuarios?.filter(link => link.verified_at) || [];
+    const verifiedLinks = user?.escuelas_personas?.filter(link => link.verified_at) || [];
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn">

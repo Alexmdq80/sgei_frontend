@@ -11,7 +11,7 @@ const SelectSchool = () => {
     const navigate = useNavigate();
     
     // Filtrar vinculaciones verificadas (las que vienen del CUPOF)
-    const activeLinks = user?.escuela_usuarios?.filter(link => link.verified_at) || [];
+    const activeLinks = user?.escuelas_personas?.filter(link => link.verified_at) || [];
 
     /**
      * Lógica de redirección automática:

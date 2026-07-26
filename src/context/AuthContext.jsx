@@ -85,7 +85,7 @@ export const AuthProvider = ({ children }) => {
             setUser(data.user);
             
             // Si el perfil guardado es de una escuela y ya no es válido, limpiarlo
-            if (activeProfile && activeProfile.type === 'school' && !data.user.escuela_usuarios?.some(link => 
+            if (activeProfile && activeProfile.type === 'school' && !data.user.escuelas_personas?.some(link => 
                 link.escuela_id === activeProfile.escuela_id && 
                 link.role_id === activeProfile.role_id && 
                 link.verified_at

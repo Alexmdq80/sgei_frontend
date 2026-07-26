@@ -77,7 +77,7 @@ const escuelaService = {
      * [ADMIN] Obtiene la lista de vinculaciones escolares.
      */
     async getAllLinks(params = {}) {
-        const response = await api.get('/admin/escuela-usuarios', { params });
+        const response = await api.get('/admin/escuela-personas', { params });
         return response.data;
     },
 
@@ -85,8 +85,8 @@ const escuelaService = {
      * [ADMIN] Asigna directamente un usuario a una escuela con un rol específico.
      */
     async assignDirect(usuarioId, escuelaId, roleId) {
-        const response = await api.post('/admin/escuela-usuarios', {
-            usuario_id: usuarioId,
+        const response = await api.post('/admin/escuela-personas', {
+            persona_id: usuarioId,
             escuela_id: escuelaId,
             role_id: roleId
         });
@@ -97,7 +97,7 @@ const escuelaService = {
      * [ADMIN] Actualiza el rol de una vinculación existente.
      */
     async updateLink(id, roleId) {
-        const response = await api.put(`/admin/escuela-usuarios/${id}`, {
+        const response = await api.put(`/admin/escuela-personas/${id}`, {
             role_id: roleId
         });
         return response.data;
@@ -107,7 +107,7 @@ const escuelaService = {
      * [ADMIN] Elimina una vinculación.
      */
     async deleteLink(id) {
-        const response = await api.delete(`/admin/escuela-usuarios/${id}`);
+        const response = await api.delete(`/admin/escuela-personas/${id}`);
         return response.data;
     }
 };

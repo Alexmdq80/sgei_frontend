@@ -534,13 +534,13 @@ const UserManagement = () => {
                                             })}
 
                                             {/* Roles Institucionales (Equipo de Conducción / Comunidad Educativa) */}
-                                            {user.escuela_usuarios?.map(eu => (
-                                                <span key={eu.id} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded border border-indigo-100 shadow-sm" title={eu.escuela?.nombre}>
-                                                    {eu.role?.name?.replace('_', ' ')}: {eu.escuela?.nombre?.length > 25 ? eu.escuela.nombre.substring(0, 22) + '...' : eu.escuela?.nombre}
+                                            {user.escuelas_personas?.map(ep => (
+                                                <span key={ep.id} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded border border-indigo-100 shadow-sm" title={ep.escuela?.nombre}>
+                                                    {ep.role?.name?.replace('_', ' ')}: {ep.escuela?.nombre?.length > 25 ? ep.escuela.nombre.substring(0, 22) + '...' : ep.escuela?.nombre}
                                                 </span>
                                             ))}
 
-                                            {(!user.es_administrador && (!user.roles || user.roles.length === 0) && (!user.escuela_usuarios || user.escuela_usuarios.length === 0)) && (
+                                            {(!user.es_administrador && (!user.roles || user.roles.length === 0) && (!user.escuelas_personas || user.escuelas_personas.length === 0)) && (
                                                 <span className="px-2 py-0.5 bg-secondary-100 text-secondary-500 text-[10px] font-bold uppercase rounded italic">Usuario Estándar</span>
                                             )}
                                         </div>

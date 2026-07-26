@@ -11,7 +11,7 @@ const Dashboard = () => {
 
     // Determinar si es un usuario "Invitado" (Sin roles administrativos y sin vinculaciones escolares verificadas)
     const hasAdminRoles = user?.roles && user.roles.length > 0;
-    const hasVerifiedSchools = user?.escuela_usuarios && user.escuela_usuarios.some(link => link.verified_at);
+    const hasVerifiedSchools = user?.escuelas_personas && user.escuelas_personas.some(link => link.verified_at);
     const isInvited = !hasAdminRoles && !hasVerifiedSchools && !user?.es_administrador;
 
     if (isInvited) {
