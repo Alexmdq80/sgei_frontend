@@ -1058,7 +1058,7 @@ export default function PersonaManagement() {
 
                                     {/* Roles Institucionales (Equipo de Conducción) */}
                                     <div className="space-y-3">
-                                        {selectedPersona.usuario?.escuela_usuarios?.map(link => (
+                                        {selectedPersona.usuario?.escuelas_personas?.map(link => (
                                             <div key={link.id} className="group p-4 bg-primary-50/30 border border-primary-100 rounded-2xl flex items-center justify-between hover:border-primary-200 transition-all shadow-sm">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-primary-100 shadow-sm group-hover:text-primary-600 transition-colors">
@@ -1083,7 +1083,7 @@ export default function PersonaManagement() {
                                     </div>
 
                                     {(!selectedPersona.usuario?.roles || selectedPersona.usuario.roles.filter(r => ['jefe_provincial', 'jefe_regional', 'jefe_distrital', 'supervisor_curricular'].includes(r.name)).length === 0) && 
-                                     (!selectedPersona.usuario?.escuela_usuarios || selectedPersona.usuario.escuela_usuarios.length === 0) && (
+                                     (!selectedPersona.usuario?.escuelas_personas || selectedPersona.usuario.escuelas_personas.length === 0) && (
                                         <div className="h-full flex flex-col items-center justify-center text-center p-10 opacity-60">
                                             <ShieldAlert className="w-12 h-12 text-secondary-300 mb-2" />
                                             <p className="text-sm font-bold text-secondary-400 italic">No posee roles activos en el sistema.</p>
