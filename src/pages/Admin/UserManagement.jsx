@@ -548,7 +548,7 @@ const UserManagement = () => {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
                                                 {/* Botón de Reenviar Activación (SOLO SUPERUSUARIO) */}
-                                                {isSuperUser && (
+                                                {!(user.es_administrador || user.roles?.some(r => r.name === 'superuser')) &&  (
                                                     <button
                                                         onClick={() => handleResendActivation(user)}
                                                         className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
