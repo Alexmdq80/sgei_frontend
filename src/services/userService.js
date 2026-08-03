@@ -48,7 +48,13 @@ const userService = {
         const response = await api.get('/admin/usuarios', { params });
         return response.data;
     },
-
+    /**
+     * Obtiene el detalle completo de un usuario específico.
+     */
+    async getById(id) {
+        const response = await api.get(`/admin/usuarios/${id}`);
+        return response.data;
+    },
     /**
      * Crea un nuevo usuario desde el panel administrativo.
      */
@@ -87,7 +93,32 @@ const userService = {
     async resendActivation(id) {
         const response = await api.post(`/admin/usuarios/${id}/resend-activation`);
         return response.data;
+    },
+
+    /**
+     * Busca personas candidatas a vincularse con un usuario (mismo DNI + Email).
+     */
+    async getCandidatosPersona(id) {
+        const response = await api.get(`/admin/usuarios/${id}/candidatos-persona`);
+        return response.data;
+    },
+
+    /**
+     * Vincula una persona candidata a un usuario.
+     */
+    async vincularPersona(id, personaId) {
+        const response = await api.post(`/admin/usuarios/${id}/vincular-persona/${personaId}`);
+        return response.data;
+    },
+
+    /**
+     * Desvincula la persona del usuario.
+     */
+    async desvincularPersona(id) {
+        const response = await api.post(`/admin/usuarios/${id}/desvincular-persona`);
+        return response.data;
     }
+
 };
 
 export default userService;

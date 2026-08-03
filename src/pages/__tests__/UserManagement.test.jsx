@@ -27,7 +27,8 @@ vi.mock('../../services/userService', () => ({
         getAll: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
-        delete: vi.fn()
+        delete: vi.fn(),
+        getById: vi.fn()
     }
 }));
 
@@ -89,6 +90,46 @@ describe('UserManagement Component', () => {
         await waitFor(() => {
             expect(screen.getByText('Juan Perez')).toBeInTheDocument();
             expect(screen.getByText('Admin User')).toBeInTheDocument();
+        });
+    });
+    
+    it('debe abrir el modal de detalle del usuario al hacer clic en Ver', async () => {
+        const detailResponse = {
+            data: {
+                id: '1',
+                nombre: 'Juan Perez',
+                email: 'juan@example.com',
+                documento_numero: '123',
+                es_administrador: false,
+                roles: [],
+                estado: 'activo',
+                email_verified_at: '2026-01-15T14:30:00.000000Z',
+                persona: {
+                    id: 'p-1',
+                    nombre_completo: 'PEREZ, JUAN',
+                    cuil: '20-30111222-3',
+                    contacto: {
+                        telefono_fijo: '4222-3333',
+                        telefono_movil: '155-555-5555',
+                        email: 'juan@example.com'
+                    }
+                }
+            }
+        };
+        userService.getById.mockResolvedValue(detailResponse);
+
+        render(<UserManagement />);
+
+        await waitFor(() => screen.getByText('Juan Perez'));
+
+        const viewBtn = screen.getAllByTitle('Ver Información del Usuario')[0];
+        fireEvent.click(viewBtn);
+
+        await waitFor(() => {
+            expect(userService.getById).toHaveBeenCalledWith('1');
+            expect(screen.getByText('PEREZ, JUAN')).toBeInTheDocument();
+            expect(screen.getByText('20-30111222-3')).toBeInTheDocument();
+            expect(screen.getByText('Activo')).toBeInTheDocument();
         });
     });
 

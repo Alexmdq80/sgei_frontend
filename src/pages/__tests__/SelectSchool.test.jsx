@@ -47,7 +47,7 @@ describe('SelectSchool Component', () => {
     it('debe redirigir automáticamente si solo hay un cargo verificado', async () => {
         const mockLink = { id: 1, verified_at: '2026-01-01', escuela: { nombre: 'Escuela 1' } };
         useAuth.mockReturnValue({
-            user: { escuela_usuarios: [mockLink] },
+            user: { escuelas_personas: [mockLink] },
             logout: mockLogout,
             selectProfile: mockSelectProfile
         });
@@ -70,7 +70,7 @@ describe('SelectSchool Component', () => {
             { id: 2, verified_at: '2026-01-01', escuela: { nombre: 'Escuela 2', cue_anexo: '202' }, role: { name: 'Secretario' } }
         ];
         useAuth.mockReturnValue({
-            user: { escuela_usuarios: mockLinks },
+            user: { escuelas_personas: mockLinks },
             logout: mockLogout,
             selectProfile: mockSelectProfile
         });
@@ -92,7 +92,7 @@ describe('SelectSchool Component', () => {
 
     it('debe mostrar mensaje si no hay cargos asignados', () => {
         useAuth.mockReturnValue({
-            user: { escuela_usuarios: [] },
+            user: { escuelas_personas: [] },
             logout: mockLogout,
             selectProfile: mockSelectProfile
         });
