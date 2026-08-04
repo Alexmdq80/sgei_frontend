@@ -69,6 +69,7 @@ const UserManagement = () => {
   const [filterProvinciaId, setFilterProvinciaId] = useState("");
   const [filterRegionId, setFilterRegionId] = useState("");
   const [filterDistritoId, setFilterDistritoId] = useState("");
+  const [filterRole, setFilterRole] = useState("");
 
   // Catálogos geográficos
   const [provincias, setProvincias] = useState([]);
@@ -223,6 +224,7 @@ const UserManagement = () => {
         provincia_id: filterProvinciaId || undefined,
         region_id: filterRegionId || undefined,
         departamento_id: filterDistritoId || undefined,
+        role: filterRole || undefined,
         page,
         per_page: 10,
       });
@@ -257,6 +259,11 @@ const UserManagement = () => {
       fetchUsers(1);
     }
   }, [filterCueAnexo]);
+
+  // Refrescar usuarios al cambiar el filtro de rol
+  useEffect(() => {
+    fetchUsers(1);
+  }, [filterRole]);
 
   // Refrescar usuarios al cambiar filtros geográficos
   useEffect(() => {
@@ -624,6 +631,23 @@ const UserManagement = () => {
                       {d.nombre}
                     </option>
                   ))}
+                </select>
+              </div>
+              {/* Filtro Rol / Cargo */}
+              <div className="flex-1 lg:flex-none">
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                >
+                  <option value="">Todos los Roles</option>
+                  <option value="superuser">SuperUsuarios</option>
+                  <option value="jefe_provincial">Jefes Provinciales</option>
+                  <option value="jefe_regional">Jefes Regionales</option>
+                  <option value="jefe_distrital">Jefes Distritales</option>
+                  <option value="equipo_directivo">Equipos Directivos</option>
+                  <option value="profesor">Profesores / Docentes</option>
+                  <option value="preceptor">Preceptores</option>
                 </select>
               </div>
             </div>
