@@ -15,7 +15,6 @@ import {
   Building2,
   Link2,
   Link2Off,
-  Search,
   Loader2,
   Pencil,
 } from "lucide-react";
@@ -43,20 +42,23 @@ const UserDetailModal = ({
   const [isSearchingCandidatos, setIsSearchingCandidatos] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const handleBuscarCandidatos = async () => {
-    if (!user?.id) return;
+   useEffect(() => {
+    // Resetear estado al cambiar de usuario o al cerrar el modal
+    setCandidatos([]);
+    setHasSearched(false);
+
+    // Condiciones de guarda: modal cerrado, sin ID, sin documento, o ya vinculado
+    if (!isOpen || !user?.id || !user?.documento_numero || user?.persona) return;
+
+    // Búsqueda automática cuando el usuario no tiene persona vinculada
     setIsSearchingCandidatos(true);
     setHasSearched(true);
-    try {
-      const response = await userService.getCandidatosPersona(user.id);
-      setCandidatos(response.data || []);
-    } catch (error) {
-      console.error("Error al buscar candidatos:", error);
-      setCandidatos([]);
-    } finally {
-      setIsSearchingCandidatos(false);
-    }
-  };
+    userService
+      .getCandidatosPersona(user.id)
+      .then((response) => setCandidatos(response.data || []))
+      .catch(() => setCandidatos([]))
+      .finally(() => setIsSearchingCandidatos(false));
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
@@ -442,19 +444,13 @@ const UserDetailModal = ({
                   </div>
                 </div>
 
-                {/* Botón de búsqueda de candidatos */}
-                <button
-                  onClick={handleBuscarCandidatos}
-                  disabled={isSearchingCandidatos}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white text-xs font-black uppercase rounded-xl hover:bg-primary-700 transition-all disabled:opacity-50"
-                >
-                  {isSearchingCandidatos ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4" />
-                  )}
-                  Buscar candidatos en el padrón
-                </button>
+                {/* Indicador de búsqueda automática de candidatos */}
+                {isSearchingCandidatos && (
+                  <div className="flex items-center gap-2 text-xs font-black text-secondary-500 uppercase tracking-widest">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary-500" />
+                    Buscando candidatos en el padrón...
+                  </div>
+                )}
 
                 {/* Resultados de búsqueda */}
                 {hasSearched &&
