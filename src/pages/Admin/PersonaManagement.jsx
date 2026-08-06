@@ -41,6 +41,8 @@ import escuelaService from "../../services/escuelaService";
 import cupofService from "../../services/cupofService";
 import documentoTipoService from "../../services/documentoTipoService";
 import geografiaService from "../../services/geografiaService";
+import ConfirmUnlinkUserModal from "../../components/ConfirmUnlinkUserModal";
+
 
 /**
  * Componente para la gestión integral del Padrón de Personas (Agentes).
@@ -89,6 +91,7 @@ export default function PersonaManagement() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [confirmationPending, setConfirmationPending] = useState(null);
   const [editingPersonaId, setEditingPersonaId] = useState(null);
   const [isEmailLocked, setIsEmailLocked] = useState(false);
 
@@ -557,7 +560,7 @@ export default function PersonaManagement() {
 
   const handleEditPersona = (persona) => {
     setIsEditMode(true);
-    setIsEmailLocked(!!persona.usuario_email);
+    setIsEmailLocked(false); // Permitir cambiar email; el backend pedirá confirmación si hay usuario vinculado
     setEditingPersonaId(persona.id);
     setPersonaFormData({
       apellido: persona.apellido,
@@ -603,6 +606,14 @@ export default function PersonaManagement() {
       setIsCreateModalOpen(false);
       fetchPersonas(isEditMode ? pagination.current_page : 1);
     } catch (error) {
+      if (error.isConfirmationRequired) {
+        // Guardar el contexto y el payload para reenviar con confirmación
+        setConfirmationPending({
+          payload: { ...personaFormData },
+          context: error.confirmationContext,
+        });
+        return;
+      }
       console.error("Error al procesar persona:", error);
       showNotification(
         parseError(
@@ -615,6 +626,37 @@ export default function PersonaManagement() {
       setIsSavingPersona(false);
     }
   };
+
+  const handleConfirmUnlink = async () => {
+  if (!confirmationPending) return;
+  try {
+    setIsSavingPersona(true);
+    await personaService.update(editingPersonaId, {
+      ...confirmationPending.payload,
+      confirmed: true,
+    });
+    setConfirmationPending(null);
+    setIsCreateModalOpen(false);
+    showNotification(
+      "Email actualizado. El usuario fue desvinculado y re-vinculado con el nuevo email.",
+      "success",
+    );
+    fetchPersonas(pagination.current_page);
+  } catch (error) {
+    console.error("Error al confirmar desvinculación:", error);
+    showNotification(
+      parseError(error, "No se pudo completar la actualización del email."),
+      "error",
+    );
+  } finally {
+    setIsSavingPersona(false);
+  }
+};
+
+const handleCancelUnlink = () => {
+  setConfirmationPending(null); // No se hace nada
+};
+
 
   const handleLinkUser = async (personaId) => {
     try {
@@ -1199,7 +1241,6 @@ export default function PersonaManagement() {
                   </label>
                   <input
                     type="email"
-                    disabled={isEmailLocked}
                     className={`w-full px-4 py-3 border rounded-xl text-sm font-bold lowercase ${isEmailLocked ? "bg-secondary-100 text-secondary-400" : "bg-secondary-50 focus:ring-2 focus:ring-primary-500"}`}
                     value={personaFormData.email}
                     onChange={(e) =>
@@ -1899,6 +1940,14 @@ export default function PersonaManagement() {
           </div>
         </div>
       )}
+
+      {/* MODAL CONFIRMACIÓN DESVINCULACIÓN POR CAMBIO DE EMAIL */}
+      <ConfirmUnlinkUserModal
+        isOpen={!!confirmationPending}
+        onConfirm={handleConfirmUnlink}
+        onCancel={handleCancelUnlink}
+        context={confirmationPending?.context}
+      />
     </div>
   );
 }

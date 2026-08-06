@@ -30,12 +30,27 @@ const personaService = {
 
     /**
      * Actualiza un registro de persona.
+     * Si el backend responde 409 (requires_confirmation), lanza un error especial
+     * marcado con isConfirmationRequired + confirmationContext para que el componente lo intercepte.
      */
     async update(id, data) {
-        const response = await api.put(`/admin/personas/${id}`, data);
-        return response.data;
+        try {
+            const response = await api.put(`/admin/personas/${id}`, data);
+            return response.data;
+        } catch (error) {
+            const data409 = error.response?.data;
+            if (
+                error.response?.status === 409 &&
+                data409?.requires_confirmation === true &&
+                data409?.action === 'CONFIRM_UNLINK_USER'
+            ) {
+                error.isConfirmationRequired = true;
+                error.confirmationContext = data409.context;
+            }
+            throw error;
+        }
     },
-
+    
     /**
      * Elimina un registro de persona.
      */
