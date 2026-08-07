@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Eye, X, IdCard } from "lucide-react";
+import { Eye, X, IdCard, Link, Link2Off, Loader2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
 import userService from "../../services/userService";
@@ -355,6 +355,61 @@ const UserManagement = () => {
     }
   };
 
+  const handleQuickLinkUser = async (user) => {
+    try {
+      setProcessingId(user.id);
+      const response = await userService.getCandidatosPersona(user.id);
+      const candidatos = response.data || [];
+
+      if (candidatos.length > 0) {
+        const candidato = candidatos[0];
+        openConfirm({
+          title: "Confirmar Vinculación al Padrón",
+          message: `Se detectó al registro ${candidato.nombre_completo} (DNI ${candidato.documento_numero}, Email: ${candidato.email || "S/D"}) en el padrón. ¿Deseas vincular al usuario ${user.nombre} con esta persona?`,
+          confirmText: "Vincular",
+          variant: "primary",
+          onConfirm: () => {
+            closeConfirm();
+            handleVincularPersona(user.id, candidato.id);
+          },
+        });
+      } else {
+        openConfirm({
+          title: "Sin candidatos coincidentes",
+          message: `No se encontró ningún registro en el padrón con DNI y Email coincidentes para ${user.nombre} (${user.documento_numero || "Sin DNI"}). ¿Deseas abrir el detalle del usuario para revisar la información?`,
+          confirmText: "Ver Detalle",
+          variant: "primary",
+          onConfirm: () => {
+            closeConfirm();
+            openDetailModal(user);
+          },
+        });
+      }
+    } catch (error) {
+      showNotification(
+        parseError(error, "Error al buscar candidatos en el padrón."),
+        "error",
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleQuickUnlinkUser = (user) => {
+    const personaNombre =
+      user.persona?.nombre_completo || user.persona?.apellido || "el padrón";
+    openConfirm({
+      title: "¿Desvincular usuario del Padrón?",
+      message: `¿Deseas desvincular al usuario ${user.nombre} (${user.email}) de la persona vinculada (${personaNombre})?`,
+      confirmText: "Desvincular",
+      variant: "danger",
+      onConfirm: () => {
+        closeConfirm();
+        handleDesvincularPersona(user.id);
+      },
+    });
+  };
+
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -408,15 +463,24 @@ const UserManagement = () => {
   };
 
   const handleConfirmVinculation = async (user) => {
+    const emailNoVerificado = !user.email_verified_at;
     openConfirm({
-      title: "Confirmar Vinculación al Padrón",
-      message: `¿Confirmas que el usuario ${user.nombre} (${user.email}) coincide con el registro del padrón detectado automáticamente para el documento ${user.documento_numero}?`,
+      title: emailNoVerificado
+        ? "⚠️ Confirmar Vinculación (Email No Verificado)"
+        : "Confirmar Vinculación al Padrón",
+      message: emailNoVerificado
+        ? `El usuario ${user.nombre} (${user.email}) NO ha verificado su correo electrónico. ¿Deseas confirmar la vinculación de todos modos? El email seguirá sin estar verificado.`
+        : `¿Confirmas que el usuario ${user.nombre} (${user.email}) coincide con el registro del padrón detectado automáticamente para el documento ${user.documento_numero}?`,
       confirmText: "Confirmar y Activar",
-      variant: "primary",
+      variant: emailNoVerificado ? "warning" : "primary",
       onConfirm: async () => {
         try {
           setConfirmConfig((prev) => ({ ...prev, isLoading: true }));
-          const response = await userService.confirmPersona(user.id);
+          const response = await userService.confirmPersona(
+            user.id,
+            emailNoVerificado,
+          );
+
           showNotification(response.message, "success");
           fetchUsers(pagination.current_page);
           closeConfirm();
@@ -852,6 +916,44 @@ const UserManagement = () => {
                             </button>
                           )}
 
+                        {/* Botón de Vincular / Desvincular Cadena */}
+                        {user.estado !== "vinculacion_pendiente" &&
+                          !(
+                            user.es_administrador ||
+                            user.roles?.some((r) => r.name === "superuser")
+                          ) &&
+                          (isSuperUser ||
+                            isJefeProvincial ||
+                            isJefeRegional ||
+                            isJefeDistrital) &&
+                          (user.persona ? (
+                            <button
+                              onClick={() => handleQuickUnlinkUser(user)}
+                              disabled={processingId === user.id}
+                              className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Desvincular del Padrón de Personas"
+                            >
+                              {processingId === user.id ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                <Link2Off className="w-5 h-5" />
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleQuickLinkUser(user)}
+                              disabled={processingId === user.id}
+                              className="p-2 text-secondary-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Vincular con Registro del Padrón"
+                            >
+                              {processingId === user.id ? (
+                                <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                              ) : (
+                                <Link className="w-5 h-5" />
+                              )}
+                            </button>
+                          ))}
+
                         {/* Botón de Ver Detalle */}
                         <button
                           onClick={() => openDetailModal(user)}
@@ -1025,6 +1127,14 @@ const UserManagement = () => {
                 <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
                   <IdCard className="w-4 h-4" /> Datos de Cuenta e Identidad
                 </h3>
+
+                {editingUser?.persona && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
+                    Este usuario está vinculado al padrón de personas. Los
+                    campos DNI y Email están bloqueados para preservar la
+                    integridad del vínculo.
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Nombre */}
                   <div>
@@ -1050,7 +1160,17 @@ const UserManagement = () => {
                       name="email"
                       value={formData.email}
                       onChange={handleFormChange}
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                      disabled={!!editingUser?.persona}
+                      title={
+                        editingUser?.persona
+                          ? "El email está bloqueado porque el usuario está vinculado al padrón."
+                          : ""
+                      }
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${
+                        editingUser?.persona
+                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                      }`}
                       required
                     />
                   </div>
@@ -1063,7 +1183,17 @@ const UserManagement = () => {
                       name="documento_tipo_id"
                       value={formData.documento_tipo_id}
                       onChange={handleFormChange}
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                      disabled={!!editingUser?.persona}
+                      title={
+                        editingUser?.persona
+                          ? "El tipo de documento está bloqueado porque el usuario está vinculado al padrón."
+                          : ""
+                      }
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none transition-all ${
+                        editingUser?.persona
+                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                      }`}
                     >
                       <option value="">Seleccionar...</option>
                       {docTipos.map((t) => (
@@ -1083,7 +1213,17 @@ const UserManagement = () => {
                       name="documento_numero"
                       value={formData.documento_numero}
                       onChange={handleFormChange}
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 tracking-wider focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                      disabled={!!editingUser?.persona}
+                      title={
+                        editingUser?.persona
+                          ? "El número de documento está bloqueado porque el usuario está vinculado al padrón."
+                          : ""
+                      }
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${
+                        editingUser?.persona
+                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                      }`}
                       required
                     />
                   </div>

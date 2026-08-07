@@ -43,7 +43,6 @@ import documentoTipoService from "../../services/documentoTipoService";
 import geografiaService from "../../services/geografiaService";
 import ConfirmUnlinkUserModal from "../../components/ConfirmUnlinkUserModal";
 
-
 /**
  * Componente para la gestión integral del Padrón de Personas (Agentes).
  */
@@ -560,7 +559,7 @@ export default function PersonaManagement() {
 
   const handleEditPersona = (persona) => {
     setIsEditMode(true);
-    setIsEmailLocked(false); // Permitir cambiar email; el backend pedirá confirmación si hay usuario vinculado
+    setIsEmailLocked(!!persona.usuario_id); // Bloquear email y DNI si tiene usuario vinculado
     setEditingPersonaId(persona.id);
     setPersonaFormData({
       apellido: persona.apellido,
@@ -628,35 +627,34 @@ export default function PersonaManagement() {
   };
 
   const handleConfirmUnlink = async () => {
-  if (!confirmationPending) return;
-  try {
-    setIsSavingPersona(true);
-    await personaService.update(editingPersonaId, {
-      ...confirmationPending.payload,
-      confirmed: true,
-    });
-    setConfirmationPending(null);
-    setIsCreateModalOpen(false);
-    showNotification(
-      "Email actualizado. El usuario fue desvinculado y re-vinculado con el nuevo email.",
-      "success",
-    );
-    fetchPersonas(pagination.current_page);
-  } catch (error) {
-    console.error("Error al confirmar desvinculación:", error);
-    showNotification(
-      parseError(error, "No se pudo completar la actualización del email."),
-      "error",
-    );
-  } finally {
-    setIsSavingPersona(false);
-  }
-};
+    if (!confirmationPending) return;
+    try {
+      setIsSavingPersona(true);
+      await personaService.update(editingPersonaId, {
+        ...confirmationPending.payload,
+        confirmed: true,
+      });
+      setConfirmationPending(null);
+      setIsCreateModalOpen(false);
+      showNotification(
+        "Email actualizado. El usuario fue desvinculado y re-vinculado con el nuevo email.",
+        "success",
+      );
+      fetchPersonas(pagination.current_page);
+    } catch (error) {
+      console.error("Error al confirmar desvinculación:", error);
+      showNotification(
+        parseError(error, "No se pudo completar la actualización del email."),
+        "error",
+      );
+    } finally {
+      setIsSavingPersona(false);
+    }
+  };
 
-const handleCancelUnlink = () => {
-  setConfirmationPending(null); // No se hace nada
-};
-
+  const handleCancelUnlink = () => {
+    setConfirmationPending(null); // No se hace nada
+  };
 
   const handleLinkUser = async (personaId) => {
     try {
@@ -1025,7 +1023,6 @@ const handleCancelUnlink = () => {
 
             <div className="overflow-y-auto flex-1">
               <div className="p-8 space-y-8">
-                {/* Datos de Identidad */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b border-secondary-100 pb-2">
                     <User className="w-5 h-5 text-primary-500" />
@@ -1141,34 +1138,53 @@ const handleCancelUnlink = () => {
       {/* MODAL DE CREACIÓN / EDICIÓN */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn border border-primary-100">
-            <div className="p-6 border-b border-secondary-100 flex items-center justify-between bg-primary-50">
-              <div>
-                <h2 className="text-xl font-black text-primary-900 uppercase">
-                  {isEditMode ? "Modificar Registro" : "Registrar Persona"}
-                </h2>
-                <p className="text-xs text-primary-600 font-bold tracking-widest mt-0.5 uppercase">
-                  {isEditMode ? `ID: ${editingPersonaId}` : "Alta en el Padrón"}
-                </p>
-              </div>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col border border-secondary-100">
+            <div className="relative bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500 px-8 py-5">
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-primary-400 hover:text-primary-600 transition-colors"
+                className="absolute top-4 right-4 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+                aria-label="Cerrar"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white text-2xl font-black border-2 border-white/40 shadow-lg">
+                  {personaFormData.apellido?.charAt(0)?.toUpperCase() || "?"}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-xl font-black text-white truncate">
+                    {isEditMode ? "Modificar Registro" : "Registrar Persona"}
+                  </h2>
+                  <p className="text-white/80 text-sm font-medium truncate">
+                    {isEditMode
+                      ? `${personaFormData.apellido}, ${personaFormData.nombre}`
+                      : "Alta en el Padrón"}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmitPersona} className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleSubmitPersona} className="overflow-y-auto flex-1 p-6 space-y-6">
+              <section>
+                <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
+                  <User className="w-4 h-4" /> Datos de Identidad
+                </h3>
+                {isEditMode && isEmailLocked && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
+                    Esta persona tiene un usuario vinculado. Los campos DNI y
+                    Email están bloqueados para preservar la integridad del
+                    vínculo.
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                     Apellido
                   </label>
                   <input
                     type="text"
                     required
-                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-primary-500 outline-none"
+                    className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
                     value={personaFormData.apellido}
                     onChange={(e) =>
                       setPersonaFormData((prev) => ({
@@ -1179,13 +1195,13 @@ const handleCancelUnlink = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                     Nombre
                   </label>
                   <input
                     type="text"
                     required
-                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-primary-500 outline-none"
+                    className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
                     value={personaFormData.nombre}
                     onChange={(e) =>
                       setPersonaFormData((prev) => ({
@@ -1196,12 +1212,22 @@ const handleCancelUnlink = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                     Tipo Documento
                   </label>
                   <select
                     required
-                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500"
+                    disabled={isEmailLocked}
+                    title={
+                      isEmailLocked
+                        ? "El tipo de documento está bloqueado porque la persona tiene un usuario vinculado."
+                        : ""
+                    }
+                    className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold ${
+                      isEmailLocked
+                        ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                    }`}
                     value={personaFormData.documento_tipo_id}
                     onChange={(e) =>
                       setPersonaFormData((prev) => ({
@@ -1219,13 +1245,23 @@ const handleCancelUnlink = () => {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                     Número Documento
                   </label>
                   <input
                     type="text"
                     required
-                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500"
+                    disabled={isEmailLocked}
+                    title={
+                      isEmailLocked
+                        ? "El número de documento está bloqueado porque la persona tiene un usuario vinculado."
+                        : ""
+                    }
+                    className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold ${
+                      isEmailLocked
+                        ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                    }`}
                     value={personaFormData.documento_numero}
                     onChange={(e) =>
                       setPersonaFormData((prev) => ({
@@ -1236,12 +1272,22 @@ const handleCancelUnlink = () => {
                   />
                 </div>
                 <div className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                     Email (Opcional)
                   </label>
                   <input
                     type="email"
-                    className={`w-full px-4 py-3 border rounded-xl text-sm font-bold lowercase ${isEmailLocked ? "bg-secondary-100 text-secondary-400" : "bg-secondary-50 focus:ring-2 focus:ring-primary-500"}`}
+                    disabled={isEmailLocked}
+                    title={
+                      isEmailLocked
+                        ? "El email está bloqueado porque la persona tiene un usuario vinculado."
+                        : ""
+                    }
+                    className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold lowercase ${
+                      isEmailLocked
+                        ? "bg-secondary-100 text-secondary-400 cursor-not-allowed"
+                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                    }`}
                     value={personaFormData.email}
                     onChange={(e) =>
                       setPersonaFormData((prev) => ({
@@ -1251,19 +1297,20 @@ const handleCancelUnlink = () => {
                     }
                   />
                 </div>
-              </div>
-              <div className="pt-6 flex gap-3">
+                </div>
+              </section>
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="flex-1 py-4 bg-secondary-100 text-secondary-600 rounded-2xl font-black uppercase tracking-widest"
+                  className="flex-1 px-6 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200 transition-all active:scale-[0.98]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingPersona}
-                  className="flex-[2] py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl disabled:opacity-50"
+                  className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50"
                 >
                   {isSavingPersona
                     ? "Guardando..."

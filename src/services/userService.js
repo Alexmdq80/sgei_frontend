@@ -1,124 +1,130 @@
-import api from './api';
+import api from "./api";
 
 /**
  * Servicio para la gestión de datos del usuario autenticado (Perfil).
  */
 const userService = {
-    /**
-     * Actualiza la información básica del perfil (nombre, email).
-     * @param {Object} data { name, email }
-     */
-    async updateProfile(data) {
-        const response = await api.put('/auth/profile', data);
-        return response.data;
-    },
+  /**
+   * Actualiza la información básica del perfil (nombre, email).
+   * @param {Object} data { name, email }
+   */
+  async updateProfile(data) {
+    const response = await api.put("/auth/profile", data);
+    return response.data;
+  },
 
-    /**
-     * Actualiza el avatar del usuario.
-     * @param {FormData} formData Objeto FormData con el archivo 'avatar'.
-     */
-    async updateAvatar(formData) {
-        const response = await api.post('/auth/avatar', formData);
-        return response.data;
-    },
+  /**
+   * Actualiza el avatar del usuario.
+   * @param {FormData} formData Objeto FormData con el archivo 'avatar'.
+   */
+  async updateAvatar(formData) {
+    const response = await api.post("/auth/avatar", formData);
+    return response.data;
+  },
 
-    /**
-     * Elimina el avatar del usuario.
-     */
-    async deleteAvatar() {
-        const response = await api.delete('/auth/avatar');
-        return response.data;
-    },
+  /**
+   * Elimina el avatar del usuario.
+   */
+  async deleteAvatar() {
+    const response = await api.delete("/auth/avatar");
+    return response.data;
+  },
 
-    /**
-     * Actualiza la contraseña del usuario.
-     * @param {Object} data { current_password, password, password_confirmation }
-     */
-    async updatePassword(data) {
-        const response = await api.put('/auth/password', data);
-        return response.data;
-    },
+  /**
+   * Actualiza la contraseña del usuario.
+   * @param {Object} data { current_password, password, password_confirmation }
+   */
+  async updatePassword(data) {
+    const response = await api.put("/auth/password", data);
+    return response.data;
+  },
 
-    // --- MÉTODOS ADMINISTRATIVOS ---
+  // --- MÉTODOS ADMINISTRATIVOS ---
 
-    /**
-     * Obtiene todos los usuarios (paginado).
-     */
-    async getAll(params = {}) {
-        const response = await api.get('/admin/usuarios', { params });
-        return response.data;
-    },
-    /**
-     * Obtiene el detalle completo de un usuario específico.
-     */
-    async getById(id) {
-        const response = await api.get(`/admin/usuarios/${id}`);
-        return response.data;
-    },
-    /**
-     * Crea un nuevo usuario desde el panel administrativo.
-     */
-    async create(data) {
-        const response = await api.post('/admin/usuarios', data);
-        return response.data;
-    },
+  /**
+   * Obtiene todos los usuarios (paginado).
+   */
+  async getAll(params = {}) {
+    const response = await api.get("/admin/usuarios", { params });
+    return response.data;
+  },
+  /**
+   * Obtiene el detalle completo de un usuario específico.
+   */
+  async getById(id) {
+    const response = await api.get(`/admin/usuarios/${id}`);
+    return response.data;
+  },
+  /**
+   * Crea un nuevo usuario desde el panel administrativo.
+   */
+  async create(data) {
+    const response = await api.post("/admin/usuarios", data);
+    return response.data;
+  },
 
-    /**
-     * Actualiza un usuario específico.
-     */
-    async update(id, data) {
-        const response = await api.put(`/admin/usuarios/${id}`, data);
-        return response.data;
-    },
+  /**
+   * Actualiza un usuario específico.
+   */
+  async update(id, data) {
+    const response = await api.put(`/admin/usuarios/${id}`, data);
+    return response.data;
+  },
 
-    /**
-     * Elimina (soft delete) un usuario.
-     */
-    async delete(id) {
-        const response = await api.delete(`/admin/usuarios/${id}`);
-        return response.data;
-    },
+  /**
+   * Elimina (soft delete) un usuario.
+   */
+  async delete(id) {
+    const response = await api.delete(`/admin/usuarios/${id}`);
+    return response.data;
+  },
 
-    /**
-     * Confirma la vinculación de un usuario con un registro del padrón.
-     */
-    async confirmPersona(id) {
-        const response = await api.post(`/admin/usuarios/${id}/confirm-persona`);
-        return response.data;
-    },
+  /**
+   * Confirma la vinculación de un usuario con un registro del padrón.
+   */
+  async confirmPersona(id, force = false) {
+    const response = await api.post(`/admin/usuarios/${id}/confirm-persona`, {
+      force,
+    });
 
-    /**
-     * Reenvía manualmente el email de activación a un usuario.
-     */
-    async resendActivation(id) {
-        const response = await api.post(`/admin/usuarios/${id}/resend-activation`);
-        return response.data;
-    },
+    return response.data;
+  },
 
-    /**
-     * Busca personas candidatas a vincularse con un usuario (mismo DNI + Email).
-     */
-    async getCandidatosPersona(id) {
-        const response = await api.get(`/admin/usuarios/${id}/candidatos-persona`);
-        return response.data;
-    },
+  /**
+   * Reenvía manualmente el email de activación a un usuario.
+   */
+  async resendActivation(id) {
+    const response = await api.post(`/admin/usuarios/${id}/resend-activation`);
+    return response.data;
+  },
 
-    /**
-     * Vincula una persona candidata a un usuario.
-     */
-    async vincularPersona(id, personaId) {
-        const response = await api.post(`/admin/usuarios/${id}/vincular-persona/${personaId}`);
-        return response.data;
-    },
+  /**
+   * Busca personas candidatas a vincularse con un usuario (mismo DNI + Email).
+   */
+  async getCandidatosPersona(id) {
+    const response = await api.get(`/admin/usuarios/${id}/candidatos-persona`);
+    return response.data;
+  },
 
-    /**
-     * Desvincula la persona del usuario.
-     */
-    async desvincularPersona(id) {
-        const response = await api.post(`/admin/usuarios/${id}/desvincular-persona`);
-        return response.data;
-    }
+  /**
+   * Vincula una persona candidata a un usuario.
+   */
+  async vincularPersona(id, personaId) {
+    const response = await api.post(
+      `/admin/usuarios/${id}/vincular-persona/${personaId}`,
+    );
+    return response.data;
+  },
 
+  /**
+   * Desvincula la persona del usuario.
+   */
+  async desvincularPersona(id) {
+    const response = await api.post(
+      `/admin/usuarios/${id}/desvincular-persona`,
+    );
+    return response.data;
+  },
 };
 
 export default userService;
