@@ -862,31 +862,31 @@ const UserManagement = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        {/* Botón de Reenviar Activación (SOLO SUPERUSUARIO) */}
                         {!(
                           user.es_administrador ||
                           user.roles?.some((r) => r.name === "superuser")
-                        ) && (
-                          <button
-                            onClick={() => handleResendActivation(user)}
-                            className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Reenviar Invitación de Activación (Forzar Verificación)"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                        ) &&
+                          user.estado !== "activo" && (
+                            <button
+                              onClick={() => handleResendActivation(user)}
+                              className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Reenviar Invitación de Activación (Forzar Verificación)"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                              />
-                            </svg>
-                          </button>
-                        )}
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                />
+                              </svg>
+                            </button>
+                          )}
 
                         {/* Botón de Confirmar Vinculación Pendiente: Solo Jefaturas y SuperUser, NO Conducción */}
                         {user.estado === "vinculacion_pendiente" &&
