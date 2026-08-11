@@ -1,5 +1,13 @@
 import { useState, useEffect } from "react";
-import { Eye, X, IdCard, Link, Link2Off, Loader2, MailCheck } from "lucide-react";
+import {
+  Eye,
+  X,
+  IdCard,
+  Link,
+  Link2Off,
+  Loader2,
+  MailCheck,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
 import userService from "../../services/userService";
@@ -7,23 +15,17 @@ import documentoTipoService from "../../services/documentoTipoService";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import UserDetailModal from "../../components/UserDetailModal";
 import geografiaService from "../../services/geografiaService";
-import escuelaService from "../../services/escuelaService";
 
 /**
  * Página de administración integral de usuarios.
  * Incluye el listado/CRUD de usuarios y la gestión de roles institucionales.
  */
 const UserManagement = () => {
-  const { user: authUser, showNotification, hasPermission } = useAuth();
+  const { user: authUser, showNotification } = useAuth();
 
   const isSuperUser =
     authUser?.es_administrador ||
     authUser?.roles?.some((r) => r.name === "superuser");
-  const isConduccion = authUser?.roles?.some((r) =>
-    ["director", "vicedirector", "secretario", "prosecretario"].includes(
-      r.name,
-    ),
-  );
   const isJefeProvincial = authUser?.roles?.some(
     (r) => r.name === "jefe_provincial",
   );
@@ -34,13 +36,13 @@ const UserManagement = () => {
     (r) => r.name === "jefe_distrital",
   );
 
-  // Solo Superuser tiene acceso global a la gestión de usuarios.
-  const hasAccess = isSuperUser;
+  // Permiso de acceso global o por jefaturas
+  const hasAccess =
+    isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital;
 
   // Estados para Usuarios
   const [users, setUsers] = useState([]);
   const [isUsersLoading, setIsUsersLoading] = useState(true);
-  const [isUpdatingRole, setIsUpdatingRole] = useState(null);
   const [userSearch, setUserSearch] = useState("");
   const [filterCueAnexo, setFilterCueAnexo] = useState("");
   const [pagination, setPagination] = useState({
@@ -75,12 +77,10 @@ const UserManagement = () => {
   const [provincias, setProvincias] = useState([]);
   const [regiones, setRegiones] = useState([]);
   const [departamentos, setDepartamentos] = useState([]);
-  const [isLoadingGeografia, setIsLoadingGeografia] = useState(false);
 
   const [formData, setFormData] = useState({
     nombre: "",
     email: "",
-    password: "",
     documento_tipo_id: "",
     documento_numero: "",
   });
@@ -92,7 +92,7 @@ const UserManagement = () => {
     message: "",
     confirmText: "Confirmar",
     variant: "primary",
-    onConfirm: () => { },
+    onConfirm: () => {},
     showInput: false,
     inputPlaceholder: "",
     isLoading: false,
@@ -116,8 +116,6 @@ const UserManagement = () => {
   };
 
   // --- CARGA DE DATOS ---
-  // --- CARGA DE CATÁLOGOS GEOGRÁFICOS ---
-
   const fetchProvincias = async () => {
     try {
       const response = await geografiaService.getProvincias();
@@ -133,7 +131,6 @@ const UserManagement = () => {
       return;
     }
     try {
-      setIsLoadingGeografia(true);
       const response = await geografiaService.getRegiones({
         provincia_id: provinciaId,
       });
@@ -141,8 +138,6 @@ const UserManagement = () => {
     } catch (error) {
       console.error("Error al cargar regiones:", error);
       setRegiones([]);
-    } finally {
-      setIsLoadingGeografia(false);
     }
   };
 
@@ -152,7 +147,6 @@ const UserManagement = () => {
       return;
     }
     try {
-      setIsLoadingGeografia(true);
       const params = regionId ? { region_id: regionId } : {};
       const response = await geografiaService.getDepartamentos(
         provinciaId,
@@ -162,8 +156,6 @@ const UserManagement = () => {
     } catch (error) {
       console.error("Error al cargar departamentos:", error);
       setDepartamentos([]);
-    } finally {
-      setIsLoadingGeografia(false);
     }
   };
 
@@ -197,24 +189,6 @@ const UserManagement = () => {
     }
   }, [filterRegionId]);
 
-  /*const fetchUsers = async (page = 1) => {
-        try {
-            setIsUsersLoading(true);
-            const response = await userService.getAll({ 
-                search: userSearch, 
-                cue_anexo: filterCueAnexo,
-                page,
-                per_page: 10 
-            });
-            setUsers(response.data || []);
-            setPagination(response.meta || { current_page: 1, last_page: 1, total: 0 });
-        } catch (error) {
-            console.error('Error al cargar usuarios:', error);
-            showNotification(parseError(error, 'Error al cargar el listado de usuarios.'), 'error');
-        } finally {
-            setIsUsersLoading(false);
-        }
-    };*/
   const fetchUsers = async (page = 1) => {
     try {
       setIsUsersLoading(true);
@@ -251,6 +225,7 @@ const UserManagement = () => {
       console.error("Error al cargar catálogos:", error);
     }
   };
+
   useEffect(() => {
     const isCueEmpty = filterCueAnexo.length === 0;
     const isCueComplete = filterCueAnexo.length === 9;
@@ -497,7 +472,7 @@ const UserManagement = () => {
     });
   };
 
-   const handleResendActivation = async (user) => {
+  const handleResendActivation = async (user) => {
     openConfirm({
       title: "Reenviar Invitación",
       message: `¿Deseas reenviar la invitación a ${user.email}? El usuario podrá configurar su contraseña desde el enlace.`,
@@ -783,7 +758,7 @@ const UserManagement = () => {
                             {user.nombre}
                           </p>
                           {user.es_administrador ||
-                            user.roles?.some((r) => r.name === "superuser") ? (
+                          user.roles?.some((r) => r.name === "superuser") ? (
                             <p className="text-[10px] text-secondary-400 italic">
                               Información de contacto protegida
                             </p>
@@ -862,7 +837,7 @@ const UserManagement = () => {
                           );
                         })}
 
-                        {/* Roles Institucionales (Equipo de Conducción / Comunidad Educativa) */}
+                        {/* Roles Institucionales */}
                         {user.escuelas_personas?.map((ep) => (
                           <span
                             key={ep.id}
@@ -875,8 +850,13 @@ const UserManagement = () => {
                               : ep.escuela?.nombre}
                           </span>
                         ))}
+                      </div>
+                    </td>
 
-                                                {!(
+                    {/* Celda de Acciones (CORREGIDO: envuelto en <td>) */}
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {!(
                           user.es_administrador ||
                           user.roles?.some((r) => r.name === "superuser")
                         ) &&
@@ -909,7 +889,9 @@ const UserManagement = () => {
                         ) &&
                           !user.email_verified_at && (
                             <button
-                              onClick={() => handleResendEmailVerification(user)}
+                              onClick={() =>
+                                handleResendEmailVerification(user)
+                              }
                               className="p-2 text-secondary-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                               title="Reenviar Verificación de Email"
                             >
@@ -917,8 +899,7 @@ const UserManagement = () => {
                             </button>
                           )}
 
-
-                        {/* Botón de Confirmar Vinculación Pendiente: Solo Jefaturas y SuperUser, NO Conducción */}
+                        {/* Confirmar Vinculación Pendiente */}
                         {user.estado === "vinculacion_pendiente" &&
                           (isSuperUser ||
                             isJefeProvincial ||
@@ -946,7 +927,7 @@ const UserManagement = () => {
                             </button>
                           )}
 
-                        {/* Botón de Vincular / Desvincular Cadena */}
+                        {/* Vincular / Desvincular Cadena */}
                         {user.estado !== "vinculacion_pendiente" &&
                           !(
                             user.es_administrador ||
@@ -984,7 +965,7 @@ const UserManagement = () => {
                             </button>
                           ))}
 
-                        {/* Botón de Ver Detalle */}
+                        {/* Ver Detalle */}
                         <button
                           onClick={() => openDetailModal(user)}
                           className="p-2 text-secondary-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -993,7 +974,7 @@ const UserManagement = () => {
                           <Eye className="w-5 h-5" />
                         </button>
 
-                        {/* Botones de Editar y Eliminar */}
+                        {/* Editar y Eliminar */}
                         {!(
                           user.es_administrador ||
                           user.roles?.some((r) => r.name === "superuser")
@@ -1044,7 +1025,7 @@ const UserManagement = () => {
                                 </svg>
                               )}
                             </button>
-                            {/* Botón de Eliminar (SOLO SUPERUSUARIO) */}
+                            {/* Eliminar (SOLO SUPERUSUARIO) */}
                             {isSuperUser && user.id !== authUser.id && (
                               <button
                                 onClick={() => handleDeleteUser(user.id)}
@@ -1123,7 +1104,7 @@ const UserManagement = () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col border border-secondary-100">
-            {/* Header con gradiente (igual que UserDetailModal) */}
+            {/* Header */}
             <div className="relative bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500 px-8 py-5">
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -1152,7 +1133,6 @@ const UserManagement = () => {
               onSubmit={handleSubmit}
               className="overflow-y-auto flex-1 p-6 space-y-6"
             >
-              {/* Sección: Datos de Cuenta e Identidad */}
               <section>
                 <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
                   <IdCard className="w-4 h-4" /> Datos de Cuenta e Identidad
@@ -1196,10 +1176,11 @@ const UserManagement = () => {
                           ? "El email está bloqueado porque el usuario está vinculado al padrón."
                           : ""
                       }
-                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${editingUser?.persona
-                        ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                        }`}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${
+                        editingUser?.persona
+                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                      }`}
                       required
                     />
                   </div>
@@ -1218,10 +1199,11 @@ const UserManagement = () => {
                           ? "El tipo de documento está bloqueado porque el usuario está vinculado al padrón."
                           : ""
                       }
-                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none transition-all ${editingUser?.persona
-                        ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                        }`}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none transition-all ${
+                        editingUser?.persona
+                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                      }`}
                     >
                       <option value="">Seleccionar...</option>
                       {docTipos.map((t) => (
@@ -1247,10 +1229,11 @@ const UserManagement = () => {
                           ? "El número de documento está bloqueado porque el usuario está vinculado al padrón."
                           : ""
                       }
-                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${editingUser?.persona
-                        ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                        }`}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${
+                        editingUser?.persona
+                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                      }`}
                       required
                     />
                   </div>
@@ -1300,7 +1283,6 @@ const UserManagement = () => {
       />
 
       {/* MODAL DE CONFIRMACIÓN GLOBAL */}
-
       <ConfirmationModal
         isOpen={confirmConfig.isOpen}
         onClose={closeConfirm}

@@ -56,10 +56,6 @@ vi.mock("../../../context/AuthContext", () => ({
   }),
 }));
 
-vi.mock("../../../components/ConfirmationModal", () => ({
-  default: () => <div data-testid="confirmation-modal" />,
-}));
-
 vi.mock("../../../components/UserDetailModal", () => ({
   default: () => <div data-testid="user-detail-modal" />,
 }));
@@ -200,7 +196,8 @@ describe("UserManagement", () => {
       meta: { current_page: 1, last_page: 1, total: 1 },
     });
     userService.resendEmailVerification.mockResolvedValue({
-      message: "Verificación de email reenviada con éxito al correo del usuario.",
+      message:
+        "Verificación de email reenviada con éxito al correo del usuario.",
     });
 
     render(<UserManagement />);
@@ -208,7 +205,6 @@ describe("UserManagement", () => {
     await waitFor(() => {
       expect(screen.getByText("Laura Diaz")).toBeInTheDocument();
     });
-    screen.debug();
 
     // Clic en el botón de reenviar verificación
     fireEvent.click(screen.getByTitle("Reenviar Verificación de Email"));
@@ -226,6 +222,4 @@ describe("UserManagement", () => {
       expect(userService.resendEmailVerification).toHaveBeenCalledWith(4);
     });
   });
-
-
 });

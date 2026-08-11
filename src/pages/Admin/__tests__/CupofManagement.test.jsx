@@ -1,81 +1,98 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import CupofManagement from '../CupofManagement';
-import cupofService from '../../../services/cupofService';
-import cargoService from '../../../services/cargoService';
-import escuelaService from '../../../services/escuelaService';
-import personaService from '../../../services/personaService';
-import escalafonService from '../../../services/escalafonService';
-import puestoTipoService from '../../../services/puestoTipoService';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import CupofManagement from "../CupofManagement";
+import cupofService from "../../../services/cupofService";
+import cargoService from "../../../services/cargoService";
+import escuelaService from "../../../services/escuelaService";
+import personaService from "../../../services/personaService";
+import escalafonService from "../../../services/escalafonService";
+import puestoTipoService from "../../../services/puestoTipoService";
+import documentoTipoService from "../../../services/documentoTipoService"; // <-- AGREGADO
 
 // Mocks de Servicios
-vi.mock('../../../services/cupofService', () => ({
+vi.mock("../../../services/cupofService", () => ({
   default: {
     getAll: vi.fn(),
     create: vi.fn(),
-  }
+  },
 }));
 
-vi.mock('../../../services/cargoService', () => ({
+vi.mock("../../../services/cargoService", () => ({
   default: {
     getAll: vi.fn(),
-  }
+  },
 }));
 
-vi.mock('../../../services/escuelaService', () => ({
+vi.mock("../../../services/escuelaService", () => ({
   default: {
     search: vi.fn(),
     getNiveles: vi.fn(),
     getSectores: vi.fn(),
-  }
+  },
 }));
 
-vi.mock('../../../services/personaService', () => ({
+vi.mock("../../../services/personaService", () => ({
   default: {
     getAll: vi.fn(),
-  }
+  },
 }));
 
-vi.mock('../../../services/escalafonService', () => ({
+vi.mock("../../../services/escalafonService", () => ({
   default: {
     getAll: vi.fn().mockResolvedValue([]),
-  }
+  },
 }));
 
-vi.mock('../../../services/puestoTipoService', () => ({
+vi.mock("../../../services/puestoTipoService", () => ({
   default: {
     getAll: vi.fn().mockResolvedValue([]),
-  }
+  },
+}));
+
+// Mock de documentoTipoService AGREGADO para evitar el Network Error
+vi.mock("../../../services/documentoTipoService", () => ({
+  default: {
+    getAll: vi.fn().mockResolvedValue({ data: [] }),
+  },
 }));
 
 // Mock de AuthContext
-vi.mock('../../../context/AuthContext', async () => {
+vi.mock("../../../context/AuthContext", async () => {
   return {
     useAuth: () => ({
-      user: { nombre: 'Admin Test', es_administrador: true, roles: [{ name: 'superuser' }] },
+      user: {
+        nombre: "Admin Test",
+        es_administrador: true,
+        roles: [{ name: "superuser" }],
+      },
       showNotification: vi.fn(),
-    })
+    }),
   };
 });
 
 // Mock de ConfirmationModal
-vi.mock('../../../components/ConfirmationModal', () => ({
-  default: ({ isOpen, title }) => isOpen ? (
-    <div data-testid="confirmation-modal">
-      <h1>{title}</h1>
-    </div>
-  ) : null
+vi.mock("../../../components/ConfirmationModal", () => ({
+  default: ({ isOpen, title }) =>
+    isOpen ? (
+      <div data-testid="confirmation-modal">
+        <h1>{title}</h1>
+      </div>
+    ) : null,
 }));
 
-describe('CupofManagement Component', () => {
+describe("CupofManagement Component", () => {
   const mockCargos = [
-    { id: 1, nombre: 'PRECEPTOR/A', requiere_cursos: true },
-    { id: 2, nombre: 'DIRECTOR/A', requiere_cursos: false },
+    { id: 1, nombre: "PRECEPTOR/A", requiere_cursos: true },
+    { id: 2, nombre: "DIRECTOR/A", requiere_cursos: false },
   ];
 
-  const mockEscuelas = [
-    { id: 1, nombre: 'Escuela 1', cue_anexo: '061495100' },
-  ];
+  const mockEscuelas = [{ id: 1, nombre: "Escuela 1", cue_anexo: "061495100" }];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,23 +102,24 @@ describe('CupofManagement Component', () => {
     escuelaService.getNiveles.mockResolvedValue([]);
     escuelaService.getSectores.mockResolvedValue([]);
     personaService.getAll.mockResolvedValue({ data: [] });
-    escalafonService.getAll.mockResolvedValue([{ id: 1, nombre: 'DOCENTE' }]);
-    puestoTipoService.getAll.mockResolvedValue([{ id: 1, nombre: 'CARGO' }]);
+    escalafonService.getAll.mockResolvedValue([{ id: 1, nombre: "DOCENTE" }]);
+    puestoTipoService.getAll.mockResolvedValue([{ id: 1, nombre: "CARGO" }]);
+    documentoTipoService.getAll.mockResolvedValue({ data: [] }); // <-- AGREGADO
   });
 
-  it('debe cargar los cargos dinámicamente al montar el componente', async () => {
+  it("debe cargar los cargos dinámicamente al montar el componente", async () => {
     await act(async () => {
       render(<CupofManagement />);
     });
-    
+
     expect(cargoService.getAll).toHaveBeenCalled();
   });
 
-  it('debe mostrar los cargos en el select del modal de creación de CUPOF', async () => {
+  it("debe mostrar los cargos en el select del modal de creación de CUPOF", async () => {
     await act(async () => {
       render(<CupofManagement />);
     });
-    
+
     // Abrir modal de creación
     const btnNuevo = screen.getByText(/Nuevo Puesto/i);
     await act(async () => {
@@ -111,7 +129,7 @@ describe('CupofManagement Component', () => {
     // El campo de Cargo ahora es visible directamente
     const selectCargo = screen.getByLabelText(/Cargo \/ Función/i);
     expect(selectCargo).toBeInTheDocument();
-    
+
     // Las opciones ahora incluyen el escalafón (mocked as null/Sin Escalafón o el valor real)
     expect(screen.getByText(/PRECEPTOR\/A/)).toBeInTheDocument();
     expect(screen.getByText(/DIRECTOR\/A/)).toBeInTheDocument();
