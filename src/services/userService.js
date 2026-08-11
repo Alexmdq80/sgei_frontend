@@ -99,6 +99,16 @@ const userService = {
   },
 
   /**
+   * Reenvía manualmente el email de verificación a un usuario.
+   */
+  async resendEmailVerification(id) {
+    const response = await api.post(
+      `/admin/usuarios/${id}/resend-verification`,
+    );
+    return response.data;
+  },
+
+  /**
    * Busca personas candidatas a vincularse con un usuario (mismo DNI + Email).
    */
   async getCandidatosPersona(id) {

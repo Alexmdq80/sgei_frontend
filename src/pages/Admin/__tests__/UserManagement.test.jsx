@@ -11,10 +11,20 @@ vi.mock("../../../services/userService", () => ({
     delete: vi.fn(),
     confirmPersona: vi.fn(),
     resendActivation: vi.fn(),
+    resendEmailVerification: vi.fn(),
     getCandidatosPersona: vi.fn(),
     vincularPersona: vi.fn(),
     desvincularPersona: vi.fn(),
   },
+}));
+
+vi.mock("../../../components/ConfirmationModal", () => ({
+  default: ({ isOpen, onConfirm }) =>
+    isOpen ? (
+      <button data-testid="confirm-button" onClick={onConfirm}>
+        Confirmar
+      </button>
+    ) : null,
 }));
 
 vi.mock("../../../services/documentoTipoService", () => ({
@@ -135,4 +145,87 @@ describe("UserManagement", () => {
 
     expect(docNumInput).not.toBeDisabled();
   });
+
+  it("muestra el botón de reenviar verificación solo si el email no está verificado", async () => {
+    const userService = (await import("../../../services/userService")).default;
+    userService.getAll.mockResolvedValue({
+      data: [
+        {
+          id: 3,
+          nombre: "Carlos Ruiz",
+          email: "carlos@example.com",
+          documento_tipo_id: 1,
+          documento_numero: "11223344",
+          persona: null,
+          roles: [],
+          es_administrador: false,
+          has_password: true,
+          email_verified_at: null,
+          estado: "email_pendiente",
+        },
+      ],
+      meta: { current_page: 1, last_page: 1, total: 1 },
+    });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Carlos Ruiz")).toBeInTheDocument();
+    });
+
+    // El botón de reenviar verificación debe estar presente
+    expect(
+      screen.getByTitle("Reenviar Verificación de Email"),
+    ).toBeInTheDocument();
+  });
+
+  it("llama a userService.resendEmailVerification al confirmar el reenvío", async () => {
+    const userService = (await import("../../../services/userService")).default;
+    userService.getAll.mockResolvedValue({
+      data: [
+        {
+          id: 4,
+          nombre: "Laura Diaz",
+          email: "laura@example.com",
+          documento_tipo_id: 1,
+          documento_numero: "55667788",
+          persona: null,
+          roles: [],
+          es_administrador: false,
+          has_password: true,
+          email_verified_at: null,
+          estado: "email_pendiente",
+        },
+      ],
+      meta: { current_page: 1, last_page: 1, total: 1 },
+    });
+    userService.resendEmailVerification.mockResolvedValue({
+      message: "Verificación de email reenviada con éxito al correo del usuario.",
+    });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Laura Diaz")).toBeInTheDocument();
+    });
+    screen.debug();
+
+    // Clic en el botón de reenviar verificación
+    fireEvent.click(screen.getByTitle("Reenviar Verificación de Email"));
+
+    // Esperar a que el modal de confirmación se abra (botón con data-testid)
+    await waitFor(() => {
+      expect(screen.getByTestId("confirm-button")).toBeInTheDocument();
+    });
+
+    // Confirmar
+    fireEvent.click(screen.getByTestId("confirm-button"));
+
+    // Verificar que el servicio fue llamado con el id del usuario
+    await waitFor(() => {
+      expect(userService.resendEmailVerification).toHaveBeenCalledWith(4);
+    });
+  });
+
+
 });

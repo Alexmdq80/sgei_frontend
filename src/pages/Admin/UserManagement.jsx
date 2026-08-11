@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Eye, X, IdCard, Link, Link2Off, Loader2 } from "lucide-react";
+import { Eye, X, IdCard, Link, Link2Off, Loader2, MailCheck } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
 import userService from "../../services/userService";
@@ -92,7 +92,7 @@ const UserManagement = () => {
     message: "",
     confirmText: "Confirmar",
     variant: "primary",
-    onConfirm: () => {},
+    onConfirm: () => { },
     showInput: false,
     inputPlaceholder: "",
     isLoading: false,
@@ -497,10 +497,10 @@ const UserManagement = () => {
     });
   };
 
-  const handleResendActivation = async (user) => {
+   const handleResendActivation = async (user) => {
     openConfirm({
-      title: "Forzar Re-Activación / Verificación",
-      message: `¿Deseas reenviar el email de activación a ${user.email}? El usuario deberá configurar su contraseña nuevamente y verificar su correo.`,
+      title: "Reenviar Invitación",
+      message: `¿Deseas reenviar la invitación a ${user.email}? El usuario podrá configurar su contraseña desde el enlace.`,
       confirmText: "Reenviar Invitación",
       variant: "warning",
       onConfirm: async () => {
@@ -513,6 +513,32 @@ const UserManagement = () => {
         } catch (error) {
           showNotification(
             parseError(error, "Error al reenviar la invitación."),
+            "error",
+          );
+          closeConfirm();
+        } finally {
+          setConfirmConfig((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
+  };
+
+  const handleResendEmailVerification = async (user) => {
+    openConfirm({
+      title: "Reenviar Verificación de Email",
+      message: `¿Deseas reenviar el email de verificación a ${user.email}?`,
+      confirmText: "Reenviar Verificación",
+      variant: "primary",
+      onConfirm: async () => {
+        try {
+          setConfirmConfig((prev) => ({ ...prev, isLoading: true }));
+          const response = await userService.resendEmailVerification(user.id);
+          showNotification(response.message, "success");
+          fetchUsers(pagination.current_page);
+          closeConfirm();
+        } catch (error) {
+          showNotification(
+            parseError(error, "Error al reenviar la verificación."),
             "error",
           );
           closeConfirm();
@@ -757,7 +783,7 @@ const UserManagement = () => {
                             {user.nombre}
                           </p>
                           {user.es_administrador ||
-                          user.roles?.some((r) => r.name === "superuser") ? (
+                            user.roles?.some((r) => r.name === "superuser") ? (
                             <p className="text-[10px] text-secondary-400 italic">
                               Información de contacto protegida
                             </p>
@@ -850,27 +876,16 @@ const UserManagement = () => {
                           </span>
                         ))}
 
-                        {!user.es_administrador &&
-                          (!user.roles || user.roles.length === 0) &&
-                          (!user.escuelas_personas ||
-                            user.escuelas_personas.length === 0) && (
-                            <span className="px-2 py-0.5 bg-secondary-100 text-secondary-500 text-[10px] font-bold uppercase rounded italic">
-                              Usuario Estándar
-                            </span>
-                          )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        {!(
+                                                {!(
                           user.es_administrador ||
                           user.roles?.some((r) => r.name === "superuser")
                         ) &&
+                          !user.has_password &&
                           user.estado !== "activo" && (
                             <button
                               onClick={() => handleResendActivation(user)}
                               className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                              title="Reenviar Invitación de Activación (Forzar Verificación)"
+                              title="Reenviar Invitación para configurar contraseña"
                             >
                               <svg
                                 className="w-5 h-5"
@@ -887,6 +902,21 @@ const UserManagement = () => {
                               </svg>
                             </button>
                           )}
+
+                        {!(
+                          user.es_administrador ||
+                          user.roles?.some((r) => r.name === "superuser")
+                        ) &&
+                          !user.email_verified_at && (
+                            <button
+                              onClick={() => handleResendEmailVerification(user)}
+                              className="p-2 text-secondary-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Reenviar Verificación de Email"
+                            >
+                              <MailCheck className="w-5 h-5" />
+                            </button>
+                          )}
+
 
                         {/* Botón de Confirmar Vinculación Pendiente: Solo Jefaturas y SuperUser, NO Conducción */}
                         {user.estado === "vinculacion_pendiente" &&
@@ -1166,11 +1196,10 @@ const UserManagement = () => {
                           ? "El email está bloqueado porque el usuario está vinculado al padrón."
                           : ""
                       }
-                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${
-                        editingUser?.persona
-                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                      }`}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${editingUser?.persona
+                        ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                        }`}
                       required
                     />
                   </div>
@@ -1189,11 +1218,10 @@ const UserManagement = () => {
                           ? "El tipo de documento está bloqueado porque el usuario está vinculado al padrón."
                           : ""
                       }
-                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none transition-all ${
-                        editingUser?.persona
-                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                      }`}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none transition-all ${editingUser?.persona
+                        ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                        }`}
                     >
                       <option value="">Seleccionar...</option>
                       {docTipos.map((t) => (
@@ -1219,11 +1247,10 @@ const UserManagement = () => {
                           ? "El número de documento está bloqueado porque el usuario está vinculado al padrón."
                           : ""
                       }
-                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${
-                        editingUser?.persona
-                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                      }`}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${editingUser?.persona
+                        ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                        }`}
                       required
                     />
                   </div>
