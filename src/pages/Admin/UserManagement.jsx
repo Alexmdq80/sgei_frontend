@@ -73,6 +73,11 @@ const UserManagement = () => {
   const [filterDistritoId, setFilterDistritoId] = useState("");
   const [filterRole, setFilterRole] = useState("");
 
+  // Filtros de estado de cuenta
+  const [filterPasswordSet, setFilterPasswordSet] = useState("");
+  const [filterEmailVerified, setFilterEmailVerified] = useState("");
+  const [filterPersonaLinked, setFilterPersonaLinked] = useState("");
+
   // Catálogos geográficos
   const [provincias, setProvincias] = useState([]);
   const [regiones, setRegiones] = useState([]);
@@ -199,6 +204,9 @@ const UserManagement = () => {
         region_id: filterRegionId || undefined,
         departamento_id: filterDistritoId || undefined,
         role: filterRole || undefined,
+        password_set: filterPasswordSet !== "" ? filterPasswordSet : undefined,
+        email_verified: filterEmailVerified || undefined,
+        persona_linked: filterPersonaLinked || undefined,
         page,
         per_page: 10,
       });
@@ -244,6 +252,11 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers(1);
   }, [filterProvinciaId, filterRegionId, filterDistritoId]);
+
+  // Refrescar usuarios al cambiar filtros de estado de cuenta
+  useEffect(() => {
+    fetchUsers(1);
+  }, [filterPasswordSet, filterEmailVerified, filterPersonaLinked]);
 
   useEffect(() => {
     fetchCatalogs();
@@ -713,6 +726,43 @@ const UserManagement = () => {
                   <option value="equipo_directivo">Equipos Directivos</option>
                   <option value="profesor">Profesores / Docentes</option>
                   <option value="preceptor">Preceptores</option>
+                </select>
+              </div>
+              {/* Filtro Estado de Contraseña */}
+              <div className="flex-1 lg:flex-none">
+                <select
+                  value={filterPasswordSet}
+                  onChange={(e) => setFilterPasswordSet(e.target.value)}
+                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                >
+                  <option value="">Todas las Contraseñas</option>
+                  <option value="true">Con Contraseña Definida</option>
+                  <option value="false">Invitación Pendiente (Sin Clave)</option>
+                </select>
+              </div>
+
+              {/* Filtro Estado de Email */}
+              <div className="flex-1 lg:flex-none">
+                <select
+                  value={filterEmailVerified}
+                  onChange={(e) => setFilterEmailVerified(e.target.value)}
+                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                >
+                  <option value="">Todos los Estados de Email</option>
+                  <option value="verified">Email Verificado</option>
+                  <option value="unverified">Email Sin Verificar</option>
+                </select>
+              </div>
+              {/* Filtro Vinculación a Padrón */}
+              <div className="flex-1 lg:flex-none">
+                <select
+                  value={filterPersonaLinked}
+                  onChange={(e) => setFilterPersonaLinked(e.target.value)}
+                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                >
+                  <option value="">Todos los Estados de Padrón</option>
+                  <option value="linked">Vinculados a Padrón</option>
+                  <option value="unlinked">Sin Vincular</option>
                 </select>
               </div>
             </div>

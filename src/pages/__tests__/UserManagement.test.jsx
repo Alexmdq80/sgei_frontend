@@ -225,9 +225,11 @@ describe("UserManagement Component", () => {
 
     await waitFor(() => screen.getByText("Juan Perez"));
 
-    // Encontrar el select de rol (el último select de la barra de filtros)
+    // Encontrar el select de rol por su opción "Todos los Roles"
     const selects = screen.getAllByRole("combobox");
-    const roleSelect = selects[selects.length - 1]; // El último es el de rol
+    const roleSelect = selects.find((s) =>
+      Array.from(s.options).some((o) => o.text === "Todos los Roles"),
+    );
 
     fireEvent.change(roleSelect, { target: { value: "profesor" } });
 
@@ -252,7 +254,10 @@ describe("UserManagement Component", () => {
     });
 
     const selects = screen.getAllByRole("combobox");
-    const roleSelect = selects[selects.length - 1];
+    const roleSelect = selects.find((s) =>
+      Array.from(s.options).some((o) => o.text === "Todos los Roles"),
+    );
+
 
     fireEvent.change(roleSelect, { target: { value: "superuser" } });
 
