@@ -199,11 +199,13 @@ describe("UserManagement Component", () => {
         "success",
       );
     });
+
   });
   it("debe renderizar el selector de filtro por rol con las opciones correctas", async () => {
     render(<UserManagement />);
 
     await waitFor(() => screen.getByText("Juan Perez"));
+    fireEvent.click(screen.getByRole("button", { name: /filtros/i }));
 
     //const roleSelect = screen.getByRole("combobox", { name: "" });
     // Buscar el select por su valor
@@ -224,6 +226,7 @@ describe("UserManagement Component", () => {
     render(<UserManagement />);
 
     await waitFor(() => screen.getByText("Juan Perez"));
+    fireEvent.click(screen.getByRole("button", { name: /filtros/i }));
 
     // Encontrar el select de rol por su opción "Todos los Roles"
     const selects = screen.getAllByRole("combobox");
@@ -246,6 +249,7 @@ describe("UserManagement Component", () => {
     render(<UserManagement />);
 
     await waitFor(() => screen.getByText("Juan Perez"));
+    fireEvent.click(screen.getByRole("button", { name: /filtros/i }));
 
     // Simular que estamos en la página 2
     userService.getAll.mockResolvedValue({

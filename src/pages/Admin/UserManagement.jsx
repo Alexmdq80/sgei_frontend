@@ -7,6 +7,11 @@ import {
   Link2Off,
   Loader2,
   MailCheck,
+  SlidersHorizontal,
+  RotateCcw,
+  Building2,
+  MapPin,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
@@ -72,6 +77,9 @@ const UserManagement = () => {
   const [filterRegionId, setFilterRegionId] = useState("");
   const [filterDistritoId, setFilterDistritoId] = useState("");
   const [filterRole, setFilterRole] = useState("");
+  // Estado del panel colapsable de filtros
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+
 
   // Filtros de estado de cuenta
   const [filterPasswordSet, setFilterPasswordSet] = useState("");
@@ -268,6 +276,30 @@ const UserManagement = () => {
     e.preventDefault();
     fetchUsers(1);
   };
+
+  const activeFiltersCount = [
+    filterCueAnexo,
+    filterProvinciaId,
+    filterRegionId,
+    filterDistritoId,
+    filterRole,
+    filterPasswordSet,
+    filterEmailVerified,
+    filterPersonaLinked,
+  ].filter((val) => val !== "" && val !== undefined && val !== null).length;
+
+  const handleClearAllFilters = () => {
+    setUserSearch("");
+    setFilterCueAnexo("");
+    setFilterProvinciaId("");
+    setFilterRegionId("");
+    setFilterDistritoId("");
+    setFilterRole("");
+    setFilterPasswordSet("");
+    setFilterEmailVerified("");
+    setFilterPersonaLinked("");
+  };
+
 
   const openEditModal = (user) => {
     setEditingUser(user);
@@ -594,180 +626,252 @@ const UserManagement = () => {
 
       {/* Contenido: Listado de Usuarios */}
       <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
+
         {/* Filtros */}
         <div className="p-6 border-b border-secondary-100 bg-secondary-50/50 space-y-4">
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            {/* Buscador */}
-            <form
-              onSubmit={handleSearch}
-              className="flex gap-3 w-full lg:max-w-sm"
-            >
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* Buscador Principal */}
+            <form onSubmit={handleSearch} className="flex gap-2 w-full sm:max-w-md">
               <div className="relative flex-1">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </span>
                 <input
                   type="text"
                   placeholder="Buscar por nombre, email o DNI..."
-                  className="w-full pl-10 pr-4 py-2 bg-white border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all text-sm font-medium"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm font-medium transition-all shadow-sm"
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
                 />
               </div>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors shadow-sm"
-              >
+              <button type="submit" className="px-4 py-2.5 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-all shadow-sm">
                 Buscar
               </button>
             </form>
 
-            {/* Selectores Adicionales */}
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              {/* Filtro por CUE */}
-              <div className="flex-1 lg:flex-none relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                    />
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  placeholder="CUE Escuela..."
-                  className="w-full lg:w-48 pl-9 pr-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                  value={filterCueAnexo}
-                  onChange={(e) => setFilterCueAnexo(e.target.value)}
-                />
-              </div>
+            {/* Botones de Control de Filtros */}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button
+                type="button"
+                onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm border transition-all shadow-sm ${
+                  activeFiltersCount > 0 || isFilterPanelOpen
+                    ? "bg-primary-50 text-primary-700 border-primary-300 ring-2 ring-primary-100"
+                    : "bg-white text-secondary-700 border-secondary-300 hover:bg-secondary-100"
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>Filtros</span>
+                {activeFiltersCount > 0 && (
+                  <span className="ml-1 px-2 py-0.5 text-xs font-black bg-primary-600 text-white rounded-full">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
 
-              {/* Filtro Provincia */}
-              <div className="flex-1 lg:flex-none">
-                <select
-                  value={filterProvinciaId}
-                  onChange={(e) => setFilterProvinciaId(e.target.value)}
-                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+              {activeFiltersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllFilters}
+                  className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-bold text-red-600 hover:text-red-800 bg-red-50 border border-red-200 rounded-xl transition-all"
+                  title="Limpiar todos los filtros"
                 >
-                  <option value="">Todas las Provincias</option>
-                  {provincias.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filtro Región */}
-              <div className="flex-1 lg:flex-none">
-                <select
-                  value={filterRegionId}
-                  onChange={(e) => setFilterRegionId(e.target.value)}
-                  disabled={!filterProvinciaId}
-                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">Todas las Regiones</option>
-                  {regiones.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      Región {r.numero}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filtro Distrito / Departamento */}
-              <div className="flex-1 lg:flex-none">
-                <select
-                  value={filterDistritoId}
-                  onChange={(e) => setFilterDistritoId(e.target.value)}
-                  disabled={!filterProvinciaId}
-                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">Todos los Distritos</option>
-                  {departamentos.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {/* Filtro Rol / Cargo */}
-              <div className="flex-1 lg:flex-none">
-                <select
-                  value={filterRole}
-                  onChange={(e) => setFilterRole(e.target.value)}
-                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                >
-                  <option value="">Todos los Roles</option>
-                  <option value="superuser">SuperUsuarios</option>
-                  <option value="jefe_provincial">Jefes Provinciales</option>
-                  <option value="jefe_regional">Jefes Regionales</option>
-                  <option value="jefe_distrital">Jefes Distritales</option>
-                  <option value="equipo_directivo">Equipos Directivos</option>
-                  <option value="profesor">Profesores / Docentes</option>
-                  <option value="preceptor">Preceptores</option>
-                </select>
-              </div>
-              {/* Filtro Estado de Contraseña */}
-              <div className="flex-1 lg:flex-none">
-                <select
-                  value={filterPasswordSet}
-                  onChange={(e) => setFilterPasswordSet(e.target.value)}
-                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                >
-                  <option value="">Todas las Contraseñas</option>
-                  <option value="true">Con Contraseña Definida</option>
-                  <option value="false">Invitación Pendiente (Sin Clave)</option>
-                </select>
-              </div>
-
-              {/* Filtro Estado de Email */}
-              <div className="flex-1 lg:flex-none">
-                <select
-                  value={filterEmailVerified}
-                  onChange={(e) => setFilterEmailVerified(e.target.value)}
-                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                >
-                  <option value="">Todos los Estados de Email</option>
-                  <option value="verified">Email Verificado</option>
-                  <option value="unverified">Email Sin Verificar</option>
-                </select>
-              </div>
-              {/* Filtro Vinculación a Padrón */}
-              <div className="flex-1 lg:flex-none">
-                <select
-                  value={filterPersonaLinked}
-                  onChange={(e) => setFilterPersonaLinked(e.target.value)}
-                  className="w-full lg:w-44 px-4 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                >
-                  <option value="">Todos los Estados de Padrón</option>
-                  <option value="linked">Vinculados a Padrón</option>
-                  <option value="unlinked">Sin Vincular</option>
-                </select>
-              </div>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Limpiar</span>
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Panel Desplegable de Filtros Avanzados */}
+          {isFilterPanelOpen && (
+            <div className="pt-4 border-t border-secondary-200 animate-fadeIn">
+              <div className="p-4 bg-white rounded-2xl border border-secondary-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                {/* Columna 1: Ámbito Territorial */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-primary-500" /> Territorial
+                  </h4>
+                  <div className="space-y-2">
+                    <select
+                      value={filterProvinciaId}
+                      onChange={(e) => setFilterProvinciaId(e.target.value)}
+                      className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
+                    >
+                      <option value="">Todas las Provincias</option>
+                      {provincias.map((p) => (
+                        <option key={p.id} value={p.id}>{p.nombre}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={filterRegionId}
+                      onChange={(e) => setFilterRegionId(e.target.value)}
+                      disabled={!filterProvinciaId}
+                      className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
+                    >
+                      <option value="">Todas las Regiones</option>
+                      {regiones.map((r) => (
+                        <option key={r.id} value={r.id}>Región {r.numero}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={filterDistritoId}
+                      onChange={(e) => setFilterDistritoId(e.target.value)}
+                      disabled={!filterProvinciaId}
+                      className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
+                    >
+                      <option value="">Todos los Distritos</option>
+                      {departamentos.map((d) => (
+                        <option key={d.id} value={d.id}>{d.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Columna 2: Institucional & Perfil */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-primary-500" /> Institucional y Perfil
+                  </h4>
+                  <div className="space-y-2">
+                    <select
+                      value={filterRole}
+                      onChange={(e) => setFilterRole(e.target.value)}
+                      className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
+                    >
+                      <option value="">Todos los Roles</option>
+                      <option value="superuser">SuperUsuarios</option>
+                      <option value="jefe_provincial">Jefes Provinciales</option>
+                      <option value="jefe_regional">Jefes Regionales</option>
+                      <option value="jefe_distrital">Jefes Distritales</option>
+                      <option value="equipo_directivo">Equipos Directivos</option>
+                      <option value="profesor">Profesores / Docentes</option>
+                      <option value="preceptor">Preceptores</option>
+                    </select>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="CUE Escuela..."
+                        className="w-full pl-3 pr-4 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={filterCueAnexo}
+                        onChange={(e) => setFilterCueAnexo(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Columna 3: Estado de Cuenta & Padrón */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-primary-500" /> Cuenta y Padrón
+                  </h4>
+                  <div className="space-y-2">
+                    <select
+                      value={filterPasswordSet}
+                      onChange={(e) => setFilterPasswordSet(e.target.value)}
+                      className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
+                    >
+                      <option value="">Todas las Contraseñas</option>
+                      <option value="true">Con Contraseña Definida</option>
+                      <option value="false">Invitación Pendiente (Sin Clave)</option>
+                    </select>
+
+                    <select
+                      value={filterEmailVerified}
+                      onChange={(e) => setFilterEmailVerified(e.target.value)}
+                      className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
+                    >
+                      <option value="">Todos los Estados de Email</option>
+                      <option value="verified">Email Verificado</option>
+                      <option value="unverified">Email Sin Verificar</option>
+                    </select>
+
+                    <select
+                      value={filterPersonaLinked}
+                      onChange={(e) => setFilterPersonaLinked(e.target.value)}
+                      className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
+                    >
+                      <option value="">Todos los Estados de Padrón</option>
+                      <option value="linked">Vinculados a Padrón</option>
+                      <option value="unlinked">Sin Vincular a Padrón</option>
+                    </select>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* Badges de Filtros Activos (Pills) */}
+          {activeFiltersCount > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <span className="text-[10px] font-black text-secondary-400 uppercase tracking-wider">Filtros Activos:</span>
+
+              {filterProvinciaId && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-200">
+                  Provincia: {provincias.find(p => p.id == filterProvinciaId)?.nombre || filterProvinciaId}
+                  <button type="button" onClick={() => setFilterProvinciaId("")} className="hover:text-primary-900"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+
+              {filterRegionId && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-200">
+                  Región: {regiones.find(r => r.id == filterRegionId)?.numero ? `Región ${regiones.find(r => r.id == filterRegionId).numero}` : filterRegionId}
+                  <button type="button" onClick={() => setFilterRegionId("")} className="hover:text-primary-900"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+
+              {filterDistritoId && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-200">
+                  Distrito: {departamentos.find(d => d.id == filterDistritoId)?.nombre || filterDistritoId}
+                  <button type="button" onClick={() => setFilterDistritoId("")} className="hover:text-primary-900"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+
+              {filterRole && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200">
+                  Rol: {({ superuser: "SuperUsuario", jefe_provincial: "Jefe Provincial", jefe_regional: "Jefe Regional", jefe_distrital: "Jefe Distrital", equipo_directivo: "Equipo Directivo", profesor: "Profesor", preceptor: "Preceptor" }[filterRole]) || filterRole}
+                  <button type="button" onClick={() => setFilterRole("")} className="hover:text-indigo-900"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+
+              {filterCueAnexo && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200">
+                  CUE: {filterCueAnexo}
+                  <button type="button" onClick={() => setFilterCueAnexo("")} className="hover:text-indigo-900"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+
+              {filterPasswordSet && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-lg border border-amber-200">
+                  Clave: {filterPasswordSet === "true" ? "Definida" : "Pendiente"}
+                  <button type="button" onClick={() => setFilterPasswordSet("")} className="hover:text-amber-900"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+
+              {filterEmailVerified && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-lg border border-green-200">
+                  Email: {filterEmailVerified === "verified" ? "Verificado" : "Sin Verificar"}
+                  <button type="button" onClick={() => setFilterEmailVerified("")} className="hover:text-green-900"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+
+              {filterPersonaLinked && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 text-xs font-bold rounded-lg border border-purple-200">
+                  Padrón: {filterPersonaLinked === "linked" ? "Vinculado" : "Sin Vincular"}
+                  <button type="button" onClick={() => setFilterPersonaLinked("")} className="hover:text-purple-900"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+            </div>
+          )}
         </div>
+
 
         {isUsersLoading ? (
           <div className="p-20 flex flex-col items-center justify-center">
