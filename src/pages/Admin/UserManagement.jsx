@@ -80,7 +80,6 @@ const UserManagement = () => {
   // Estado del panel colapsable de filtros
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
-
   // Filtros de estado de cuenta
   const [filterPasswordSet, setFilterPasswordSet] = useState("");
   const [filterEmailVerified, setFilterEmailVerified] = useState("");
@@ -98,12 +97,14 @@ const UserManagement = () => {
     documento_numero: "",
   });
 
+  const [initialFormData, setInitialFormData] = useState({});
   // Estados para el Modal de Confirmación Global
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,
     title: "",
     message: "",
     confirmText: "Confirmar",
+    cancelText: "Cancelar",
     variant: "primary",
     onConfirm: () => {},
     showInput: false,
@@ -120,6 +121,7 @@ const UserManagement = () => {
       title: config.title || "¿Estás seguro?",
       message: config.message || "",
       confirmText: config.confirmText || "Confirmar",
+      cancelText: config.cancelText || "Cancelar",
       variant: config.variant || "primary",
       onConfirm: config.onConfirm,
       showInput: config.showInput || false,
@@ -300,15 +302,16 @@ const UserManagement = () => {
     setFilterPersonaLinked("");
   };
 
-
   const openEditModal = (user) => {
     setEditingUser(user);
-    setFormData({
+    const initial = {
       nombre: user.nombre || "",
       email: user.email || "",
       documento_tipo_id: user.documento_tipo_id || "",
       documento_numero: user.documento_numero || "",
-    });
+    };
+    setInitialFormData(initial);
+    setFormData(initial);
     setIsModalOpen(true);
   };
 
@@ -602,6 +605,15 @@ const UserManagement = () => {
     );
   }
 
+  const hasChanges = [
+    "nombre",
+    "email",
+    "documento_tipo_id",
+    "documento_numero",
+  ].some(
+    (key) => String(formData[key] ?? "") !== String(initialFormData[key] ?? ""),
+  );
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Encabezado */}
@@ -626,16 +638,28 @@ const UserManagement = () => {
 
       {/* Contenido: Listado de Usuarios */}
       <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
-
         {/* Filtros */}
         <div className="p-6 border-b border-secondary-100 bg-secondary-50/50 space-y-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             {/* Buscador Principal */}
-            <form onSubmit={handleSearch} className="flex gap-2 w-full sm:max-w-md">
+            <form
+              onSubmit={handleSearch}
+              className="flex gap-2 w-full sm:max-w-md"
+            >
               <div className="relative flex-1">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
                   </svg>
                 </span>
                 <input
@@ -646,7 +670,10 @@ const UserManagement = () => {
                   onChange={(e) => setUserSearch(e.target.value)}
                 />
               </div>
-              <button type="submit" className="px-4 py-2.5 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-all shadow-sm">
+              <button
+                type="submit"
+                className="px-4 py-2.5 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-all shadow-sm"
+              >
                 Buscar
               </button>
             </form>
@@ -689,11 +716,11 @@ const UserManagement = () => {
           {isFilterPanelOpen && (
             <div className="pt-4 border-t border-secondary-200 animate-fadeIn">
               <div className="p-4 bg-white rounded-2xl border border-secondary-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
-
                 {/* Columna 1: Ámbito Territorial */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-primary-500" /> Territorial
+                    <MapPin className="w-3.5 h-3.5 text-primary-500" />{" "}
+                    Territorial
                   </h4>
                   <div className="space-y-2">
                     <select
@@ -703,7 +730,9 @@ const UserManagement = () => {
                     >
                       <option value="">Todas las Provincias</option>
                       {provincias.map((p) => (
-                        <option key={p.id} value={p.id}>{p.nombre}</option>
+                        <option key={p.id} value={p.id}>
+                          {p.nombre}
+                        </option>
                       ))}
                     </select>
 
@@ -715,7 +744,9 @@ const UserManagement = () => {
                     >
                       <option value="">Todas las Regiones</option>
                       {regiones.map((r) => (
-                        <option key={r.id} value={r.id}>Región {r.numero}</option>
+                        <option key={r.id} value={r.id}>
+                          Región {r.numero}
+                        </option>
                       ))}
                     </select>
 
@@ -727,7 +758,9 @@ const UserManagement = () => {
                     >
                       <option value="">Todos los Distritos</option>
                       {departamentos.map((d) => (
-                        <option key={d.id} value={d.id}>{d.nombre}</option>
+                        <option key={d.id} value={d.id}>
+                          {d.nombre}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -736,7 +769,8 @@ const UserManagement = () => {
                 {/* Columna 2: Institucional & Perfil */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-primary-500" /> Institucional y Perfil
+                    <Building2 className="w-3.5 h-3.5 text-primary-500" />{" "}
+                    Institucional y Perfil
                   </h4>
                   <div className="space-y-2">
                     <select
@@ -746,10 +780,14 @@ const UserManagement = () => {
                     >
                       <option value="">Todos los Roles</option>
                       <option value="superuser">SuperUsuarios</option>
-                      <option value="jefe_provincial">Jefes Provinciales</option>
+                      <option value="jefe_provincial">
+                        Jefes Provinciales
+                      </option>
                       <option value="jefe_regional">Jefes Regionales</option>
                       <option value="jefe_distrital">Jefes Distritales</option>
-                      <option value="equipo_directivo">Equipos Directivos</option>
+                      <option value="equipo_directivo">
+                        Equipos Directivos
+                      </option>
                       <option value="profesor">Profesores / Docentes</option>
                       <option value="preceptor">Preceptores</option>
                     </select>
@@ -769,7 +807,8 @@ const UserManagement = () => {
                 {/* Columna 3: Estado de Cuenta & Padrón */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5 text-primary-500" /> Cuenta y Padrón
+                    <Shield className="w-3.5 h-3.5 text-primary-500" /> Cuenta y
+                    Padrón
                   </h4>
                   <div className="space-y-2">
                     <select
@@ -779,7 +818,9 @@ const UserManagement = () => {
                     >
                       <option value="">Todas las Contraseñas</option>
                       <option value="true">Con Contraseña Definida</option>
-                      <option value="false">Invitación Pendiente (Sin Clave)</option>
+                      <option value="false">
+                        Invitación Pendiente (Sin Clave)
+                      </option>
                     </select>
 
                     <select
@@ -803,7 +844,6 @@ const UserManagement = () => {
                     </select>
                   </div>
                 </div>
-
               </div>
             </div>
           )}
@@ -811,67 +851,139 @@ const UserManagement = () => {
           {/* Badges de Filtros Activos (Pills) */}
           {activeFiltersCount > 0 && (
             <div className="flex flex-wrap items-center gap-2 pt-2">
-              <span className="text-[10px] font-black text-secondary-400 uppercase tracking-wider">Filtros Activos:</span>
+              <span className="text-[10px] font-black text-secondary-400 uppercase tracking-wider">
+                Filtros Activos:
+              </span>
 
               {filterProvinciaId && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-200">
-                  Provincia: {provincias.find(p => p.id == filterProvinciaId)?.nombre || filterProvinciaId}
-                  <button type="button" onClick={() => setFilterProvinciaId("")} className="hover:text-primary-900"><X className="w-3 h-3" /></button>
+                  Provincia:{" "}
+                  {provincias.find((p) => p.id == filterProvinciaId)?.nombre ||
+                    filterProvinciaId}
+                  <button
+                    type="button"
+                    onClick={() => setFilterProvinciaId("")}
+                    className="hover:text-primary-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
 
               {filterRegionId && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-200">
-                  Región: {regiones.find(r => r.id == filterRegionId)?.numero ? `Región ${regiones.find(r => r.id == filterRegionId).numero}` : filterRegionId}
-                  <button type="button" onClick={() => setFilterRegionId("")} className="hover:text-primary-900"><X className="w-3 h-3" /></button>
+                  Región:{" "}
+                  {regiones.find((r) => r.id == filterRegionId)?.numero
+                    ? `Región ${regiones.find((r) => r.id == filterRegionId).numero}`
+                    : filterRegionId}
+                  <button
+                    type="button"
+                    onClick={() => setFilterRegionId("")}
+                    className="hover:text-primary-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
 
               {filterDistritoId && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-200">
-                  Distrito: {departamentos.find(d => d.id == filterDistritoId)?.nombre || filterDistritoId}
-                  <button type="button" onClick={() => setFilterDistritoId("")} className="hover:text-primary-900"><X className="w-3 h-3" /></button>
+                  Distrito:{" "}
+                  {departamentos.find((d) => d.id == filterDistritoId)
+                    ?.nombre || filterDistritoId}
+                  <button
+                    type="button"
+                    onClick={() => setFilterDistritoId("")}
+                    className="hover:text-primary-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
 
               {filterRole && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200">
-                  Rol: {({ superuser: "SuperUsuario", jefe_provincial: "Jefe Provincial", jefe_regional: "Jefe Regional", jefe_distrital: "Jefe Distrital", equipo_directivo: "Equipo Directivo", profesor: "Profesor", preceptor: "Preceptor" }[filterRole]) || filterRole}
-                  <button type="button" onClick={() => setFilterRole("")} className="hover:text-indigo-900"><X className="w-3 h-3" /></button>
+                  Rol:{" "}
+                  {{
+                    superuser: "SuperUsuario",
+                    jefe_provincial: "Jefe Provincial",
+                    jefe_regional: "Jefe Regional",
+                    jefe_distrital: "Jefe Distrital",
+                    equipo_directivo: "Equipo Directivo",
+                    profesor: "Profesor",
+                    preceptor: "Preceptor",
+                  }[filterRole] || filterRole}
+                  <button
+                    type="button"
+                    onClick={() => setFilterRole("")}
+                    className="hover:text-indigo-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
 
               {filterCueAnexo && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200">
                   CUE: {filterCueAnexo}
-                  <button type="button" onClick={() => setFilterCueAnexo("")} className="hover:text-indigo-900"><X className="w-3 h-3" /></button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterCueAnexo("")}
+                    className="hover:text-indigo-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
 
               {filterPasswordSet && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-lg border border-amber-200">
-                  Clave: {filterPasswordSet === "true" ? "Definida" : "Pendiente"}
-                  <button type="button" onClick={() => setFilterPasswordSet("")} className="hover:text-amber-900"><X className="w-3 h-3" /></button>
+                  Clave:{" "}
+                  {filterPasswordSet === "true" ? "Definida" : "Pendiente"}
+                  <button
+                    type="button"
+                    onClick={() => setFilterPasswordSet("")}
+                    className="hover:text-amber-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
 
               {filterEmailVerified && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-lg border border-green-200">
-                  Email: {filterEmailVerified === "verified" ? "Verificado" : "Sin Verificar"}
-                  <button type="button" onClick={() => setFilterEmailVerified("")} className="hover:text-green-900"><X className="w-3 h-3" /></button>
+                  Email:{" "}
+                  {filterEmailVerified === "verified"
+                    ? "Verificado"
+                    : "Sin Verificar"}
+                  <button
+                    type="button"
+                    onClick={() => setFilterEmailVerified("")}
+                    className="hover:text-green-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
 
               {filterPersonaLinked && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 text-xs font-bold rounded-lg border border-purple-200">
-                  Padrón: {filterPersonaLinked === "linked" ? "Vinculado" : "Sin Vincular"}
-                  <button type="button" onClick={() => setFilterPersonaLinked("")} className="hover:text-purple-900"><X className="w-3 h-3" /></button>
+                  Padrón:{" "}
+                  {filterPersonaLinked === "linked"
+                    ? "Vinculado"
+                    : "Sin Vincular"}
+                  <button
+                    type="button"
+                    onClick={() => setFilterPersonaLinked("")}
+                    className="hover:text-purple-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
             </div>
           )}
         </div>
-
 
         {isUsersLoading ? (
           <div className="p-20 flex flex-col items-center justify-center">
@@ -1398,14 +1510,33 @@ const UserManagement = () => {
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    if (hasChanges) {
+                      setConfirmConfig({
+                        isOpen: true,
+                        title: "¿Cancelar cambios?",
+                        message:
+                          "Tenés cambios no guardados. ¿Estás seguro de que querés cancelar?",
+                        confirmText: "Sí, cancelar",
+                        cancelText: "Volver",
+                        variant: "danger",
+                        onConfirm: () => {
+                          (setIsModalOpen(false), closeConfirm());
+                        },
+                      });
+                    } else {
+                      setIsModalOpen(false);
+                    }
+                  }}
                   className="flex-1 px-6 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200 transition-all active:scale-[0.98]"
                 >
                   Cancelar
                 </button>
+
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-[0.98] shadow-lg"
+                  disabled={!hasChanges}
+                  className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600"
                 >
                   Guardar Cambios
                 </button>
@@ -1444,6 +1575,7 @@ const UserManagement = () => {
         title={confirmConfig.title}
         message={confirmConfig.message}
         confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText} // ← AGREGAR
         variant={confirmConfig.variant}
         showInput={confirmConfig.showInput}
         inputPlaceholder={confirmConfig.inputPlaceholder}

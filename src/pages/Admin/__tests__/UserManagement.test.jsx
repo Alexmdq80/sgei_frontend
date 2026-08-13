@@ -222,4 +222,91 @@ describe("UserManagement", () => {
       expect(userService.resendEmailVerification).toHaveBeenCalledWith(4);
     });
   });
+
+  it("deshabilita el botón Guardar Cambios al abrir el modal sin modificaciones y lo habilita al editar un campo", async () => {
+    const userService = (await import("../../../services/userService")).default;
+    userService.getAll.mockResolvedValue({
+      data: [
+        {
+          id: 5,
+          nombre: "Pedro Lobo",
+          email: "pedro@example.com",
+          documento_tipo_id: 1,
+          documento_numero: "99887766",
+          persona: null,
+          roles: [],
+          es_administrador: false,
+        },
+      ],
+      meta: { current_page: 1, last_page: 1, total: 1 },
+    });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Pedro Lobo")).toBeInTheDocument();
+    });
+
+    // Abrir el modal de edición
+    fireEvent.click(screen.getByTitle("Editar Información"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Guardar Cambios")).toBeInTheDocument();
+    });
+
+    const saveButton = screen.getByText("Guardar Cambios");
+
+    // Al abrir el modal sin cambios, el botón debe estar deshabilitado
+    expect(saveButton).toBeDisabled();
+
+    // Modificar el nombre
+    const nombreInput = screen.getByDisplayValue("Pedro Lobo");
+    fireEvent.change(nombreInput, { target: { value: "Pedro Lobo Editado" } });
+
+    // Ahora el botón debe estar habilitado
+    expect(saveButton).toBeEnabled();
+  });
+
+  it("muestra confirmación al cancelar con cambios no guardados", async () => {
+    const userService = (await import("../../../services/userService")).default;
+    userService.getAll.mockResolvedValue({
+      data: [
+        {
+          id: 6,
+          nombre: "Ana Test",
+          email: "ana@example.com",
+          documento_tipo_id: 1,
+          documento_numero: "11111111",
+          persona: null,
+          roles: [],
+          es_administrador: false,
+        },
+      ],
+      meta: { current_page: 1, last_page: 1, total: 1 },
+    });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Ana Test")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTitle("Editar Información"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Guardar Cambios")).toBeInTheDocument();
+    });
+
+    // Modificar un campo para generar cambios
+    const nombreInput = screen.getByDisplayValue("Ana Test");
+    fireEvent.change(nombreInput, { target: { value: "Ana Modificada" } });
+
+    // Hacer clic en Cancelar
+    fireEvent.click(screen.getByText("Cancelar"));
+
+    // Debe aparecer el modal de confirmación
+    await waitFor(() => {
+      expect(screen.getByTestId("confirm-button")).toBeInTheDocument();
+    });
+  });
 });
