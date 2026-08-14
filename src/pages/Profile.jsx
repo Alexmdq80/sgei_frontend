@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/userService';
 import documentoTipoService from '../services/documentoTipoService';
@@ -29,6 +29,19 @@ const Profile = () => {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const [showCamera, setShowCamera] = useState(false);
+    const [cameraStream, setCameraStream] = useState(null);
+    const videoRef = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            // Cleanup: detiene la cámara si se desmonta el componente
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [cameraStream]);
 
     // Sincronizar datos de perfil cuando el usuario cargue
     useEffect(() => {
@@ -91,6 +104,88 @@ const Profile = () => {
             setAvatar(file);
             setPreview(URL.createObjectURL(file));
         }
+    };
+
+    // 1. Encender la cámara y vincularla al elemento <video>
+        const startCamera = async () => {
+        // Guard: verificar soporte de la API
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showNotification(
+                "Tu navegador no permite acceder a la cámara en sitios sin HTTPS. Accedé por localhost o habilitá SSL.",
+                "error"
+            );
+            return;
+        }
+
+        setShowCamera(true);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 480, height: 480, facingMode: "user" },
+                audio: false
+            });
+            setCameraStream(stream);
+            // Esperamos a que el render dibuje el <video> para asociar el stream
+            setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+            }, 100);
+        } catch (err) {
+            console.error("Error al acceder a la cámara:", err.name, err.message);
+
+            let msg = "No se pudo acceder a la cámara.";
+            if (err.name === "NotAllowedError") {
+                msg = "Permiso denegado. Habilitá la cámara en la configuración del navegador.";
+            } else if (err.name === "NotFoundError") {
+                msg = "No se encontró ninguna cámara en este dispositivo.";
+            } else if (err.name === "NotReadableError") {
+                msg = "La cámara está siendo utilizada por otra aplicación.";
+            } else if (err.name === "SecurityError") {
+                msg = "El sitio necesita HTTPS para acceder a la cámara.";
+            }
+
+            showNotification(msg, "error");
+            setShowCamera(false);
+        }
+    };
+
+    // 2. Apagar la cámara y limpiar recursos
+    const stopCamera = () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
+        setCameraStream(null);
+        setShowCamera(false);
+    };
+
+    // 3. Tomar una captura del stream de video usando un Canvas invisible
+    const capturePhoto = () => {
+        if (!videoRef.current) return;
+
+        const video = videoRef.current;
+        const canvas = document.createElement('canvas');
+
+        // Configuramos el tamaño del canvas igual al video cargado
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const ctx = canvas.getContext('2d');
+
+        // Espejamos horizontalmente el render en el canvas para que coincida con la vista previa
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Convertimos a Blob y luego a File de JS
+        canvas.toBlob((blob) => {
+            if (blob) {
+                const file = new File([blob], "avatar_capture.jpg", { type: "image/jpeg" });
+                setAvatar(file);
+                setPreview(URL.createObjectURL(file));
+                stopCamera();
+                showNotification("Foto capturada. No olvides presionar 'Guardar Foto'.", "success");
+            }
+        }, 'image/jpeg', 0.9);
     };
 
     const handleProfileSubmit = async (e) => {
@@ -267,37 +362,23 @@ const Profile = () => {
                                     />
                                 </div>
                                 {user?.email_verified_at && (
-                                    <label className="absolute bottom-0 right-0 p-2 bg-primary-600 text-white rounded-full cursor-pointer shadow-lg hover:bg-primary-700 transition-colors">
+                                    <button
+                                        type="button"
+                                        onClick={startCamera}
+                                        title="Tomar foto con la cámara"
+                                        className="absolute bottom-0 right-0 p-2 bg-primary-600 text-white rounded-full cursor-pointer shadow-lg hover:bg-primary-700 transition-colors"
+                                    >
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
-                                        <input type="file" className="hidden" onChange={handleAvatarChange} accept="image/*" />
-                                    </label>
+                                    </button>
                                 )}
+
+                                    
                             </div>
 
-                            {/* <div className="relative group">
-                                <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-secondary-200">
-                                    {preview ? (
-                                        <img src={preview} alt="Preview" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-secondary-100 text-secondary-400 text-4xl font-bold uppercase">
-                                            {user?.nombre?.charAt(0)}
-                                        </div>
-                                    )}
-                                </div>
-                                {user?.email_verified_at && (
-                                    <label className="absolute bottom-0 right-0 p-2 bg-primary-600 text-white rounded-full cursor-pointer shadow-lg hover:bg-primary-700 transition-colors">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                        <input type="file" className="hidden" onChange={handleAvatarChange} accept="image/*" />
-                                    </label>
-                                )}
-                            </div> */}
-                            
+                                                        
                             <div className="w-full mt-8 space-y-3">
                                 <button
                                     onClick={handleAvatarSubmit}
@@ -576,6 +657,57 @@ const Profile = () => {
                     </div>
                 </div>
             </div>
+            {/* Modal de Cámara Web */}
+            {showCamera && (
+                <div className="fixed inset-0 bg-secondary-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center space-y-6 shadow-2xl border border-secondary-100 animate-
+        scaleIn">
+                        <div>
+                            <h3 className="text-lg font-black text-secondary-900">Foto de Perfil</h3>
+                            <p className="text-xs text-secondary-500 mt-1">Ajusta tu rostro en el círculo para tomar la fotografía</p>
+                        </div>
+
+                        {/* Contenedor de la webcam en círculo */}
+                        <div className="relative w-64 h-64 mx-auto rounded-full overflow-hidden border-4 border-primary-500 bg-secondary-950 shadow-
+        inner">
+                            {cameraStream ? (
+                                <video
+                                    ref={videoRef}
+                                    autoPlay
+                                    playsInline
+                                    muted
+                                    className="w-full h-full object-cover scale-x-[-1]"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-secondary-400 gap-2">
+                                    <div className="w-8 h-8 border-4 border-secondary-300 border-t-primary-600 rounded-full animate-spin" />
+                                    <span className="text-xs font-bold">Iniciando cámara...</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-center gap-3">
+                            <button
+                                type="button"
+                                onClick={stopCamera}
+                                className="flex-1 px-4 py-2.5 bg-secondary-100 text-secondary-700 rounded-xl text-sm font-bold hover:bg-secondary-200
+        transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={capturePhoto}
+                                disabled={!cameraStream}
+                                className="flex-1 px-4 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-primary-700
+        disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                Tomar Foto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
