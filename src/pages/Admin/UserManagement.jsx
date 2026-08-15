@@ -12,6 +12,9 @@ import {
   Building2,
   MapPin,
   Shield,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
@@ -58,6 +61,12 @@ const UserManagement = () => {
 
   const [processingId, setProcessingId] = useState(null);
 
+  // Estado para Ordenamiento de Columnas
+  const [sortConfig, setSortConfig] = useState({
+    key: "nombre", // Columna por defecto
+    direction: "asc", // 'asc' o 'desc'
+  });
+
   // Catálogos
   const [docTipos, setDocTipos] = useState([]);
 
@@ -77,7 +86,6 @@ const UserManagement = () => {
   const [filterRegionId, setFilterRegionId] = useState("");
   const [filterDistritoId, setFilterDistritoId] = useState("");
   const [filterRole, setFilterRole] = useState("");
-  // Estado del panel colapsable de filtros
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
   // Filtros de estado de cuenta
@@ -98,7 +106,8 @@ const UserManagement = () => {
   });
 
   const [initialFormData, setInitialFormData] = useState({});
-  // Estados para el Modal de Confirmación Global
+
+  // Confirmación Modal
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,
     title: "",
@@ -174,12 +183,10 @@ const UserManagement = () => {
     }
   };
 
-  // Cargar provincias al montar el componente
   useEffect(() => {
     fetchProvincias();
   }, []);
 
-  // Cuando cambia la provincia, cargar regiones y resetear región y distrito
   useEffect(() => {
     setFilterRegionId("");
     setFilterDistritoId("");
@@ -192,7 +199,6 @@ const UserManagement = () => {
     }
   }, [filterProvinciaId]);
 
-  // Cuando cambia la región, cargar departamentos y resetear distrito
   useEffect(() => {
     setFilterDistritoId("");
     if (filterRegionId && filterProvinciaId) {
@@ -217,6 +223,8 @@ const UserManagement = () => {
         password_set: filterPasswordSet !== "" ? filterPasswordSet : undefined,
         email_verified: filterEmailVerified || undefined,
         persona_linked: filterPersonaLinked || undefined,
+        sort_by: sortConfig.key,
+        order: sortConfig.direction,
         page,
         per_page: 10,
       });
@@ -253,27 +261,45 @@ const UserManagement = () => {
     }
   }, [filterCueAnexo]);
 
-  // Refrescar usuarios al cambiar el filtro de rol
   useEffect(() => {
     fetchUsers(1);
-  }, [filterRole]);
-
-  // Refrescar usuarios al cambiar filtros geográficos
-  useEffect(() => {
-    fetchUsers(1);
-  }, [filterProvinciaId, filterRegionId, filterDistritoId]);
-
-  // Refrescar usuarios al cambiar filtros de estado de cuenta
-  useEffect(() => {
-    fetchUsers(1);
-  }, [filterPasswordSet, filterEmailVerified, filterPersonaLinked]);
+  }, [
+    filterRole,
+    filterProvinciaId,
+    filterRegionId,
+    filterDistritoId,
+    filterPasswordSet,
+    filterEmailVerified,
+    filterPersonaLinked,
+    sortConfig, // Refresca al cambiar ordenamiento
+  ]);
 
   useEffect(() => {
     fetchCatalogs();
   }, []);
 
-  // --- ACCIONES DE USUARIOS (GESTIÓN) ---
+  // --- LÓGICA DE ORDENAMIENTO ---
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
 
+  const renderSortIcon = (key) => {
+    if (sortConfig.key !== key) {
+      return (
+        <ArrowUpDown className="w-3.5 h-3.5 text-secondary-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+      );
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp className="w-3.5 h-3.5 text-primary-600 ml-1" />
+    ) : (
+      <ArrowDown className="w-3.5 h-3.5 text-primary-600 ml-1" />
+    );
+  };
+
+  // --- ACCIONES DE USUARIOS ---
   const handleSearch = (e) => {
     e.preventDefault();
     fetchUsers(1);
@@ -345,7 +371,6 @@ const UserManagement = () => {
       setIsLinkingPersona(true);
       const response = await userService.vincularPersona(userId, personaId);
       showNotification(response.message, "success");
-      // Refrescar detalle
       const detail = await userService.getById(userId);
       setDetailUser(detail.data || detail);
       fetchUsers(pagination.current_page);
@@ -364,7 +389,6 @@ const UserManagement = () => {
       setIsLinkingPersona(true);
       const response = await userService.desvincularPersona(userId);
       showNotification(response.message, "success");
-      // Refrescar detalle
       const detail = await userService.getById(userId);
       setDetailUser(detail.data || detail);
       fetchUsers(pagination.current_page);
@@ -994,15 +1018,38 @@ const UserManagement = () => {
           </div>
         ) : users.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-secondary-50 border-b border-secondary-200">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-secondary-50 border-b border-secondary-200 select-none">
                 <tr>
-                  <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">
-                    Identidad
+                  {/* Encabezado Ordenable: Identidad / Nombre */}
+                  <th
+                    onClick={() => handleSort("nombre")}
+                    className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider cursor-pointer hover:bg-secondary-100 transition-colors group"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Identidad / Nombre</span>
+                      {renderSortIcon("nombre")}
+                    </div>
                   </th>
-                  <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">
-                    Roles y Jurisdicciones
+
+                  {/* Encabezado Ordenable: Email / DNI */}
+                  <th
+                    onClick={() => handleSort("email")}
+                    className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider cursor-pointer hover:bg-secondary-100 transition-colors group"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Email / Documento</span>
+                      {renderSortIcon("email")}
+                    </div>
                   </th>
+
+                  {/* Encabezado Roles */}
+                  <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">
+                    <div className="flex items-center gap-1">
+                      <span>Roles y Asignaciones</span>
+                    </div>
+                  </th>
+
                   <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider text-right">
                     Acciones
                   </th>
@@ -1014,6 +1061,7 @@ const UserManagement = () => {
                     key={user.id}
                     className="hover:bg-secondary-50 transition-colors"
                   >
+                    {/* Celda Identidad */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-white shadow-sm">
@@ -1023,41 +1071,6 @@ const UserManagement = () => {
                           <p className="text-sm font-bold text-secondary-900">
                             {user.nombre}
                           </p>
-                          {user.es_administrador ||
-                          user.roles?.some((r) => r.name === "superuser") ? (
-                            <p className="text-[10px] text-secondary-400 italic">
-                              Información de contacto protegida
-                            </p>
-                          ) : (
-                            <>
-                              <p className="text-xs text-secondary-500">
-                                {user.email}
-                              </p>
-                              {user.persona ? (
-                                <p className="text-[10px] text-green-600 font-bold mt-0.5 uppercase tracking-tighter flex items-center gap-1">
-                                  <svg
-                                    className="w-3 h-3"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                  Padrón Vinculado
-                                </p>
-                              ) : (
-                                user.documento_numero && (
-                                  <p className="text-[10px] text-primary-600 font-black mt-0.5">
-                                    {user.documento_tipo?.nombre}:{" "}
-                                    {user.documento_numero}
-                                  </p>
-                                )
-                              )}
-                            </>
-                          )}
                           {user.estado === "vinculacion_pendiente" && (
                             <div className="mt-1">
                               <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black uppercase rounded border border-amber-200 shadow-sm animate-pulse">
@@ -1068,6 +1081,47 @@ const UserManagement = () => {
                         </div>
                       </div>
                     </td>
+
+                    {/* Celda Email / DNI */}
+                    <td className="px-6 py-4">
+                      {user.es_administrador ||
+                      user.roles?.some((r) => r.name === "superuser") ? (
+                        <p className="text-[11px] text-secondary-400 italic">
+                          Información protegida
+                        </p>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-semibold text-secondary-700">
+                            {user.email}
+                          </p>
+                          {user.persona ? (
+                            <p className="text-[10px] text-green-600 font-bold mt-0.5 uppercase tracking-tighter flex items-center gap-1">
+                              <svg
+                                className="w-3 h-3"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                              Padrón Vinculado
+                            </p>
+                          ) : (
+                            user.documento_numero && (
+                              <p className="text-[10px] text-primary-600 font-black mt-0.5">
+                                {user.documento_tipo?.nombre}:{" "}
+                                {user.documento_numero}
+                              </p>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Celda Roles */}
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1.5">
                         {user.es_administrador && (
@@ -1103,7 +1157,6 @@ const UserManagement = () => {
                           );
                         })}
 
-                        {/* Roles Institucionales */}
                         {user.escuelas_personas?.map((ep) => (
                           <span
                             key={ep.id}
@@ -1119,7 +1172,7 @@ const UserManagement = () => {
                       </div>
                     </td>
 
-                    {/* Celda de Acciones (CORREGIDO: envuelto en <td>) */}
+                    {/* Celda de Acciones */}
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {!(
@@ -1165,7 +1218,6 @@ const UserManagement = () => {
                             </button>
                           )}
 
-                        {/* Confirmar Vinculación Pendiente */}
                         {user.estado === "vinculacion_pendiente" &&
                           (isSuperUser ||
                             isJefeProvincial ||
@@ -1193,7 +1245,6 @@ const UserManagement = () => {
                             </button>
                           )}
 
-                        {/* Vincular / Desvincular Cadena */}
                         {user.estado !== "vinculacion_pendiente" &&
                           !(
                             user.es_administrador ||
@@ -1231,7 +1282,6 @@ const UserManagement = () => {
                             </button>
                           ))}
 
-                        {/* Ver Detalle */}
                         <button
                           onClick={() => openDetailModal(user)}
                           className="p-2 text-secondary-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -1240,7 +1290,6 @@ const UserManagement = () => {
                           <Eye className="w-5 h-5" />
                         </button>
 
-                        {/* Editar y Eliminar */}
                         {!(
                           user.es_administrador ||
                           user.roles?.some((r) => r.name === "superuser")
@@ -1291,7 +1340,6 @@ const UserManagement = () => {
                                 </svg>
                               )}
                             </button>
-                            {/* Eliminar (SOLO SUPERUSUARIO) */}
                             {isSuperUser && user.id !== authUser.id && (
                               <button
                                 onClick={() => handleDeleteUser(user.id)}
@@ -1370,7 +1418,6 @@ const UserManagement = () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col border border-secondary-100">
-            {/* Header */}
             <div className="relative bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500 px-8 py-5">
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -1394,7 +1441,6 @@ const UserManagement = () => {
               </div>
             </div>
 
-            {/* Formulario */}
             <form
               onSubmit={handleSubmit}
               className="overflow-y-auto flex-1 p-6 space-y-6"
@@ -1412,7 +1458,6 @@ const UserManagement = () => {
                   </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Nombre */}
                   <div>
                     <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                       Nombre de Usuario
@@ -1426,7 +1471,6 @@ const UserManagement = () => {
                       required
                     />
                   </div>
-                  {/* Email */}
                   <div>
                     <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                       Email
@@ -1437,11 +1481,6 @@ const UserManagement = () => {
                       value={formData.email}
                       onChange={handleFormChange}
                       disabled={!!editingUser?.persona}
-                      title={
-                        editingUser?.persona
-                          ? "El email está bloqueado porque el usuario está vinculado al padrón."
-                          : ""
-                      }
                       className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${
                         editingUser?.persona
                           ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
@@ -1450,7 +1489,6 @@ const UserManagement = () => {
                       required
                     />
                   </div>
-                  {/* Tipo Documento */}
                   <div>
                     <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                       Tipo Documento
@@ -1460,11 +1498,6 @@ const UserManagement = () => {
                       value={formData.documento_tipo_id}
                       onChange={handleFormChange}
                       disabled={!!editingUser?.persona}
-                      title={
-                        editingUser?.persona
-                          ? "El tipo de documento está bloqueado porque el usuario está vinculado al padrón."
-                          : ""
-                      }
                       className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none transition-all ${
                         editingUser?.persona
                           ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
@@ -1479,7 +1512,6 @@ const UserManagement = () => {
                       ))}
                     </select>
                   </div>
-                  {/* Número Documento */}
                   <div>
                     <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                       Número Documento
@@ -1490,11 +1522,6 @@ const UserManagement = () => {
                       value={formData.documento_numero}
                       onChange={handleFormChange}
                       disabled={!!editingUser?.persona}
-                      title={
-                        editingUser?.persona
-                          ? "El número de documento está bloqueado porque el usuario está vinculado al padrón."
-                          : ""
-                      }
                       className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold tracking-wider outline-none transition-all ${
                         editingUser?.persona
                           ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
@@ -1506,7 +1533,6 @@ const UserManagement = () => {
                 </div>
               </section>
 
-              {/* Botones */}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -1521,7 +1547,8 @@ const UserManagement = () => {
                         cancelText: "Volver",
                         variant: "danger",
                         onConfirm: () => {
-                          (setIsModalOpen(false), closeConfirm());
+                          setIsModalOpen(false);
+                          closeConfirm();
                         },
                       });
                     } else {
@@ -1536,7 +1563,7 @@ const UserManagement = () => {
                 <button
                   type="submit"
                   disabled={!hasChanges}
-                  className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600"
+                  className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Guardar Cambios
                 </button>
@@ -1575,7 +1602,7 @@ const UserManagement = () => {
         title={confirmConfig.title}
         message={confirmConfig.message}
         confirmText={confirmConfig.confirmText}
-        cancelText={confirmConfig.cancelText} // ← AGREGAR
+        cancelText={confirmConfig.cancelText}
         variant={confirmConfig.variant}
         showInput={confirmConfig.showInput}
         inputPlaceholder={confirmConfig.inputPlaceholder}

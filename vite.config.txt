@@ -25,19 +25,6 @@ export default defineConfig({
       clientPort: 443,
     },
   },
-  // --- CONFIGURACIÓN DE CODE SPLITTING / BUILD ---
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // Separa las librerías de node_modules en un chunk 'vendor'
-          if (id.includes("node_modules")) {
-            return "vendor";
-          }
-        },
-      },
-    },
-  },
   test: {
     globals: true,
     environment: "jsdom",

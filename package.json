@@ -18,6 +18,7 @@
     "pusher-js": "^8.5.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-easy-crop": "^6.2.3",
     "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
@@ -26,6 +27,7 @@
     "@testing-library/react": "^16.2.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/ui": "^3.2.4",
     "autoprefixer": "^10.4.27",
