@@ -106,6 +106,7 @@ const UserManagement = () => {
     email: "",
     documento_tipo_id: "",
     documento_numero: "",
+    updated_at: "",
   });
 
   const [initialFormData, setInitialFormData] = useState({});
@@ -198,7 +199,7 @@ const UserManagement = () => {
     channel.listen(".UsuarioUpdated", (event) => {
       console.log("Cambio detectado en usuarios:", event.action, event.userId);
       // Usa la página actual sin recrear la conexión
-      fetchUsers(currentPageRef.current);
+      fetchUsersRef.current(currentPageRef.current);
     });
 
     return () => {
@@ -231,7 +232,7 @@ const UserManagement = () => {
     } else {
       setDepartamentos([]);
     }
-  }, [filterRegionId]);
+  }, [filterRegionId, filterProvinciaId]);
 
   const fetchUsers = async (page = 1) => {
     try {
@@ -266,6 +267,18 @@ const UserManagement = () => {
     }
   };
 
+  // Ref para mantener la referencia más reciente de fetchUsers
+  // sin re-suscribir los efectos ni disparar búsquedas automáticas.
+  const fetchUsersRef = useRef(fetchUsers);
+  useEffect(() => {
+    fetchUsersRef.current = fetchUsers;
+  });
+
+  // Ref para el timer de búsqueda (permite limpiarlo al presionar Enter o desmontar)
+  const searchTimerRef = useRef(null);
+  // Ref para recordar el valor anterior de búsqueda (evita doble fetch al montar)
+  const prevSearchRef = useRef(userSearch);
+
   const fetchCatalogs = async () => {
     try {
       const docs = await documentoTipoService.getAll({ per_page: 500 });
@@ -276,16 +289,20 @@ const UserManagement = () => {
   };
 
   useEffect(() => {
+    fetchCatalogs();
+  }, []);
+
+  useEffect(() => {
     const isCueEmpty = filterCueAnexo.length === 0;
     const isCueComplete = filterCueAnexo.length === 9;
 
     if (isCueEmpty || isCueComplete) {
-      fetchUsers(1);
+      fetchUsersRef.current(1);
     }
   }, [filterCueAnexo]);
 
   useEffect(() => {
-    fetchUsers(1);
+    fetchUsersRef.current(1);
   }, [
     filterRole,
     filterProvinciaId,
@@ -297,11 +314,37 @@ const UserManagement = () => {
     sortConfig, // Refresca al cambiar ordenamiento
   ]);
 
+  // Búsqueda-as-you-type con debounce (400ms), mínimo 2 caracteres
+  // y reseteo inmediato al borrar todo el input.
   useEffect(() => {
-    fetchCatalogs();
-  }, []);
+    const trimmed = userSearch.trim();
+    const prevTrimmed = prevSearchRef.current.trim();
+    prevSearchRef.current = userSearch;
 
-  // --- LÓGICA DE ORDENAMIENTO ---
+    // Si se borró todo el input (antes había algo), refrescar inmediatamente
+    if (trimmed.length === 0 && prevTrimmed.length > 0) {
+      fetchUsersRef.current(1);
+      return;
+    }
+
+    // Búsqueda-as-you-type: mínimo 2 caracteres con debounce
+    if (trimmed.length < 2) return;
+
+    searchTimerRef.current = setTimeout(() => {
+      searchTimerRef.current = null;
+      fetchUsersRef.current(1);
+    }, 400);
+
+    // Cleanup: al cambiar userSearch o desmontar el componente
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = null;
+      }
+    };
+  }, [userSearch]);
+
+  /*--- LÓGICA DE ORDENAMIENTO ---*/
   const handleSort = (key) => {
     setSortConfig((prev) => ({
       key,
@@ -325,6 +368,11 @@ const UserManagement = () => {
   // --- ACCIONES DE USUARIOS ---
   const handleSearch = (e) => {
     e.preventDefault();
+    // Limpiar el timer pendiente para evitar ejecuciones desfasadas
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = null;
+    }
     fetchUsers(1);
   };
 
@@ -358,6 +406,7 @@ const UserManagement = () => {
       email: user.email || "",
       documento_tipo_id: user.documento_tipo_id || "",
       documento_numero: user.documento_numero || "",
+      updated_at: user.updated_at || "",
     };
     setInitialFormData(initial);
     setFormData(initial);
@@ -498,6 +547,21 @@ const UserManagement = () => {
       setIsModalOpen(false);
       fetchUsers(pagination.current_page);
     } catch (error) {
+      // Conflicto de concurrencia (Bloqueo Optimista)
+      if (
+        error.response?.status === 409 ||
+        error.response?.data?.code === 409
+      ) {
+        showNotification(
+          error.response?.data?.error ||
+            "Conflicto de concurrencia: El usuario fue modificado por otro administrador.",
+          "error",
+        );
+        setIsModalOpen(false);
+        fetchUsers(pagination.current_page);
+        return;
+      }
+
       showNotification(
         parseError(error, "Ocurrió un error al procesar el usuario."),
         "error",
