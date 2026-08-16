@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import echo from "../../utils/echo";
+import { useState, useEffect, useRef } from "react";
 import {
   Eye,
   X,
@@ -58,6 +59,8 @@ const UserManagement = () => {
     last_page: 1,
     total: 0,
   });
+
+  const currentPageRef = useRef(pagination.current_page);
 
   const [processingId, setProcessingId] = useState(null);
 
@@ -182,6 +185,26 @@ const UserManagement = () => {
       setDepartamentos([]);
     }
   };
+
+  useEffect(() => {
+    currentPageRef.current = pagination.current_page;
+  }, [pagination.current_page]);
+
+  useEffect(() => {
+    if (!hasAccess) return;
+
+    const channel = echo.private("usuarios");
+
+    channel.listen(".UsuarioUpdated", (event) => {
+      console.log("Cambio detectado en usuarios:", event.action, event.userId);
+      // Usa la página actual sin recrear la conexión
+      fetchUsers(currentPageRef.current);
+    });
+
+    return () => {
+      echo.leave("usuarios");
+    };
+  }, [hasAccess]);
 
   useEffect(() => {
     fetchProvincias();
@@ -475,7 +498,6 @@ const UserManagement = () => {
       setIsModalOpen(false);
       fetchUsers(pagination.current_page);
     } catch (error) {
-      console.error("Error al actualizar usuario:", error);
       showNotification(
         parseError(error, "Ocurrió un error al procesar el usuario."),
         "error",
