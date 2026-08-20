@@ -13,7 +13,7 @@ if (appKey) {
   echo = new Echo({
     broadcaster: "reverb",
     key: appKey,
-    wsHost: import.meta.env.VITE_REVERB_HOST || "api.sgei.local",
+    wsHost: import.meta.env.VITE_REVERB_HOST || "127.0.0.1" || "api.sgei.local",
     wsPort: Number(import.meta.env.VITE_REVERB_PORT) || 8080,
     wssPort: Number(import.meta.env.VITE_REVERB_PORT) || 8080,
     forceTLS: true,
