@@ -17,7 +17,6 @@ import {
   CheckCircle,
   AlertCircle,
   X,
-  Shield,
 } from "lucide-react";
 import defaultAvatar from "../assets/default_avatar.jpg";
 
@@ -184,9 +183,6 @@ const Layout = ({ children }) => {
   const isSuperUser =
     user?.es_administrador || user?.roles?.some((r) => r.name === "superuser");
 
-  // El Supervisor Curricular NO gestiona personas ni usuarios, incluso si tiene otros roles globales
-  const isActingAsSupervisor = activeRoleName === "supervisor_curricular";
-
   if (isSuperUser) {
     navItems.push({
       name: "Gestión de Usuarios",
@@ -198,49 +194,17 @@ const Layout = ({ children }) => {
       path: "/admin/personas",
       icon: <Contact className="w-6 h-6" />,
     });
-    navItems.push({
-      name: "Jefes Provinciales",
-      path: "/admin/jefes-provinciales",
-      icon: <Shield className="w-6 h-6" />,
-    });
   }
 
-  const isProvincialAdmin = activeRoleName === "jefe_provincial";
-  if (isSuperUser || isProvincialAdmin) {
-    navItems.push({
-      name: "Jefes Regionales",
-      path: "/admin/jefes-regionales",
-      icon: <Shield className="w-6 h-6 text-blue-400" />,
-    });
-  }
-
-  const isRegionalAdmin = activeRoleName === "jefe_regional";
-  if (isSuperUser || isProvincialAdmin || isRegionalAdmin) {
-    navItems.push({
-      name: "Jefes Distritales",
-      path: "/admin/jefes-distritales",
-      icon: <Shield className="w-6 h-6 text-indigo-400" />,
-    });
-  }
-
-  const isJefeDistrital = user?.roles?.some((r) => r.name === "jefe_distrital");
-
-  const isConduccion = [
-    "director",
+  const isConduccion = ["director",
     "vicedirector",
     "secretario",
-    "prosecretario",
-  ].includes(activeRoleName);
-  const canAccessCupof =
-    isSuperUser ||
-    isJefeDistrital ||
-    activeRoleName === "jefe_distrital" ||
-    isConduccion;
+    "prosecretario"].includes(activeRoleName);
+  
+  const canAccessCupof = isSuperUser || isConduccion;
 
   if (
-    hasPermission("sistema.usuarios") ||
-    isActingAsSupervisor ||
-    isConduccion
+    hasPermission("sistema.usuarios") || isConduccion
   ) {
     navItems.push({
       name: "Escuelas",
@@ -258,9 +222,6 @@ const Layout = ({ children }) => {
   }
 
   const isRestrictedFromGeneralPanel = [
-    "jefe_provincial",
-    "jefe_regional",
-    "jefe_distrital",
     "director",
     "vicedirector",
     "secretario",
@@ -270,7 +231,6 @@ const Layout = ({ children }) => {
   if (
     isSuperUser ||
     (hasPermission("sistema.usuarios") &&
-      !isActingAsSupervisor &&
       !isRestrictedFromGeneralPanel)
   ) {
     navItems.push({
@@ -401,9 +361,6 @@ const Layout = ({ children }) => {
   const hasCurricularVerPermission =
     hasPermission("planes.ver") ||
     [
-      "jefe_provincial",
-      "jefe_regional",
-      "jefe_distrital",
       "director",
       "vicedirector",
       "secretario",
@@ -452,26 +409,7 @@ const Layout = ({ children }) => {
       return { name: "Superusuario", type: "admin" };
     }
 
-    const adminRoles = [
-      {
-        id: "jefe_provincial",
-        name: "Jefe Provincial",
-        context: user?.provincia_usuario?.provincia?.nombre,
-      },
-      {
-        id: "jefe_regional",
-        name: "Jefe Regional",
-        context: user?.region_usuario?.region?.nombre,
-      },
-      {
-        id: "jefe_distrital",
-        name: "Jefe Distrital",
-        context:
-          user?.distrito_usuario?.distrito?.nombre ||
-          user?.distrito_usuario?.distrito?.departamento?.nombre,
-      },
-      { id: "supervisor_curricular", name: "Supervisor" },
-    ];
+    const adminRoles = [];
 
     for (const role of adminRoles) {
       if (user?.roles?.some((r) => r.name === role.id)) {
