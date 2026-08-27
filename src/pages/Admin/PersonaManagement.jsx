@@ -7,40 +7,17 @@ import {
   Link,
   Link2Off,
   Loader2,
-  Lock,
-  Unlock,
   Mail,
-  Globe,
-  MapPin,
   ShieldCheck,
-  Calendar,
-  Info,
   X,
-  Check,
-  Save,
   User,
-  Phone,
-  Home,
-  Layers,
-  Briefcase,
-  FileText,
-  Shield,
   Trash2,
-  Award,
-  Plus,
-  Minus,
-  ChevronDown,
-  ChevronUp,
-  UserCheck,
-  ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
 import personaService from "../../services/personaService";
-import escuelaService from "../../services/escuelaService";
 import cupofService from "../../services/cupofService";
 import documentoTipoService from "../../services/documentoTipoService";
-import geografiaService from "../../services/geografiaService";
 import ConfirmUnlinkUserModal from "../../components/ConfirmUnlinkUserModal";
 
 /**
@@ -53,15 +30,6 @@ export default function PersonaManagement() {
   const isSuperUser =
     authUser?.roles?.some((r) => r.name === "superuser") ||
     authUser?.es_administrador;
-  const isJefeProvincial = authUser?.roles?.some(
-    (r) => r.name === "jefe_provincial",
-  );
-  const isJefeRegional = authUser?.roles?.some(
-    (r) => r.name === "jefe_regional",
-  );
-  const isJefeDistrital = authUser?.roles?.some(
-    (r) => r.name === "jefe_distrital",
-  );
   const isConduccion = authUser?.roles?.some((r) =>
     ["director", "vicedirector", "secretario", "prosecretario"].includes(
       r.name,
@@ -81,9 +49,6 @@ export default function PersonaManagement() {
     total: 0,
   });
   const [docTipos, setDocTipos] = useState([]);
-  const [provincias, setProvincias] = useState([]);
-  const [departamentos, setDepartamentos] = useState([]);
-  const [regiones, setRegiones] = useState([]);
 
   // Estados de Modales y Selección
   const [selectedPersona, setSelectedPersona] = useState(null);
@@ -108,17 +73,6 @@ export default function PersonaManagement() {
   });
 
   // Estados de Roles Administrativos (Hierarchy Rules)
-  const [isAdminRolesModalOpen, setIsAdminRolesModalOpen] = useState(false);
-  const [activeAssignRole, setActiveAssignRole] = useState(null); // 'jefe_provincial', 'jefe_regional', 'jefe_distrital', 'supervisor', 'equipo_conduccion'
-  const [selectedProvinciaId, setSelectedProvinciaId] = useState("");
-  const [selectedDepartamentoId, setSelectedDepartamentoId] = useState("");
-  const [selectedRegionId, setSelectedRegionId] = useState("");
-  const [selectedEscuelaId, setSelectedEscuelaId] = useState("");
-  const [selectedEscuelaRoleId, setSelectedEscuelaRoleId] = useState("");
-  const [availableEscuelas, setAvailableEscuelas] = useState([]);
-  const [isSavingAdminRole, setIsSavingAdminRole] = useState(false);
-  const [isLoadingGeografia, setIsLoadingGeografia] = useState(false);
-  const [escuelaRoles, setEscuelaRoles] = useState([]);
 
   // Estados de Carga Específicos
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
@@ -167,99 +121,14 @@ export default function PersonaManagement() {
     }
   };
 
-  const fetchProvincias = async () => {
-    try {
-      const response = await geografiaService.getProvincias();
-      setProvincias(response || []);
-    } catch (error) {
-      console.error("Error al cargar provincias:", error);
-    }
-  };
 
-  const fetchDepartamentos = async (provinciaId = null) => {
-    try {
-      setIsLoadingGeografia(true);
-      // Jefe Regional: su provincia se deriva de su región
-      const regionalProvId = authUser?.region_usuario?.region?.provincia_id;
-      const pId =
-        provinciaId ||
-        (isJefeProvincial ? authUser?.provincia_usuario?.provincia_id : null) ||
-        (isJefeRegional ? regionalProvId : null) ||
-        44;
-      const response = await geografiaService.getDepartamentos(pId);
-      setDepartamentos(response || []);
-    } catch (error) {
-      console.error("Error al cargar departamentos:", error);
-    } finally {
-      setIsLoadingGeografia(false);
-    }
-  };
 
-  const fetchRegiones = async (provinciaId = null) => {
-    try {
-      setIsLoadingGeografia(true);
-      const pId =
-        provinciaId ||
-        (isJefeProvincial ? authUser?.provincia_usuario?.provincia_id : 44);
-      const response = await geografiaService.getRegiones({
-        provincia_id: pId || 44,
-      });
-      setRegiones(response || []);
-    } catch (error) {
-      console.error("Error al cargar regiones:", error);
-    } finally {
-      setIsLoadingGeografia(false);
-    }
-  };
 
-  const fetchEscuelaRoles = async () => {
-    try {
-      const response = await cupofService.getRoles();
-      // Filtrar solo los roles jerárquicos (Equipo de Conducción)
-      const filtered = response.filter((r) =>
-        ["director", "vicedirector", "secretario", "prosecretario"].includes(
-          r.name,
-        ),
-      );
-      setEscuelaRoles(filtered);
-    } catch (error) {
-      console.error("Error al cargar roles escolares:", error);
-    }
-  };
 
-  const fetchSchoolsForDistrict = async (departamentoId) => {
-    try {
-      setIsLoadingGeografia(true);
-      const response = await escuelaService.getAllAdmin({
-        localidad_departamento_id: departamentoId,
-        per_page: 1000,
-      });
-      setAvailableEscuelas(response.data || []);
-    } catch (error) {
-      console.error("Error al cargar escuelas del distrito:", error);
-    } finally {
-      setIsLoadingGeografia(false);
-    }
-  };
 
   useEffect(() => {
     fetchPersonas();
     fetchDocTipos();
-    fetchProvincias();
-    if (isSuperUser || isJefeProvincial) {
-      fetchDepartamentos();
-      fetchRegiones();
-    }
-    // Jefe Regional: necesita los departamentos de su provincia para asignar Jefe Distrital
-    if (isJefeRegional) {
-      const regionalProvId = authUser?.region_usuario?.region?.provincia_id;
-      fetchDepartamentos(regionalProvId || null);
-    }
-    if (isJefeDistrital) {
-      fetchEscuelaRoles();
-      const distId = authUser?.distrito_usuario?.departamento_id;
-      if (distId) fetchSchoolsForDistrict(distId);
-    }
   }, []);
 
   const handleSearch = (e) => {
@@ -277,185 +146,12 @@ export default function PersonaManagement() {
     }
   };
 
-  const handleOpenAdminRolesModal = async (persona) => {
-    setIsFetchingDetails(true);
-    const freshPersona = await refreshSelectedPersona(persona.id);
-    setIsFetchingDetails(false);
 
-    if (freshPersona) {
-      // Pre-setear contexto geográfico según rol del usuario autenticado
-      const provId = isJefeProvincial
-        ? authUser?.provincia_usuario?.provincia_id
-        : isJefeRegional
-          ? authUser?.region_usuario?.region?.provincia_id
-          : "";
-      setSelectedProvinciaId(provId || "");
-      setSelectedDepartamentoId("");
-      setSelectedRegionId(
-        isJefeRegional ? authUser?.region_usuario?.region_id || "" : "",
-      );
-      setSelectedEscuelaId("");
-      setSelectedEscuelaRoleId("");
-      setActiveAssignRole(null);
-      setIsAdminRolesModalOpen(true);
-    }
-  };
 
-  const handleAssignJefeRegional = async () => {
-    if (!selectedRegionId) {
-      showNotification("Debes seleccionar una región.", "warning");
-      return;
-    }
-    try {
-      setIsSavingAdminRole(true);
-      await personaService.assignJefeRegional(
-        selectedPersona.id,
-        selectedRegionId,
-      );
-      showNotification("Rol de Jefe Regional asignado con éxito.", "success");
-      await refreshSelectedPersona();
-      setActiveAssignRole(null);
-      fetchPersonas(pagination.current_page);
-    } catch (error) {
-      console.error("Error al asignar Jefe Regional:", error);
-      showNotification(
-        parseError(error, "No se pudo asignar el rol."),
-        "error",
-      );
-    } finally {
-      setIsSavingAdminRole(false);
-    }
-  };
 
-  const handleAssignJefeDistrital = async () => {
-    if (!selectedDepartamentoId) {
-      showNotification("Debes seleccionar un distrito.", "warning");
-      return;
-    }
-    try {
-      setIsSavingAdminRole(true);
-      await personaService.assignJefeDistrital(
-        selectedPersona.id,
-        selectedDepartamentoId,
-      );
-      showNotification("Rol de Jefe Distrital asignado con éxito.", "success");
-      await refreshSelectedPersona();
-      setActiveAssignRole(null);
-      fetchPersonas(pagination.current_page);
-    } catch (error) {
-      console.error("Error al asignar Jefe Distrital:", error);
-      showNotification(
-        parseError(error, "No se pudo asignar el rol."),
-        "error",
-      );
-    } finally {
-      setIsSavingAdminRole(false);
-    }
-  };
 
-  const handleAssignSupervisor = async () => {
-    try {
-      setIsSavingAdminRole(true);
-      await personaService.assignSupervisor(selectedPersona.id);
-      showNotification(
-        "Rol de Supervisor Curricular asignado con éxito.",
-        "success",
-      );
-      await refreshSelectedPersona();
-      setActiveAssignRole(null);
-      fetchPersonas(pagination.current_page);
-    } catch (error) {
-      console.error("Error al asignar Supervisor:", error);
-      showNotification(
-        parseError(error, "No se pudo asignar el rol."),
-        "error",
-      );
-    } finally {
-      setIsSavingAdminRole(false);
-    }
-  };
 
-  const handleRemoveAdminRole = async (role) => {
-    if (
-      !window.confirm(
-        `¿Estás seguro de que deseas revocar el rol de ${role.replace("_", " ")}?`,
-      )
-    ) {
-      return;
-    }
-    try {
-      setIsSavingAdminRole(true);
-      await personaService.removeRole(selectedPersona.id, role);
-      showNotification("Rol revocado con éxito.", "success");
-      await refreshSelectedPersona();
-      fetchPersonas(pagination.current_page);
-    } catch (error) {
-      console.error("Error al remover rol:", error);
-      showNotification(
-        parseError(error, "No se pudo revocar el rol."),
-        "error",
-      );
-    } finally {
-      setIsSavingAdminRole(false);
-    }
-  };
 
-  const handleAssignEquipoConduccion = async () => {
-    if (!selectedEscuelaId || !selectedEscuelaRoleId) {
-      showNotification("Debes seleccionar la escuela y el cargo.", "warning");
-      return;
-    }
-    if (!selectedPersona.usuario_id) {
-      showNotification(
-        "La persona debe tener un usuario vinculado para asignarle un rol institucional.",
-        "warning",
-      );
-      return;
-    }
-    try {
-      setIsSavingAdminRole(true);
-      await escuelaService.assignDirect(
-        selectedPersona.id,
-        selectedEscuelaId,
-        selectedEscuelaRoleId,
-      );
-      showNotification(
-        "Cargo de Equipo de Conducción asignado con éxito.",
-        "success",
-      );
-      await refreshSelectedPersona();
-      setActiveAssignRole(null);
-      fetchPersonas(pagination.current_page);
-    } catch (error) {
-      showNotification(
-        parseError(error, "Error al asignar rol institucional."),
-        "error",
-      );
-    } finally {
-      setIsSavingAdminRole(false);
-    }
-  };
-
-  const handleRemoveInstitutionalRole = async (linkId) => {
-    if (
-      !window.confirm(
-        "¿Estás seguro de que deseas revocar este cargo institucional?",
-      )
-    ) {
-      return;
-    }
-    try {
-      setIsSavingAdminRole(true);
-      await escuelaService.deleteLink(linkId);
-      showNotification("Rol institucional revocado con éxito.", "success");
-      await refreshSelectedPersona();
-      fetchPersonas(pagination.current_page);
-    } catch (error) {
-      showNotification(parseError(error, "Error al remover rol."), "error");
-    } finally {
-      setIsSavingAdminRole(false);
-    }
-  };
 
   const handleViewPersona = async (id) => {
     try {
@@ -829,10 +525,7 @@ export default function PersonaManagement() {
                               {persona.usuario_email}
                             </span>
                           </div>
-                          {(isSuperUser ||
-                            isJefeProvincial ||
-                            isJefeRegional ||
-                            isJefeDistrital) && (
+                          {isSuperUser && (
                             <button
                               onClick={() => handleUnlinkUser(persona.id)}
                               disabled={isLinkingUser === persona.id}
@@ -855,10 +548,7 @@ export default function PersonaManagement() {
                               Sin cuenta
                             </span>
                           </div>
-                          {(isSuperUser ||
-                            isJefeProvincial ||
-                            isJefeRegional ||
-                            isJefeDistrital) && (
+                          {isSuperUser && (
                             <button
                               onClick={() => handleLinkUser(persona.id)}
                               disabled={isLinkingUser === persona.id}
@@ -877,46 +567,9 @@ export default function PersonaManagement() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
-                        {persona.usuario?.roles?.some(
-                          (r) => r.name === "jefe_provincial",
-                        ) && (
-                          <span className="px-2 py-0.5 bg-rose-100 text-rose-700 text-[10px] font-black uppercase rounded border border-rose-200">
-                            J. Provincial
-                          </span>
-                        )}
-                        {persona.usuario?.roles?.some(
-                          (r) => r.name === "jefe_regional",
-                        ) && (
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black uppercase rounded border border-blue-200">
-                            J. Regional
-                          </span>
-                        )}
-                        {persona.usuario?.roles?.some(
-                          (r) => r.name === "jefe_distrital",
-                        ) && (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase rounded border border-amber-200">
-                            J. Distrital
-                          </span>
-                        )}
-                        {persona.usuario?.roles?.some(
-                          (r) => r.name === "supervisor_curricular",
-                        ) && (
-                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase rounded border border-indigo-200">
-                            Supervisor
-                          </span>
-                        )}
-                        {!persona.usuario?.roles?.some((r) =>
-                          [
-                            "jefe_provincial",
-                            "jefe_regional",
-                            "jefe_distrital",
-                            "supervisor_curricular",
-                          ].includes(r.name),
-                        ) && (
-                          <span className="text-[10px] text-secondary-400 font-medium italic">
-                            Sin rol admin.
-                          </span>
-                        )}
+                        <span className="text-[10px] text-secondary-400 font-medium italic">
+                          Sin roles administrativos.
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -928,17 +581,7 @@ export default function PersonaManagement() {
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
-                        {(isSuperUser ||
-                          isJefeProvincial ||
-                          isJefeRegional) && (
-                          <button
-                            onClick={() => handleOpenAdminRolesModal(persona)}
-                            className="p-2 text-secondary-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Gestionar Roles Administrativos"
-                          >
-                            <Shield className="w-5 h-5" />
-                          </button>
-                        )}
+
                         <button
                           onClick={() => handleViewPersona(persona.id)}
                           disabled={isFetchingDetails}
@@ -1111,7 +754,7 @@ export default function PersonaManagement() {
                 </div>
 
                 <div className="pt-4 flex flex-col sm:flex-row gap-3">
-                  {(isJefeDistrital || isConduccion) && (
+                  {(isSuperUser || isConduccion) && (
                     <button
                       type="button"
                       onClick={() => setIsAssignModalOpen(true)}
@@ -1436,553 +1079,6 @@ export default function PersonaManagement() {
                     : "Confirmar Asignación"}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL ROLES EN EL SISTEMA (JERARQUÍAS) */}
-      {isAdminRolesModalOpen && selectedPersona && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden border border-secondary-200 flex flex-col max-h-[90vh]">
-            {/* Header */}
-            <div className="p-6 bg-secondary-50 border-b border-secondary-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-black text-secondary-900 uppercase tracking-tight">
-                  Roles en el Sistema
-                </h2>
-                <p className="text-xs text-secondary-500 font-bold uppercase mt-1">
-                  Gestionando permisos para:{" "}
-                  <span className="text-primary-600">
-                    {selectedPersona.nombre_completo}
-                  </span>
-                </p>
-              </div>
-              <button
-                onClick={() => setIsAdminRolesModalOpen(false)}
-                className="p-2 hover:bg-secondary-200 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6 text-secondary-500" />
-              </button>
-            </div>
-
-            {/* Body - Two Columns */}
-            <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-2 divide-x divide-secondary-100">
-              {/* Left Column: Current Roles */}
-              <div className="flex flex-col bg-white">
-                <div className="p-4 bg-secondary-50/50 border-b border-secondary-100">
-                  <h3 className="text-[10px] font-black text-secondary-400 uppercase tracking-widest flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-green-500" />
-                    Roles Asignados Actualmente
-                  </h3>
-                </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                  {/* Roles Administrativos */}
-                  <div className="space-y-3">
-                    {selectedPersona.usuario?.roles
-                      ?.filter((r) =>
-                        [
-                          "jefe_provincial",
-                          "jefe_regional",
-                          "jefe_distrital",
-                          "supervisor_curricular",
-                        ].includes(r.name),
-                      )
-                      .map((role) => (
-                        <div
-                          key={role.id}
-                          className="group p-4 bg-secondary-50 border border-secondary-200 rounded-2xl flex items-center justify-between hover:border-primary-200 transition-all shadow-sm"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-secondary-200 shadow-sm group-hover:text-primary-600 transition-colors">
-                              <UserCheck className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-black text-secondary-900 uppercase">
-                                {role.name.replace("_", " ")}
-                              </p>
-                              <p className="text-[10px] font-bold text-secondary-500 uppercase tracking-tighter">
-                                {role.name === "jefe_provincial" &&
-                                  (selectedPersona.usuario.provincia_usuario
-                                    ?.provincia?.nombre ||
-                                    "Provincia")}
-                                {role.name === "jefe_regional" &&
-                                  `Región ${selectedPersona.usuario.region_usuario?.region?.numero || "?"}`}
-                                {role.name === "jefe_distrital" &&
-                                  (selectedPersona.usuario.distrito_usuario
-                                    ?.distrito?.nombre ||
-                                    "Distrito")}
-                                {role.name === "supervisor_curricular" &&
-                                  "Jurisdicción Provincial"}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleRemoveAdminRole(role.name)}
-                            className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      ))}
-                  </div>
-
-                  {/* Roles Institucionales (Equipo de Conducción) */}
-                  <div className="space-y-3">
-                    {selectedPersona.usuario?.escuelas_personas?.map((link) => (
-                      <div
-                        key={link.id}
-                        className="group p-4 bg-primary-50/30 border border-primary-100 rounded-2xl flex items-center justify-between hover:border-primary-200 transition-all shadow-sm"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-primary-100 shadow-sm group-hover:text-primary-600 transition-colors">
-                            <Briefcase className="w-5 h-5 text-primary-500" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-black text-primary-900 uppercase">
-                              {link.role?.name || "Cargo"}
-                            </p>
-                            <p className="text-[10px] font-bold text-secondary-500 uppercase tracking-tighter truncate max-w-[150px]">
-                              {link.escuela?.nombre}
-                            </p>
-                            {!link.verified_at && (
-                              <span className="text-[8px] bg-amber-100 text-amber-700 px-1 rounded font-black uppercase">
-                                Pendiente
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveInstitutionalRole(link.id)}
-                          className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {(!selectedPersona.usuario?.roles ||
-                    selectedPersona.usuario.roles.filter((r) =>
-                      [
-                        "jefe_provincial",
-                        "jefe_regional",
-                        "jefe_distrital",
-                        "supervisor_curricular",
-                      ].includes(r.name),
-                    ).length === 0) &&
-                    (!selectedPersona.usuario?.escuelas_personas ||
-                      selectedPersona.usuario.escuelas_personas.length ===
-                        0) && (
-                      <div className="h-full flex flex-col items-center justify-center text-center p-10 opacity-60">
-                        <ShieldAlert className="w-12 h-12 text-secondary-300 mb-2" />
-                        <p className="text-sm font-bold text-secondary-400 italic">
-                          No posee roles activos en el sistema.
-                        </p>
-                      </div>
-                    )}
-                </div>
-              </div>
-
-              {/* Right Column: Assignment */}
-              <div className="flex flex-col bg-secondary-50/20">
-                <div className="p-4 bg-secondary-50/50 border-b border-secondary-100">
-                  <h3 className="text-[10px] font-black text-secondary-400 uppercase tracking-widest flex items-center gap-2">
-                    <Plus className="w-4 h-4 text-primary-500" />
-                    Asignar Nuevo Rol
-                  </h3>
-                </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                  <div className="space-y-3">
-                    {/* Jefe Provincial (Solo SuperUser) */}
-                    {isSuperUser &&
-                      !selectedPersona.usuario?.roles?.some(
-                        (r) => r.name === "jefe_provincial",
-                      ) && (
-                        <div className="space-y-2">
-                          <button
-                            onClick={() =>
-                              setActiveAssignRole(
-                                activeAssignRole === "jefe_provincial"
-                                  ? null
-                                  : "jefe_provincial",
-                              )
-                            }
-                            className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${activeAssignRole === "jefe_provincial" ? "bg-primary-50 border-primary-200 ring-2 ring-primary-100" : "bg-white border-secondary-200 hover:border-primary-300"}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <Shield className="w-5 h-5 text-rose-500" />
-                              <span className="text-sm font-black text-secondary-800 uppercase">
-                                Jefe Provincial
-                              </span>
-                            </div>
-                            {activeAssignRole === "jefe_provincial" ? (
-                              <ChevronUp className="w-5 h-5" />
-                            ) : (
-                              <ChevronDown className="w-5 h-5" />
-                            )}
-                          </button>
-                          {activeAssignRole === "jefe_provincial" && (
-                            <div className="p-4 bg-white border border-primary-100 rounded-2xl shadow-inner animate-slideDown space-y-3">
-                              <select
-                                className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
-                                defaultValue="44"
-                              >
-                                <option value="44">BUENOS AIRES</option>
-                              </select>
-                              <button
-                                onClick={() => {
-                                  setIsSavingAdminRole(true);
-                                  personaService
-                                    .assignJefeProvincial(
-                                      selectedPersona.id,
-                                      44,
-                                    )
-                                    .then(async () => {
-                                      showNotification(
-                                        "Rol de Jefe Provincial asignado",
-                                        "success",
-                                      );
-                                      await refreshSelectedPersona();
-                                      setActiveAssignRole(null);
-                                      fetchPersonas(pagination.current_page);
-                                    })
-                                    .catch((err) =>
-                                      showNotification(
-                                        parseError(err, "Error al asignar rol"),
-                                        "error",
-                                      ),
-                                    )
-                                    .finally(() => setIsSavingAdminRole(false));
-                                }}
-                                disabled={isSavingAdminRole}
-                                className="w-full py-2.5 bg-rose-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-50"
-                              >
-                                {isSavingAdminRole
-                                  ? "Guardando..."
-                                  : "Confirmar Asignación"}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                    {/* Jefe Regional (Solo Jefe Provincial) */}
-                    {isJefeProvincial &&
-                      !selectedPersona.usuario?.roles?.some(
-                        (r) => r.name === "jefe_regional",
-                      ) && (
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => {
-                              const nextState =
-                                activeAssignRole === "jefe_regional"
-                                  ? null
-                                  : "jefe_regional";
-                              setActiveAssignRole(nextState);
-                              if (nextState) {
-                                setSelectedRegionId("");
-                                fetchRegiones(
-                                  authUser?.provincia_usuario?.provincia_id,
-                                );
-                              }
-                            }}
-                            className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${activeAssignRole === "jefe_regional" ? "bg-primary-50 border-primary-200 ring-2 ring-primary-100" : "bg-white border-secondary-200 hover:border-primary-300"}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <Globe className="w-5 h-5 text-blue-500" />
-                              <span className="text-sm font-black text-secondary-800 uppercase">
-                                Jefe Regional
-                              </span>
-                            </div>
-                            {activeAssignRole === "jefe_regional" ? (
-                              <ChevronUp className="w-5 h-5" />
-                            ) : (
-                              <ChevronDown className="w-5 h-5" />
-                            )}
-                          </button>
-                          {activeAssignRole === "jefe_regional" && (
-                            <div className="p-4 bg-white border border-primary-100 rounded-2xl shadow-inner animate-slideDown space-y-3">
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                                  Seleccionar Región
-                                </label>
-                                <select
-                                  className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                                  value={selectedRegionId}
-                                  onChange={(e) =>
-                                    setSelectedRegionId(e.target.value)
-                                  }
-                                  disabled={isLoadingGeografia}
-                                >
-                                  <option value="">
-                                    {isLoadingGeografia
-                                      ? "Cargando..."
-                                      : "Seleccionar Región..."}
-                                  </option>
-                                  {regiones.map((reg) => (
-                                    <option key={reg.id} value={reg.id}>
-                                      REGIÓN {reg.numero}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <button
-                                onClick={handleAssignJefeRegional}
-                                disabled={
-                                  isSavingAdminRole || !selectedRegionId
-                                }
-                                className="w-full py-2.5 bg-blue-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50"
-                              >
-                                {isSavingAdminRole
-                                  ? "Guardando..."
-                                  : "Confirmar Asignación"}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                    {/* Jefe Distrital (Solo Jefe Regional) */}
-                    {isJefeRegional &&
-                      !selectedPersona.usuario?.roles?.some(
-                        (r) => r.name === "jefe_distrital",
-                      ) && (
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => {
-                              const nextState =
-                                activeAssignRole === "jefe_distrital"
-                                  ? null
-                                  : "jefe_distrital";
-                              setActiveAssignRole(nextState);
-                              if (nextState) {
-                                setSelectedDepartamentoId("");
-                                fetchDepartamentos(
-                                  authUser?.region_usuario?.region
-                                    ?.provincia_id,
-                                );
-                              }
-                            }}
-                            className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${activeAssignRole === "jefe_distrital" ? "bg-primary-50 border-primary-200 ring-2 ring-primary-100" : "bg-white border-secondary-200 hover:border-primary-300"}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <MapPin className="w-5 h-5 text-amber-500" />
-                              <span className="text-sm font-black text-secondary-800 uppercase">
-                                Jefe Distrital
-                              </span>
-                            </div>
-                            {activeAssignRole === "jefe_distrital" ? (
-                              <ChevronUp className="w-5 h-5" />
-                            ) : (
-                              <ChevronDown className="w-5 h-5" />
-                            )}
-                          </button>
-                          {activeAssignRole === "jefe_distrital" && (
-                            <div className="p-4 bg-white border border-primary-100 rounded-2xl shadow-inner animate-slideDown space-y-3">
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                                  Seleccionar Distrito
-                                </label>
-                                <select
-                                  className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
-                                  value={selectedDepartamentoId}
-                                  onChange={(e) =>
-                                    setSelectedDepartamentoId(e.target.value)
-                                  }
-                                  disabled={isLoadingGeografia}
-                                >
-                                  <option value="">
-                                    {isLoadingGeografia
-                                      ? "Cargando..."
-                                      : "Seleccionar Distrito..."}
-                                  </option>
-                                  {departamentos
-                                    .filter(
-                                      (d) =>
-                                        d.region_id ===
-                                        authUser?.region_usuario?.region_id,
-                                    )
-                                    .map((d) => (
-                                      <option key={d.id} value={d.id}>
-                                        {d.nombre}
-                                      </option>
-                                    ))}
-                                </select>
-                              </div>
-                              <button
-                                onClick={handleAssignJefeDistrital}
-                                disabled={
-                                  isSavingAdminRole || !selectedDepartamentoId
-                                }
-                                className="w-full py-2.5 bg-amber-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg hover:bg-amber-700 active:scale-95 transition-all disabled:opacity-50"
-                              >
-                                {isSavingAdminRole
-                                  ? "Guardando..."
-                                  : "Confirmar Asignación"}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                    {/* Equipo de Conducción (Solo Jefe Distrital) */}
-                    {isJefeDistrital && (
-                      <div className="space-y-2">
-                        <button
-                          onClick={() =>
-                            setActiveAssignRole(
-                              activeAssignRole === "equipo_conduccion"
-                                ? null
-                                : "equipo_conduccion",
-                            )
-                          }
-                          className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${activeAssignRole === "equipo_conduccion" ? "bg-primary-50 border-primary-200 ring-2 ring-primary-100" : "bg-white border-secondary-200 hover:border-primary-300"}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Briefcase className="w-5 h-5 text-primary-500" />
-                            <span className="text-sm font-black text-secondary-800 uppercase">
-                              Equipo de Conducción
-                            </span>
-                          </div>
-                          {activeAssignRole === "equipo_conduccion" ? (
-                            <ChevronUp className="w-5 h-5" />
-                          ) : (
-                            <ChevronDown className="w-5 h-5" />
-                          )}
-                        </button>
-                        {activeAssignRole === "equipo_conduccion" && (
-                          <div className="p-4 bg-white border border-primary-100 rounded-2xl shadow-inner animate-slideDown space-y-3">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                                1. Seleccionar Escuela
-                              </label>
-                              <select
-                                className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
-                                value={selectedEscuelaId}
-                                onChange={(e) =>
-                                  setSelectedEscuelaId(e.target.value)
-                                }
-                                disabled={isLoadingGeografia}
-                              >
-                                <option value="">Seleccionar Escuela...</option>
-                                {availableEscuelas.map((esc) => (
-                                  <option key={esc.id} value={esc.id}>
-                                    {esc.numero} - {esc.nombre}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                                2. Seleccionar Cargo
-                              </label>
-                              <select
-                                className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
-                                value={selectedEscuelaRoleId}
-                                onChange={(e) =>
-                                  setSelectedEscuelaRoleId(e.target.value)
-                                }
-                              >
-                                <option value="">Seleccionar Cargo...</option>
-                                {escuelaRoles.map((rol) => (
-                                  <option key={rol.id} value={rol.id}>
-                                    {rol.name.toUpperCase()}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <button
-                              onClick={handleAssignEquipoConduccion}
-                              disabled={
-                                isSavingAdminRole ||
-                                !selectedEscuelaId ||
-                                !selectedEscuelaRoleId
-                              }
-                              className="w-full py-2.5 bg-primary-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg hover:bg-primary-700 active:scale-95 transition-all disabled:opacity-50"
-                            >
-                              {isSavingAdminRole
-                                ? "Guardando..."
-                                : "Confirmar Asignación"}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Supervisor Curricular (SuperUser) */}
-                    {isSuperUser &&
-                      !selectedPersona.usuario?.roles?.some(
-                        (r) => r.name === "supervisor_curricular",
-                      ) && (
-                        <div className="space-y-2">
-                          <button
-                            onClick={() =>
-                              setActiveAssignRole(
-                                activeAssignRole === "supervisor"
-                                  ? null
-                                  : "supervisor",
-                              )
-                            }
-                            className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${activeAssignRole === "supervisor" ? "bg-primary-50 border-primary-200 ring-2 ring-primary-100" : "bg-white border-secondary-200 hover:border-primary-300"}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <Award className="w-5 h-5 text-indigo-500" />
-                              <span className="text-sm font-black text-secondary-800 uppercase">
-                                Supervisor Curricular
-                              </span>
-                            </div>
-                            {activeAssignRole === "supervisor" ? (
-                              <ChevronUp className="w-5 h-5" />
-                            ) : (
-                              <ChevronDown className="w-5 h-5" />
-                            )}
-                          </button>
-                          {activeAssignRole === "supervisor" && (
-                            <div className="p-4 bg-white border border-primary-100 rounded-2xl shadow-inner animate-slideDown space-y-3">
-                              <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-                                <p className="text-[10px] font-bold text-indigo-600 leading-tight">
-                                  El Supervisor Curricular tiene alcance sobre
-                                  toda la Jurisdicción Provincial.
-                                </p>
-                              </div>
-                              <button
-                                onClick={handleAssignSupervisor}
-                                disabled={isSavingAdminRole}
-                                className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
-                              >
-                                {isSavingAdminRole
-                                  ? "..."
-                                  : "Confirmar Asignación"}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                    {!isSuperUser &&
-                      !isJefeProvincial &&
-                      !isJefeRegional &&
-                      !isJefeDistrital && (
-                        <div className="p-10 text-center opacity-40 italic">
-                          <p className="text-sm font-bold text-secondary-400">
-                            No tienes permisos para asignar nuevos roles.
-                          </p>
-                        </div>
-                      )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 bg-secondary-50 border-t border-secondary-100 flex justify-end">
-              <button
-                onClick={() => setIsAdminRolesModalOpen(false)}
-                className="px-8 py-3 bg-secondary-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all active:scale-95 shadow-lg"
-              >
-                Finalizar Gestión
-              </button>
             </div>
           </div>
         </div>

@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
-    Shield, Globe, MapPin, School, ChevronRight, 
-    User, LogOut, Award, Briefcase 
+    Shield, School, ChevronRight, 
+    User, LogOut 
 } from 'lucide-react';
 
 /**
@@ -22,41 +22,23 @@ const SelectRole = () => {
 
         const availableRoles = [];
 
-        // 1. Roles Administrativos Globales/Jurisdiccionales
-        if (user.roles) {
-            user.roles.forEach(role => {
-                let context = 'Jurisdicción Provincial';
-                let icon = <Award className="w-6 h-6" />;
-                let color = 'bg-indigo-50 text-indigo-600 border-indigo-100';
-
-                if (role.name === 'jefe_provincial') {
-                    context = user.provincia_usuario?.provincia?.nombre || 'Provincia';
-                    icon = <Shield className="w-6 h-6" />;
-                    color = 'bg-rose-50 text-rose-600 border-rose-100';
-                } else if (role.name === 'jefe_regional') {
-                    context = `Región ${user.region_usuario?.region?.numero || ''}`;
-                    icon = <Globe className="w-6 h-6" />;
-                    color = 'bg-blue-50 text-blue-600 border-blue-100';
-                } else if (role.name === 'jefe_distrital') {
-                    context = user.distrito_usuario?.distrito?.nombre || 'Distrito';
-                    icon = <MapPin className="w-6 h-6" />;
-                    color = 'bg-amber-50 text-amber-600 border-amber-100';
-                } else if (role.name === 'superuser') {
-                    context = 'Acceso Total';
-                    icon = <Shield className="w-6 h-6 text-red-600" />;
-                    color = 'bg-red-50 text-red-700 border-red-200';
-                }
-
-                availableRoles.push({
-                    id: `role-${role.id}`,
-                    type: 'admin',
-                    name: role.name,
-                    displayName: role.name.replace('_', ' '),
-                    context,
-                    icon,
-                    color,
-                    rawRole: role
-                });
+        // 1. Roles Administrativos Globales (Sistema)
+        const isGlobalAdmin =
+            user?.es_administrador ||
+            user?.roles?.some((r) => r.name === "superuser");
+        if (isGlobalAdmin) {
+            availableRoles.push({
+                id: "admin",
+                type: "admin",
+                name: "superuser",
+                displayName: "Superusuario",
+                context: "Acceso Total",
+                icon: <Shield className="w-6 h-6 text-red-600" />,
+                color: "bg-red-50 text-red-700 border-red-200",
+                rawRole: user?.roles?.find((r) => r.name === "superuser") || {
+                    id: "admin",
+                    name: "superuser",
+                },
             });
         }
 

@@ -14,7 +14,7 @@ const PlanManagement = () => {
     
     const activeRoleName = activeProfile?.role?.name;
     const isSuperUser = user?.es_administrador || user?.roles?.some(r => r.name === 'superuser');
-    const isReadOnly = ['jefe_provincial', 'jefe_regional', 'jefe_distrital', 'director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeRoleName) && !isSuperUser;
+    const isReadOnly = ['director', 'vicedirector', 'secretario', 'prosecretario'].includes(activeRoleName) && !isSuperUser;
     
     // Estados para Planes
     const [plans, setPlans] = useState([]);

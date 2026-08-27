@@ -23,11 +23,6 @@ const CupofManagement = () => {
   const isSuperUser = Boolean(
     user?.es_administrador || user?.roles?.some((r) => r.name === "superuser"),
   );
-  const isJefeProvincial = user?.roles?.some(
-    (r) => r.name === "jefe_provincial",
-  );
-  const isJefeRegional = user?.roles?.some((r) => r.name === "jefe_regional");
-  const isJefeDistrital = user?.roles?.some((r) => r.name === "jefe_distrital");
   const isConduccion = [
     "director",
     "vicedirector",
@@ -36,7 +31,7 @@ const CupofManagement = () => {
   ].includes(activeProfile?.role?.name);
 
   // SEGÚN POLÍTICAS: Solo Superuser, Equipo de Conducción y Jefes Distritales tienen acceso.
-  const hasAccess = isSuperUser || isConduccion || isJefeDistrital;
+  const hasAccess = isSuperUser || isConduccion;
 
   // Función auxiliar para determinar si un cargo es jerárquico
   const isHierarchicalCargo = (nombreCargo) => {
@@ -48,15 +43,7 @@ const CupofManagement = () => {
   };
 
   // Determina si el usuario actual puede gestionar un CUPOF específico
-  const canManageCupof = (cupof) => {
-    if (isSuperUser) return true;
-    const hierarchical = isHierarchicalCargo(cupof.nombre_cargo);
-    // Jefe Distrital: Solo puede gestionar cargos jerárquicos
-    if (isJefeDistrital) return hierarchical;
-    // Equipo de Conducción ahora puede gestionar TODO en su escuela (jerárquico y operativo)
-    if (isConduccion) return true;
-    return false;
-  };
+  const canManageCupof = () => isSuperUser || isConduccion;
 
   // Estados para CUPOF (POF)
   const [cupofs, setCupofs] = useState([]);
@@ -72,7 +59,6 @@ const CupofManagement = () => {
     numero: "",
     school_name: "",
   });
-  const [filterLocalidades, setFilterLocalidades] = useState([]);
 
   // Estados para Padrón de Personas
   const [personas, setPersonas] = useState([]);
@@ -212,12 +198,6 @@ const CupofManagement = () => {
   const fetchEscuelas = async () => {
     try {
       const filters = {};
-      if (isJefeDistrital && !isSuperUser) {
-        const distId =
-          user?.distrito_usuario?.departamento_id ||
-          user?.distritoUsuario?.departamento_id;
-        if (distId) filters.departamento_id = distId;
-      }
       const data = await escuelaService.search("", filters);
       setEscuelas(data || []);
     } catch (error) {
@@ -299,43 +279,10 @@ const CupofManagement = () => {
   }, [user, hasAccess]);
 
   // Carga de localidades para el filtro de la página principal del Jefe Distrital
-  useEffect(() => {
-    if (isJefeDistrital && user) {
-      const distId =
-        user?.distrito_usuario?.departamento_id ||
-        user?.distritoUsuario?.departamento_id;
-      if (distId) {
-        geografiaService
-          .getLocalidades(distId)
-          .then((data) =>
-            setFilterLocalidades(Array.isArray(data) ? data : data?.data || []),
-          )
-          .catch(() => setFilterLocalidades([]));
-      }
-    }
-  }, [user, isJefeDistrital]);
 
   // Carga de regiones para el selector del modal (solo cuando se abre en modo listado)
   useEffect(() => {
     if (!showEscuelaList || !isCreateModalOpen) return;
-
-    if (isJefeDistrital && !isSuperUser) {
-      const distId =
-        user?.distrito_usuario?.departamento_id ||
-        user?.distritoUsuario?.departamento_id;
-      if (distId) {
-        setModalFiltro((prev) => ({
-          ...prev,
-          departamento_id: distId,
-          region_id: "",
-          localidad_id: "",
-          nivel_id: "",
-          sector_id: "",
-          numero: "",
-        }));
-      }
-      return;
-    }
 
     geografiaService
       .getRegiones()
@@ -343,7 +290,7 @@ const CupofManagement = () => {
         setModalRegiones(Array.isArray(data) ? data : data?.data || []),
       )
       .catch(() => {});
-  }, [showEscuelaList, isCreateModalOpen, isJefeDistrital, isSuperUser, user]);
+  }, [showEscuelaList, isCreateModalOpen]);
 
   // Efecto: al cambiar región, carga departamentos de esa región
   useEffect(() => {
@@ -383,9 +330,6 @@ const CupofManagement = () => {
     const fetchModalEscuelas = async () => {
       setIsLoadingModalEscuelas(true);
       try {
-        const distId =
-          user?.distrito_usuario?.departamento_id ||
-          user?.distritoUsuario?.departamento_id;
         const params = {
           search: modalFiltro.nombre || undefined,
           localidad_id: modalFiltro.localidad_id || undefined,
@@ -395,13 +339,6 @@ const CupofManagement = () => {
           // Si hay departamento seleccionado y no hay localidad, filtra por departamento
           ...(!modalFiltro.localidad_id && modalFiltro.departamento_id
             ? { departamento_id: modalFiltro.departamento_id }
-            : {}),
-          // Para Jefe Distrital, siempre restringe al departamento de su distrito
-          ...(isJefeDistrital &&
-          !isSuperUser &&
-          distId &&
-          !modalFiltro.departamento_id
-            ? { departamento_id: distId }
             : {}),
         };
         const data = await escuelaService.search("", params);
@@ -440,12 +377,6 @@ const CupofManagement = () => {
       try {
         setIsSearchingEscuela(true);
         const searchFilters = {};
-        if (isJefeDistrital && !isSuperUser) {
-          const distId =
-            user?.distrito_usuario?.departamento_id ||
-            user?.distritoUsuario?.departamento_id;
-          if (distId) searchFilters.departamento_id = distId;
-        }
         const data = await escuelaService.search(cueSearch, searchFilters);
         // La respuesta ya es el array de escuelas según escuelaService.js
         const match = data?.find((e) => e.cue_anexo === cueSearch) || data?.[0];
@@ -591,12 +522,10 @@ const CupofManagement = () => {
           <p className="text-secondary-500 mt-1 font-medium italic">
             {isSuperUser
               ? "Administración global de la Planta Orgánica Funcional (POF)"
-              : isJefeDistrital
-                ? "Gestión de Equipos de Conducción - Ámbito Distrital"
-                : "Administración de la Planta Funcional de su Institución"}
+              : "Administración de la Planta Funcional de su Institución"}
           </p>
         </div>
-        {(isConduccion || isSuperUser || isJefeDistrital) && (
+        {(isConduccion || isSuperUser) && (
           <button
             onClick={() => {
               const initialEscuelaId = isConduccion
@@ -677,11 +606,9 @@ const CupofManagement = () => {
               : "text-secondary-500 hover:text-secondary-700"
           }`}
         >
-          {isJefeDistrital
-            ? "Cargos de Conducción"
-            : isSuperUser
-              ? "Planta General"
-              : "Planta Funcional (POF)"}
+          {isSuperUser
+            ? "Planta General"
+            : "Planta Funcional (POF)"}
         </button>
         <button
           onClick={() => setActiveTab("personas")}
@@ -758,114 +685,6 @@ const CupofManagement = () => {
               </select>
             </div>
 
-            {/* Fila 2: filtros geográficos de escuela (solo Jefe Distrital) */}
-            {isJefeDistrital && !isSuperUser && (
-              <div className="flex flex-wrap gap-3 pt-1 border-t border-secondary-200">
-                <select
-                  id="filter_localidad_id"
-                  name="localidad_id"
-                  aria-label="Filtrar por Localidad"
-                  className="flex-1 min-w-[160px] px-3 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-                  value={filters.localidad_id}
-                  onChange={(e) =>
-                    setFilters({ ...filters, localidad_id: e.target.value })
-                  }
-                >
-                  <option value="">Todas las Localidades</option>
-                  {filterLocalidades.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.nombre}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  id="filter_nivel_id"
-                  name="nivel_id"
-                  aria-label="Filtrar por Nivel"
-                  className="px-3 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-                  value={filters.nivel_id}
-                  onChange={(e) =>
-                    setFilters({ ...filters, nivel_id: e.target.value })
-                  }
-                >
-                  <option value="">Todos los Niveles</option>
-                  {niveles.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.nombre}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  id="filter_sector_id"
-                  name="sector_id"
-                  aria-label="Filtrar por Sector"
-                  className="px-3 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-                  value={filters.sector_id}
-                  onChange={(e) =>
-                    setFilters({ ...filters, sector_id: e.target.value })
-                  }
-                >
-                  <option value="">Todos los Sectores</option>
-                  {sectores.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nombre}
-                    </option>
-                  ))}
-                </select>
-
-                <input
-                  id="filter_numero"
-                  name="numero"
-                  aria-label="Filtrar por Número de Escuela"
-                  type="text"
-                  placeholder="Nº escuela"
-                  className="w-24 px-3 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-                  value={filters.numero}
-                  onChange={(e) =>
-                    setFilters({ ...filters, numero: e.target.value })
-                  }
-                />
-
-                <input
-                  id="filter_school_name"
-                  name="school_name"
-                  aria-label="Buscar por nombre de escuela"
-                  type="text"
-                  placeholder="Buscar escuela..."
-                  className="flex-1 min-w-[160px] px-3 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-                  value={filters.school_name}
-                  onChange={(e) =>
-                    setFilters({ ...filters, school_name: e.target.value })
-                  }
-                />
-
-                {/* Botón limpiar filtros geográficos */}
-                {(filters.localidad_id ||
-                  filters.nivel_id ||
-                  filters.sector_id ||
-                  filters.numero ||
-                  filters.school_name) && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        localidad_id: "",
-                        nivel_id: "",
-                        sector_id: "",
-                        numero: "",
-                        school_name: "",
-                      }))
-                    }
-                    className="px-3 py-2.5 bg-secondary-100 hover:bg-secondary-200 text-secondary-600 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
-                  >
-                    Limpiar
-                  </button>
-                )}
-              </div>
-            )}
           </div>
 
           {isLoading ? (
@@ -1363,7 +1182,7 @@ const CupofManagement = () => {
                         /* ── Selector geográfico secuencial ── */
                         <div className="space-y-2 animate-fadeIn">
                           {/* Región (Solo no Jefe Distrital) */}
-                          {!(isJefeDistrital && !isSuperUser) && (
+                          {true && (
                             <div>
                               <label
                                 htmlFor="modal_region_id"
@@ -1395,7 +1214,7 @@ const CupofManagement = () => {
                           )}
 
                           {/* Departamento (Solo no Jefe Distrital) */}
-                          {!(isJefeDistrital && !isSuperUser) && (
+                          {true && (
                             <div>
                               <label
                                 htmlFor="modal_departamento_id"

@@ -3,7 +3,6 @@ import {
   X,
   Mail,
   ShieldCheck,
-  MapPin,
   UserCheck,
   IdCard,
   BadgeCheck,
@@ -11,8 +10,6 @@ import {
   Phone,
   Smartphone,
   UserX,
-  Globe,
-  Building2,
   Link2,
   Link2Off,
   Loader2,
@@ -124,41 +121,10 @@ const UserDetailModal = ({
 
   const roleLabels = {
     superuser: "Superusuario",
-    jefe_provincial: "Jefe Provincial",
-    jefe_regional: "Jefe Regional",
-    jefe_distrital: "Jefe Distrital",
-    supervisor_curricular: "Supervisor Curricular",
   };
 
   const getRoleLabel = (name) => roleLabels[name] || name.replace("_", " ");
 
-  const getJurisdiccion = () => {
-    const items = [];
-    if (user?.provincia_usuario?.provincia) {
-      items.push({
-        icon: Globe,
-        label: "Provincia",
-        value: user.provincia_usuario.provincia.nombre,
-      });
-    }
-    if (user?.region_usuario?.region) {
-      items.push({
-        icon: MapPin,
-        label: "Región Educativa",
-        value: `Región ${user.region_usuario.region.numero}`,
-      });
-    }
-    if (user?.distrito_usuario?.distrito) {
-      items.push({
-        icon: Building2,
-        label: "Distrito / Departamento",
-        value: user.distrito_usuario.distrito.nombre,
-      });
-    }
-    return items;
-  };
-
-  const jurisdicciones = getJurisdiccion();
 
   return (
     <div
@@ -311,30 +277,6 @@ const UserDetailModal = ({
                 )}
             </div>
           </section>
-
-          {/* Sección: Contexto Jurisdiccional */}
-          {jurisdicciones.length > 0 && (
-            <section>
-              <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
-                <MapPin className="w-4 h-4" /> Contexto Jurisdiccional
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {jurisdicciones.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="p-4 bg-secondary-50 border border-secondary-200 rounded-2xl"
-                  >
-                    <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 flex items-center gap-1">
-                      <item.icon className="w-3.5 h-3.5" /> {item.label}
-                    </p>
-                    <p className="text-sm font-bold text-secondary-900">
-                      {item.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
 
           {/* Sección: Vinculación con Padrón */}
           <section>

@@ -35,19 +35,9 @@ const UserManagement = () => {
   const isSuperUser =
     authUser?.es_administrador ||
     authUser?.roles?.some((r) => r.name === "superuser");
-  const isJefeProvincial = authUser?.roles?.some(
-    (r) => r.name === "jefe_provincial",
-  );
-  const isJefeRegional = authUser?.roles?.some(
-    (r) => r.name === "jefe_regional",
-  );
-  const isJefeDistrital = authUser?.roles?.some(
-    (r) => r.name === "jefe_distrital",
-  );
 
   // Permiso de acceso global o por jefaturas
-  const hasAccess =
-    isSuperUser || isJefeProvincial || isJefeRegional || isJefeDistrital;
+  const hasAccess = isSuperUser;
 
   // Estados para Usuarios
   const [users, setUsers] = useState([]);
@@ -735,13 +725,7 @@ const UserManagement = () => {
           <p className="text-secondary-500 mt-1 font-medium italic">
             {isSuperUser
               ? "Administración global de cuentas de acceso"
-              : isJefeProvincial
-                ? "Gestión de Usuarios - Ámbito Provincial"
-                : isJefeRegional
-                  ? "Gestión de Usuarios - Ámbito Regional"
-                  : isJefeDistrital
-                    ? "Gestión de Usuarios - Ámbito Distrital"
-                    : "Gestión de usuarios vinculados a su institución"}
+              : "Gestión de usuarios vinculados a su institución"}
           </p>
         </div>
       </div>
@@ -890,11 +874,6 @@ const UserManagement = () => {
                     >
                       <option value="">Todos los Roles</option>
                       <option value="superuser">SuperUsuarios</option>
-                      <option value="jefe_provincial">
-                        Jefes Provinciales
-                      </option>
-                      <option value="jefe_regional">Jefes Regionales</option>
-                      <option value="jefe_distrital">Jefes Distritales</option>
                       <option value="equipo_directivo">
                         Equipos Directivos
                       </option>
@@ -1016,9 +995,6 @@ const UserManagement = () => {
                   Rol:{" "}
                   {{
                     superuser: "SuperUsuario",
-                    jefe_provincial: "Jefe Provincial",
-                    jefe_regional: "Jefe Regional",
-                    jefe_distrital: "Jefe Distrital",
                     equipo_directivo: "Equipo Directivo",
                     profesor: "Profesor",
                     preceptor: "Preceptor",
@@ -1215,33 +1191,14 @@ const UserManagement = () => {
                             Admin
                           </span>
                         )}
-                        {user.roles?.map((role) => {
-                          let scopeLabel = "";
-                          if (role.name === "jefe_provincial") {
-                            scopeLabel = user.provincia_usuario?.provincia
-                              ?.nombre
-                              ? ` (${user.provincia_usuario.provincia.nombre})`
-                              : "";
-                          } else if (role.name === "jefe_regional") {
-                            scopeLabel = user.region_usuario?.region?.numero
-                              ? ` (Región ${user.region_usuario.region.numero})`
-                              : "";
-                          } else if (role.name === "jefe_distrital") {
-                            scopeLabel = user.distrito_usuario?.distrito?.nombre
-                              ? ` (${user.distrito_usuario.distrito.nombre})`
-                              : "";
-                          }
-
-                          return (
-                            <span
-                              key={role.id}
-                              className="px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-black uppercase rounded shadow-sm"
-                            >
-                              {role.name.replace("_", " ")}
-                              {scopeLabel}
-                            </span>
-                          );
-                        })}
+                        {user.roles?.map((role) => (
+                          <span
+                            key={role.id}
+                            className="px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-black uppercase rounded shadow-sm"
+                          >
+                            {role.name.replace("_", " ")}
+                          </span>
+                        ))}
 
                         {user.escuelas_personas?.map((ep) => (
                           <span
@@ -1305,10 +1262,7 @@ const UserManagement = () => {
                           )}
 
                         {user.estado === "vinculacion_pendiente" &&
-                          (isSuperUser ||
-                            isJefeProvincial ||
-                            isJefeRegional ||
-                            isJefeDistrital) && (
+                          (isSuperUser) && (
                             <button
                               onClick={() => handleConfirmVinculation(user)}
                               className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white text-[10px] font-black uppercase rounded-lg hover:bg-amber-700 transition-all shadow-md active:scale-95 animate-pulse"
@@ -1336,10 +1290,7 @@ const UserManagement = () => {
                             user.es_administrador ||
                             user.roles?.some((r) => r.name === "superuser")
                           ) &&
-                          (isSuperUser ||
-                            isJefeProvincial ||
-                            isJefeRegional ||
-                            isJefeDistrital) &&
+                          (isSuperUser) &&
                           (user.persona ? (
                             <button
                               onClick={() => handleQuickUnlinkUser(user)}

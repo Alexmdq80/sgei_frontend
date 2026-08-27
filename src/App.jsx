@@ -69,9 +69,6 @@ const ProtectedRoute = ({ children }) => {
     const activeRoleName = activeProfile?.role?.name;
     const isSuperUser = user?.es_administrador || user?.roles?.some(r => r.name === 'superuser');
     const isRestrictedFromGeneralPanel = [
-        'jefe_provincial', 
-        'jefe_regional', 
-        'jefe_distrital',
         'director', 
         'vicedirector', 
         'secretario', 
@@ -113,8 +110,7 @@ const ProtectedRoute = ({ children }) => {
     }
 
     // 4. Usuarios Especiales (Bypass de Sin Cargos Asignados Post-Verificación)
-    const isSpecialUser = user?.roles?.some(r => r.name === 'supervisor_curricular' || r.name === 'jefe_distrital');
-    if (isSpecialUser || isSuperUser) {
+    if (isSuperUser) {
         return <Layout>{children}</Layout>;
     }
 

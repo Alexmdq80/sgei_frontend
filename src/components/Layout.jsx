@@ -392,16 +392,7 @@ const Layout = ({ children }) => {
    * Obtiene el rol con el que el usuario está actuando actualmente.
    */
   const getActingRole = () => {
-    // PRIORIDAD: Perfil seleccionado explícitamente en SelectRole
-    if (activeProfile) {
-      return {
-        name: activeProfile.role?.name || "Usuario",
-        context: activeProfile.context || activeProfile.escuela?.nombre,
-        type: activeProfile.type === "school" ? "institutional" : "admin",
-      };
-    }
-
-    // FALLBACK: Superusuario global o detección por roles (si no hay perfil seleccionado)
+    // Superusuario global
     if (
       user?.es_administrador ||
       user?.roles?.some((r) => r.name === "superuser")
@@ -409,18 +400,16 @@ const Layout = ({ children }) => {
       return { name: "Superusuario", type: "admin" };
     }
 
-    const adminRoles = [];
-
-    for (const role of adminRoles) {
-      if (user?.roles?.some((r) => r.name === role.id)) {
-        return {
-          name: role.name,
-          type: "admin",
-          context: role.context,
-        };
-      }
+    // Perfil institucional seleccionado
+    if (activeProfile?.type === "school") {
+      return {
+        name: activeProfile.role?.name || "Usuario",
+        context: activeProfile.context || activeProfile.escuela?.nombre,
+        type: "institutional",
+      };
     }
 
+    // Usuario estándar
     return { name: "Usuario Estándar", type: "standard" };
   };
 

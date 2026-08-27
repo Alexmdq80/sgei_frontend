@@ -8,66 +8,41 @@ import {
   Phone,
   Home,
   Building2,
-  ChevronDown,
   Loader2,
-  MapPin,
-  Layers,
-  Shield,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
 import personaService from "../../services/personaService";
 import escuelaService from "../../services/escuelaService";
-import geografiaService from "../../services/geografiaService";
 import SearchableSelect from "../../components/SearchableSelect";
 
-// Roles de Jefatura que necesitan seleccionar una escuela manualmente
-const ROLES_JEFATURA = [
-  "superuser",
-  "jefe_provincial",
-  "jefe_regional",
-  "jefe_distrital",
-];
-
 /**
- * Determina si el perfil activo pertenece a un rol de Jefatura o Superusuario.
- */
-const isJefatura = (user) =>
-  Boolean(
-    user?.es_administrador ||
-    user?.roles?.some((r) => ROLES_JEFATURA.includes(r.name)),
-  );
-
-/**
- * Componente para visualizar la Comunidad Educativa de una institución.
- * - Conducción (director, etc.): usa directamente su escuela del perfil activo.
- * - Jefaturas y superuser: presenta un selector de escuelas jerárquico bajo su jurisdicción.
+ * Vista de la Comunidad Educativa de una institución.
+ * - Superusuario: selecciona cualquier escuela para ver su comunidad.
+ * - Conducción (perfil de escuela activo): muestra directamente la comunidad de su escuela.
  */
 export default function ComunidadEducativa() {
   const { user, activeProfile, showNotification } = useAuth();
 
-  // Escuela seleccionada para consultar (puede venir del perfil o del selector)
-  const [escuelaId, setEscuelaId] = useState(activeProfile?.escuela_id ?? null);
+  const isSuperUser = Boolean(
+    user?.es_administrador || user?.roles?.some((r) => r.name === "superuser"),
+  );
+  const isConduccion = Boolean(
+    activeProfile?.type === "school" && activeProfile?.escuela_id,
+  );
+  const isAllowed = isSuperUser || isConduccion;
+
+  // Escuela consultada (del perfil activo para conducción, o del selector para superuser)
+  const [escuelaId, setEscuelaId] = useState(
+    isConduccion ? activeProfile?.escuela_id : null,
+  );
   const [escuelaNombre, setEscuelaNombre] = useState(
-    activeProfile?.escuela?.nombre ?? "",
+    isConduccion ? (activeProfile?.escuela?.nombre ?? "") : "",
   );
 
-  // Estados de Catálogos Geográficos y de Filtros para Jefaturas
-  const [provincias, setProvincias] = useState([]);
-  const [regiones, setRegiones] = useState([]);
-  const [departamentos, setDepartamentos] = useState([]);
-  const [niveles, setNiveles] = useState([]);
-  const [sectores, setSectores] = useState([]);
+  // Catálogo de escuelas para el selector (solo superuser)
   const [escuelas, setEscuelas] = useState([]);
-
-  const [selectedProvinciaId, setSelectedProvinciaId] = useState("");
-  const [selectedRegionId, setSelectedRegionId] = useState("");
-  const [selectedDepartamentoId, setSelectedDepartamentoId] = useState("");
-  const [selectedNivelId, setSelectedNivelId] = useState("");
-  const [selectedSectorId, setSelectedSectorId] = useState("");
   const [cueSearch, setCueSearch] = useState("");
-
-  const [isLoadingGeografia, setIsLoadingGeografia] = useState(false);
   const [isLoadingEscuelas, setIsLoadingEscuelas] = useState(false);
 
   // Comunidad educativa
@@ -81,66 +56,10 @@ export default function ComunidadEducativa() {
     total: 0,
   });
 
-  // Modal de detalles
+  // Modal de ficha
   const [selectedPersona, setSelectedPersona] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
-
-  const modoJefatura = isJefatura(user);
-
-  // ---------------------------------------------------------------------------
-  // Resolución de Jurisdicciones según el Rol
-  // ---------------------------------------------------------------------------
-  const {
-    isSuperUser,
-    isJefeProvincial,
-    isJefeRegional,
-    isJefeDistrital,
-    pId,
-    rId,
-    dId,
-  } = useMemo(() => {
-    const roles = user?.roles?.map((r) => r.name) || [];
-    const isSuperUser = Boolean(
-      user?.es_administrador || roles.includes("superuser"),
-    );
-    const isJefeProvincial = roles.includes("jefe_provincial");
-    const isJefeRegional = roles.includes("jefe_regional");
-    const isJefeDistrital = roles.includes("jefe_distrital");
-
-    let resolvedPId = null;
-    let resolvedRId = null;
-    let resolvedDId = null;
-
-    if (isJefeProvincial) {
-      resolvedPId = user?.provincia_usuario?.provincia_id;
-    } else if (isJefeRegional) {
-      resolvedPId = user?.region_usuario?.region?.provincia_id;
-      resolvedRId = user?.region_usuario?.region_id;
-    } else if (isJefeDistrital) {
-      resolvedPId = user?.distrito_usuario?.distrito?.provincia_id;
-      resolvedRId = user?.distrito_usuario?.distrito?.region_id;
-      resolvedDId = user?.distrito_usuario?.departamento_id;
-    }
-
-    return {
-      isSuperUser,
-      isJefeProvincial,
-      isJefeRegional,
-      isJefeDistrital,
-      pId: resolvedPId,
-      rId: resolvedRId,
-      dId: resolvedDId,
-    };
-  }, [user]);
-
-  // Filtrado de Departamentos según la Región seleccionada
-  const filteredDepartamentos = useMemo(() => {
-    if (!selectedRegionId) return departamentos;
-    return departamentos.filter(
-      (d) => String(d.region_id) === String(selectedRegionId),
-    );
-  }, [selectedRegionId, departamentos]);
 
   // Opciones formateadas para SearchableSelect
   const escuelaOptions = useMemo(() => {
@@ -150,238 +69,55 @@ export default function ComunidadEducativa() {
     }));
   }, [escuelas]);
 
-  // ---------------------------------------------------------------------------
-  // Carga de Datos Geográficos, Catálogos y Escuelas
-  // ---------------------------------------------------------------------------
-  const fetchFilteredEscuelas = useCallback(
-    async (provId, regId, deptId, nivelId, sectorId) => {
-      // Si no es superuser y no hay provincia seleccionada, no carga
-      if (!provId && !isSuperUser) {
-        setEscuelas([]);
-        return;
-      }
-      try {
-        setIsLoadingEscuelas(true);
-        const response = await escuelaService.getAllAdmin({
-          provincia_id: provId || undefined,
-          region_id: regId || undefined,
-          localidad_departamento_id: deptId || undefined,
-          nivel_id: nivelId || undefined,
-          sector_id: sectorId || undefined,
-          per_page: 1000,
-        });
-        setEscuelas(response.data || response || []);
-      } catch (error) {
-        console.error("Error fetching schools:", error);
-        showNotification(
-          parseError(error, "No se pudieron cargar las escuelas."),
-          "error",
-        );
-      } finally {
-        setIsLoadingEscuelas(false);
-      }
-    },
-    [isSuperUser, showNotification],
-  );
-
-  // Inicialización al montar
-  useEffect(() => {
-    if (!modoJefatura) return;
-
-    const init = async () => {
-      try {
-        setIsLoadingGeografia(true);
-        const [nivsData, sectsData] = await Promise.all([
-          escuelaService.getNiveles(),
-          escuelaService.getSectores(),
-        ]);
-        setNiveles(nivsData || []);
-        setSectores(sectsData || []);
-
-        if (isSuperUser) {
-          const provsData = await geografiaService.getProvincias();
-          setProvincias(provsData || []);
-        } else if (pId) {
-          setSelectedProvinciaId(pId);
-
-          const [regionsData, deptosData] = await Promise.all([
-            geografiaService.getRegiones({ provincia_id: pId }),
-            geografiaService.getDepartamentos(pId),
-          ]);
-          setRegiones(regionsData || []);
-          setDepartamentos(deptosData || []);
-
-          if (rId) setSelectedRegionId(rId);
-          if (dId) setSelectedDepartamentoId(dId);
-        }
-      } catch (error) {
-        console.error("Error during initialization:", error);
-      } finally {
-        setIsLoadingGeografia(false);
-      }
-    };
-
-    init();
-  }, [modoJefatura, pId, rId, dId, isSuperUser]);
-
-  // Efecto reactivo para recargar escuelas
-  useEffect(() => {
-    if (modoJefatura && (selectedProvinciaId || isSuperUser)) {
-      fetchFilteredEscuelas(
-        selectedProvinciaId,
-        selectedRegionId,
-        selectedDepartamentoId,
-        selectedNivelId,
-        selectedSectorId,
+  // Carga de escuelas para el selector (solo superuser)
+  const fetchEscuelas = useCallback(async () => {
+    if (!isSuperUser) return;
+    try {
+      setIsLoadingEscuelas(true);
+      const response = await escuelaService.getAllAdmin({ per_page: 1000 });
+      setEscuelas(response.data || response || []);
+    } catch (error) {
+      console.error("Error fetching schools:", error);
+      showNotification(
+        parseError(error, "No se pudieron cargar las escuelas."),
+        "error",
       );
-    } else {
-      setEscuelas([]);
+    } finally {
+      setIsLoadingEscuelas(false);
     }
-  }, [
-    modoJefatura,
-    isSuperUser,
-    selectedProvinciaId,
-    selectedRegionId,
-    selectedDepartamentoId,
-    selectedNivelId,
-    selectedSectorId,
-    fetchFilteredEscuelas,
-  ]);
+  }, [isSuperUser, showNotification]);
 
-  // ---------------------------------------------------------------------------
-  // Controladores de Cambio de Filtro
-  // ---------------------------------------------------------------------------
-  const handleProvinciaChange = async (provId) => {
-    setSelectedProvinciaId(provId);
-    setSelectedRegionId("");
-    setSelectedDepartamentoId("");
-    setSelectedNivelId("");
-    setSelectedSectorId("");
-    setEscuelaId(null);
-    setEscuelaNombre("");
-    setRegiones([]);
-    setDepartamentos([]);
-
-    if (provId) {
-      try {
-        setIsLoadingGeografia(true);
-        const [regionsData, deptosData] = await Promise.all([
-          geografiaService.getRegiones({ provincia_id: provId }),
-          geografiaService.getDepartamentos(provId),
-        ]);
-        setRegiones(regionsData || []);
-        setDepartamentos(deptosData || []);
-      } catch (error) {
-        showNotification("Error al cargar datos geográficos.", "error");
-      } finally {
-        setIsLoadingGeografia(false);
-      }
-    }
-  };
-
-  const handleRegionChange = (regId) => {
-    setSelectedRegionId(regId);
-    setSelectedDepartamentoId("");
-    setEscuelaId(null);
-    setEscuelaNombre("");
-  };
-
-  const handleDistritoChange = (deptId) => {
-    setSelectedDepartamentoId(deptId);
-    setEscuelaId(null);
-    setEscuelaNombre("");
-  };
-
-  const handleNivelChange = (nId) => {
-    setSelectedNivelId(nId);
-    setEscuelaId(null);
-    setEscuelaNombre("");
-  };
-
-  const handleSectorChange = (sId) => {
-    setSelectedSectorId(sId);
-    setEscuelaId(null);
-    setEscuelaNombre("");
-  };
-
-  const handleEscuelaSelect = (e) => {
-    const id = e.target.value;
-    const found = escuelas.find((esc) => String(esc.id) === String(id));
-    setEscuelaId(id || null);
-    setEscuelaNombre(found?.nombre ?? "");
-    setPersonas([]);
-    setSearchTerm("");
-    setRelacionFilter("");
-  };
+  useEffect(() => {
+    if (isSuperUser) fetchEscuelas();
+  }, [isSuperUser, fetchEscuelas]);
 
   const handleCueSearch = async () => {
     if (!cueSearch.trim()) {
       showNotification("Por favor, ingrese un número de CUE.", "warning");
       return;
     }
-
     try {
       setIsLoadingEscuelas(true);
-
-      const queryParams = {
+      const response = await escuelaService.getAllAdmin({
         search: cueSearch.trim(),
         per_page: 10,
-      };
-
-      if (pId && !isSuperUser) queryParams.provincia_id = pId;
-      if (rId && !isSuperUser) queryParams.region_id = rId;
-      if (dId && !isSuperUser) queryParams.localidad_departamento_id = dId;
-
-      const response = await escuelaService.getAllAdmin(queryParams);
-      const foundEscuelas = response.data || response || [];
-
-      if (foundEscuelas.length === 0) {
-        showNotification(
-          "No se encontró ninguna escuela con ese CUE en su jurisdicción.",
-          "warning",
-        );
+      });
+      const found = response.data || response || [];
+      if (found.length === 0) {
+        showNotification("No se encontró ninguna escuela con ese CUE.", "warning");
         return;
       }
-
-      setEscuelas(foundEscuelas);
-
-      if (foundEscuelas.length === 1) {
-        const esc = foundEscuelas[0];
-
-        if (esc.localidad?.departamento) {
-          const dept = esc.localidad.departamento;
-          const provId = dept.provincia_id;
-          const regId = dept.region_id;
-          const deptId = dept.id;
-
-          try {
-            setIsLoadingGeografia(true);
-            const [regionsData, deptosData] = await Promise.all([
-              geografiaService.getRegiones({ provincia_id: provId }),
-              geografiaService.getDepartamentos(provId),
-            ]);
-            setRegiones(regionsData || []);
-            setDepartamentos(deptosData || []);
-
-            setSelectedProvinciaId(provId);
-            setSelectedRegionId(regId || "");
-            setSelectedDepartamentoId(deptId);
-          } catch (err) {
-            console.error("Error setting geography dropdowns:", err);
-          } finally {
-            setIsLoadingGeografia(false);
-          }
-        }
-
-        setEscuelaId(esc.id);
-        setEscuelaNombre(esc.nombre);
+      setEscuelas(found);
+      if (found.length === 1) {
+        setEscuelaId(found[0].id);
+        setEscuelaNombre(found[0].nombre);
         setPersonas([]);
         setSearchTerm("");
         setRelacionFilter("");
-        showNotification(`Escuela seleccionada: ${esc.nombre}`, "success");
+        showNotification(`Escuela seleccionada: ${found[0].nombre}`, "success");
       } else {
         showNotification(
-          `Se encontraron ${foundEscuelas.length} escuelas. Selecciónela en la lista de abajo.`,
+          `Se encontraron ${found.length} escuelas. Selecciónela en la lista de la izquierda/abajo.`,
           "info",
         );
       }
@@ -396,9 +132,17 @@ export default function ComunidadEducativa() {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // Carga de la Comunidad Educativa
-  // ---------------------------------------------------------------------------
+  const handleEscuelaSelect = (e) => {
+    const id = e.target.value;
+    const found = escuelas.find((esc) => String(esc.id) === String(id));
+    setEscuelaId(id || null);
+    setEscuelaNombre(found?.nombre ?? "");
+    setPersonas([]);
+    setSearchTerm("");
+    setRelacionFilter("");
+  };
+
+  // Carga de la comunidad educativa
   const fetchComunidad = useCallback(
     async (page = 1) => {
       if (!escuelaId) return;
@@ -459,8 +203,8 @@ export default function ComunidadEducativa() {
     }
   };
 
-  // Guard: Conducción sin perfil activo con escuela
-  if (!modoJefatura && !activeProfile?.escuela_id) {
+  // Guard: sin perfil de conducción ni superusuario
+  if (!isAllowed) {
     return (
       <div className="p-10 text-center bg-white rounded-3xl border border-secondary-200 shadow-sm">
         <Info className="w-12 h-12 text-primary-500 mx-auto mb-4" />
@@ -499,19 +243,16 @@ export default function ComunidadEducativa() {
         )}
       </div>
 
-      {/* Selector de Escuela Jerárquico (solo Jefatura o Superuser) */}
-      {modoJefatura && (
+      {/* Selector de Escuela (solo Superusuario) */}
+      {isSuperUser && (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-secondary-200 space-y-4">
           <h2 className="text-sm font-black text-secondary-900 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary-500" />
-            Filtros de Búsqueda de Institución
+            <Building2 className="w-4 h-4 text-primary-500" />
+            Selección de Institución
           </h2>
-
-          {/* Primera Fila: CUE y Provincia */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-            {/* Buscador Directo por CUE */}
             <div>
-              <label className="block text-xs font-black text-secondary-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+              <label className="block text-xs font-black text-secondary-500 uppercase tracking-widest mb-1.5">
                 <Search className="w-3.5 h-3.5 text-secondary-400" />
                 Búsqueda directa por CUE
               </label>
@@ -534,170 +275,25 @@ export default function ComunidadEducativa() {
                 </button>
               </div>
             </div>
-
-            {/* Provincia (solo superuser) */}
-            {isSuperUser && (
-              <div>
-                <label className="block text-xs font-black text-secondary-500 uppercase tracking-widest mb-1.5">
-                  Provincia
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-xs font-bold appearance-none pr-8 h-[42px]"
-                    value={selectedProvinciaId}
-                    onChange={(e) => handleProvinciaChange(e.target.value)}
-                    disabled={isLoadingGeografia}
-                  >
-                    <option value="">— Todas las Provincias —</option>
-                    {provincias.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-3.5 w-4 h-4 text-secondary-400 pointer-events-none" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Segunda Fila: Región, Departamento, Nivel, Sector */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-2">
-            {/* Región */}
-            {(isSuperUser || isJefeProvincial) && (
-              <div>
-                <label className="block text-xs font-black text-secondary-500 uppercase tracking-widest mb-1.5">
-                  Región
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-xs font-bold appearance-none pr-8"
-                    value={selectedRegionId}
-                    onChange={(e) => handleRegionChange(e.target.value)}
-                    disabled={
-                      (!selectedProvinciaId && !isSuperUser) ||
-                      isLoadingGeografia
-                    }
-                  >
-                    <option value="">— Todas las Regiones —</option>
-                    {regiones.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        Región {r.numero}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-3.5 w-4 h-4 text-secondary-400 pointer-events-none" />
-                </div>
-              </div>
-            )}
-
-            {/* Distrito / Departamento */}
-            {(isSuperUser || isJefeProvincial || isJefeRegional) && (
-              <div>
-                <label className="block text-xs font-black text-secondary-500 uppercase tracking-widest mb-1.5">
-                  Distrito / Departamento
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-xs font-bold appearance-none pr-8"
-                    value={selectedDepartamentoId}
-                    onChange={(e) => handleDistritoChange(e.target.value)}
-                    disabled={
-                      (!selectedProvinciaId && !isSuperUser) ||
-                      isLoadingGeografia
-                    }
-                  >
-                    <option value="">— Todos los Distritos —</option>
-                    {filteredDepartamentos.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-3.5 w-4 h-4 text-secondary-400 pointer-events-none" />
-                </div>
-              </div>
-            )}
-
-            {/* Nivel */}
-            <div>
-              <label className="block text-xs font-black text-secondary-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                <Layers className="w-3.5 h-3.5" />
-                Nivel
-              </label>
-              <div className="relative">
-                <select
-                  className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-xs font-bold appearance-none pr-8"
-                  value={selectedNivelId}
-                  onChange={(e) => handleNivelChange(e.target.value)}
-                >
-                  <option value="">— Todos los Niveles —</option>
-                  {niveles.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.nombre}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2.5 top-3.5 w-4 h-4 text-secondary-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Sector */}
-            <div>
-              <label className="block text-xs font-black text-secondary-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                <Shield className="w-3.5 h-3.5" />
-                Sector
-              </label>
-              <div className="relative">
-                <select
-                  className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-xs font-bold appearance-none pr-8"
-                  value={selectedSectorId}
-                  onChange={(e) => handleSectorChange(e.target.value)}
-                >
-                  <option value="">— Todos los Sectores —</option>
-                  {sectores.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nombre}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2.5 top-3.5 w-4 h-4 text-secondary-400 pointer-events-none" />
-              </div>
-            </div>
-          </div>
-
-          {/* Selector Central de Escuela */}
-          <div className="border-t pt-4">
             <SearchableSelect
               options={escuelaOptions}
               value={escuelaId ?? ""}
               onChange={handleEscuelaSelect}
               placeholder={
-                isLoadingGeografia || isLoadingEscuelas
-                  ? "Cargando instituciones..."
-                  : !selectedProvinciaId && !isSuperUser
-                    ? "— Seleccione una Provincia primero —"
-                    : escuelas.length === 0
-                      ? "No hay escuelas con los filtros seleccionados"
-                      : "Escriba para buscar la institución..."
-              }
-              disabled={
-                (!selectedProvinciaId && !isSuperUser) ||
-                isLoadingGeografia ||
                 isLoadingEscuelas
+                  ? "Cargando instituciones..."
+                  : escuelas.length === 0
+                    ? "No se encontraron escuelas"
+                    : "Escriba para buscar la institución..."
               }
-              label={
-                <>
-                  <Building2 className="inline w-4 h-4 mr-1 text-secondary-400" />
-                  Institución Educativa
-                </>
-              }
+              disabled={isLoadingEscuelas}
+              label={<>Institución Educativa</>}
             />
           </div>
         </div>
       )}
 
-      {/* Buscador y Filtros dentro de la Escuela seleccionada */}
+      {/* Buscador y filtros dentro de la escuela seleccionada */}
       {escuelaId && (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-secondary-200">
           <form
@@ -716,7 +312,6 @@ export default function ComunidadEducativa() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-
             <div className="flex gap-3">
               <select
                 className="px-4 py-2.5 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all text-sm font-bold min-w-[180px]"
@@ -732,7 +327,6 @@ export default function ComunidadEducativa() {
                 <option value="MADRE">MADRES</option>
                 <option value="TUTOR">TUTORES</option>
               </select>
-
               <button
                 type="submit"
                 className="px-6 py-2.5 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors"
@@ -745,17 +339,16 @@ export default function ComunidadEducativa() {
       )}
 
       {/* Placeholder cuando no hay escuela seleccionada */}
-      {modoJefatura && !escuelaId && (
+      {isSuperUser && !escuelaId && (
         <div className="p-16 text-center bg-white rounded-2xl border border-secondary-200 shadow-sm">
           <Building2 className="w-14 h-14 text-secondary-300 mx-auto mb-4" />
           <p className="text-secondary-500 font-bold italic">
-            Seleccione una institución en los selectores de arriba para
-            visualizar su comunidad educativa.
+            Seleccione una institución para visualizar su comunidad educativa.
           </p>
         </div>
       )}
 
-      {/* Listado de Miembros */}
+      {/* Listado de miembros */}
       {escuelaId && (
         <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 overflow-hidden">
           {isLoading ? (
@@ -807,31 +400,23 @@ export default function ComunidadEducativa() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-xs font-bold text-secondary-700 bg-secondary-100 px-2 py-1 rounded">
-                          {persona.documento_tipo_nombre}{" "}
-                          {persona.documento_numero}
+                          {persona.documento_tipo_nombre} {persona.documento_numero}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
-                          {persona.relaciones &&
-                          persona.relaciones.length > 0 ? (
+                          {persona.relaciones && persona.relaciones.length > 0 ? (
                             persona.relaciones.map((rel, idx) => (
                               <span
                                 key={idx}
-                                className={`px-2 py-0.5 text-[10px] font-black uppercase rounded border ${
-                                  rel.includes("ESTUDIANTE")
-                                    ? "bg-blue-50 text-blue-700 border-blue-100"
-                                    : rel.includes("DOCENTE")
-                                      ? "bg-primary-50 text-primary-700 border-primary-100"
-                                      : "bg-green-50 text-green-700 border-green-100"
-                                }`}
+                                className="px-2 py-0.5 bg-primary-50 text-primary-700 text-[10px] font-black uppercase rounded border border-primary-100"
                               >
                                 {rel}
                               </span>
                             ))
                           ) : (
-                            <span className="px-2 py-0.5 bg-secondary-50 text-secondary-500 text-[10px] font-black uppercase rounded border border-secondary-100">
-                              Sin definir
+                            <span className="text-xs text-secondary-400 italic">
+                              Sin relación
                             </span>
                           )}
                         </div>
@@ -891,7 +476,7 @@ export default function ComunidadEducativa() {
         </div>
       )}
 
-      {/* Modal de Detalles */}
+      {/* Modal de ficha */}
       {isDetailsModalOpen && selectedPersona && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col">
@@ -911,9 +496,7 @@ export default function ComunidadEducativa() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-
             <div className="overflow-y-auto flex-1 p-8 space-y-8">
-              {/* Información de Identidad */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-secondary-50 p-6 rounded-2xl border border-secondary-100">
                 <div className="space-y-0.5">
                   <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
@@ -931,55 +514,30 @@ export default function ComunidadEducativa() {
                     {selectedPersona.cuil}
                   </p>
                 </div>
-                <div className="space-y-0.5 pt-3 border-t border-secondary-200">
-                  <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                    Documento
-                  </p>
-                  <p className="text-sm font-bold text-secondary-900">
-                    {selectedPersona.documento_tipo_nombre}:{" "}
-                    {selectedPersona.documento_numero}
-                  </p>
-                </div>
-                <div className="space-y-0.5 pt-3 border-t border-secondary-200">
-                  <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                    Contacto
-                  </p>
-                  <p className="text-sm font-bold text-secondary-900">
-                    {selectedPersona.contacto?.email || "Sin email registrado"}
-                  </p>
-                </div>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-start gap-3">
-                  <Phone className="w-5 h-5 text-indigo-500 mt-1" />
-                  <div>
-                    <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">
-                      Teléfonos
-                    </p>
-                    <p className="text-sm font-bold text-secondary-900 mt-1">
-                      {selectedPersona.contacto?.telefono_movil ||
-                        selectedPersona.contacto?.telefono ||
-                        "S/D"}
-                    </p>
-                  </div>
+                <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                  <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">
+                    Teléfonos
+                  </p>
+                  <p className="text-sm font-bold text-secondary-900 mt-1">
+                    {selectedPersona.contacto?.telefono_movil ||
+                      selectedPersona.contacto?.telefono ||
+                      "S/D"}
+                  </p>
                 </div>
-                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-start gap-3">
-                  <Home className="w-5 h-5 text-amber-500 mt-1" />
-                  <div>
-                    <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">
-                      Domicilio
-                    </p>
-                    <p className="text-sm font-bold text-secondary-900 mt-1">
-                      {selectedPersona.domicilio?.calle
-                        ? `${selectedPersona.domicilio.calle} ${selectedPersona.domicilio.numero || ""}`
-                        : "S/D"}
-                    </p>
-                  </div>
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                  <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">
+                    Domicilio
+                  </p>
+                  <p className="text-sm font-bold text-secondary-900 mt-1">
+                    {selectedPersona.domicilio?.calle
+                      ? `${selectedPersona.domicilio.calle} ${selectedPersona.domicilio.numero || ""}`
+                      : "S/D"}
+                  </p>
                 </div>
               </div>
             </div>
-
             <div className="p-6 bg-secondary-50 border-t border-secondary-100">
               <button
                 onClick={() => setIsDetailsModalOpen(false)}
