@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   UserPlus,
   Search,
@@ -12,13 +12,23 @@ import {
   X,
   User,
   Trash2,
+  SlidersHorizontal,
+  RotateCcw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  IdCard,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
 import personaService from "../../services/personaService";
 import cupofService from "../../services/cupofService";
 import documentoTipoService from "../../services/documentoTipoService";
+import sexoService from "../../services/sexoService";
+import generoService from "../../services/generoService";
 import ConfirmUnlinkUserModal from "../../components/ConfirmUnlinkUserModal";
+import ConfirmationModal from "../../components/ConfirmationModal";
 
 /**
  * Componente para la gestión integral del Padrón de Personas (Agentes).
@@ -49,6 +59,35 @@ export default function PersonaManagement() {
     total: 0,
   });
   const [docTipos, setDocTipos] = useState([]);
+
+  // Estados de Filtros y Ordenamiento
+  const [sortConfig, setSortConfig] = useState({
+    key: "apellido",
+    direction: "asc",
+  });
+  const [filterDocTipoId, setFilterDocTipoId] = useState("");
+  const [filterSexoId, setFilterSexoId] = useState("");
+  const [filterGeneroId, setFilterGeneroId] = useState("");
+  const [filterHasUser, setFilterHasUser] = useState(""); // '' | 'con' | 'sin'
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [sexos, setSexos] = useState([]);
+  const [generos, setGeneros] = useState([]);
+
+  // Confirmación Modal (reemplaza window.confirm)
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Confirmar",
+    cancelText: "Cancelar",
+    variant: "primary",
+    onConfirm: () => {},
+    showInput: false,
+    inputPlaceholder: "",
+    isLoading: false,
+  });
+  const closeConfirm = () =>
+    setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
 
   // Estados de Modales y Selección
   const [selectedPersona, setSelectedPersona] = useState(null);
@@ -94,8 +133,19 @@ export default function PersonaManagement() {
       setIsLoading(true);
       const response = await personaService.getAll({
         search: searchTerm,
+        documento_tipo_id: filterDocTipoId || undefined,
+        sexo_id: filterSexoId || undefined,
+        genero_id: filterGeneroId || undefined,
+        has_user:
+          filterHasUser === "con"
+            ? true
+            : filterHasUser === "sin"
+              ? false
+              : undefined,
+        sort_by: sortConfig.key,
+        order: sortConfig.direction,
         page,
-        per_page: 15,
+        per_page: 10,
       });
       setPersonas(response.data || []);
       setPagination(
@@ -121,19 +171,128 @@ export default function PersonaManagement() {
     }
   };
 
+  const fetchSexos = async () => {
+    try {
+      const r = await sexoService.getAll();
+      setSexos(r.data || r || []);
+    } catch (error) {
+      console.error("Error al cargar sexos:", error);
+    }
+  };
+
+  const fetchGeneros = async () => {
+    try {
+      const r = await generoService.getAll();
+      setGeneros(r.data || r || []);
+    } catch (error) {
+      console.error("Error al cargar géneros:", error);
+    }
+  };
+
 
 
 
 
 
   useEffect(() => {
-    fetchPersonas();
     fetchDocTipos();
+    fetchSexos();
+    fetchGeneros();
+    fetchPersonas();
   }, []);
+
+  // Ref para mantener la referencia más reciente de fetchPersonas
+  const fetchPersonasRef = useRef(fetchPersonas);
+  useEffect(() => {
+    fetchPersonasRef.current = fetchPersonas;
+  });
+
+  // Refresca al cambiar filtros o el ordenamiento
+  useEffect(() => {
+    fetchPersonasRef.current(1);
+  }, [
+    filterDocTipoId,
+    filterSexoId,
+    filterGeneroId,
+    filterHasUser,
+    sortConfig,
+  ]);
+
+  // Búsqueda-as-you-type con debounce (400ms), mínimo 2 caracteres
+  // y reseteo inmediato al borrar todo el input.
+  const searchTimerRef = useRef(null);
+  const prevSearchRef = useRef(searchTerm);
+  useEffect(() => {
+    const trimmed = searchTerm.trim();
+    const prevTrimmed = prevSearchRef.current.trim();
+    prevSearchRef.current = searchTerm;
+
+    if (trimmed.length === 0 && prevTrimmed.length > 0) {
+      fetchPersonasRef.current(1);
+      return;
+    }
+
+    if (trimmed.length < 2) return;
+
+    searchTimerRef.current = setTimeout(() => {
+      searchTimerRef.current = null;
+      fetchPersonasRef.current(1);
+    }, 400);
+
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = null;
+      }
+    };
+  }, [searchTerm]);
 
   const handleSearch = (e) => {
     e.preventDefault();
+    // Limpiar el timer pendiente para evitar ejecuciones desfasadas
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = null;
+    }
     fetchPersonas(1);
+  };
+
+  /*--- LÓGICA DE ORDENAMIENTO ---*/
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction:
+        prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const renderSortIcon = (key) => {
+    if (sortConfig.key !== key) {
+      return (
+        <ArrowUpDown className="w-3.5 h-3.5 text-secondary-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+      );
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp className="w-3.5 h-3.5 text-primary-600 ml-1" />
+    ) : (
+      <ArrowDown className="w-3.5 h-3.5 text-primary-600 ml-1" />
+    );
+  };
+
+  const activeFiltersCount = [
+    filterDocTipoId,
+    filterSexoId,
+    filterGeneroId,
+    filterHasUser,
+    searchTerm.trim(),
+  ].filter((val) => val !== "" && val !== undefined && val !== null).length;
+
+  const handleClearAllFilters = () => {
+    setFilterDocTipoId("");
+    setFilterSexoId("");
+    setFilterGeneroId("");
+    setFilterHasUser("");
+    setSearchTerm("");
   };
 
   const refreshSelectedPersona = async (id) => {
@@ -170,25 +329,32 @@ export default function PersonaManagement() {
     }
   };
 
-  const handleDeletePersona = async (persona) => {
-    if (
-      !window.confirm(
-        `¿Está seguro de que deseas eliminar a ${persona.nombre_completo} del padrón? Esta acción es irreversible.`,
-      )
-    ) {
-      return;
-    }
-    try {
-      await personaService.delete(persona.id);
-      showNotification("Registro eliminado con éxito.", "success");
-      fetchPersonas(pagination.current_page);
-    } catch (error) {
-      console.error("Error al eliminar persona:", error);
-      showNotification(
-        parseError(error, "No se pudo eliminar el registro."),
-        "error",
-      );
-    }
+  const handleDeletePersona = (persona) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: "¿Eliminar persona?",
+      message: `¿Estás seguro de que deseas eliminar a ${persona.nombre_completo} del padrón? Esta acción es irreversible.`,
+      confirmText: "Eliminar",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          setConfirmConfig((prev) => ({ ...prev, isLoading: true }));
+          await personaService.delete(persona.id);
+          showNotification("Registro eliminado con éxito.", "success");
+          fetchPersonas(pagination.current_page);
+          closeConfirm();
+        } catch (error) {
+          console.error("Error al eliminar persona:", error);
+          showNotification(
+            parseError(error, "No se pudo eliminar el registro."),
+            "error",
+          );
+          closeConfirm();
+        } finally {
+          setConfirmConfig((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const handleSearchCupof = async (e) => {
@@ -369,21 +535,35 @@ export default function PersonaManagement() {
     }
   };
 
-  const handleUnlinkUser = async (personaId) => {
-    try {
-      setIsLinkingUser(personaId);
-      const response = await personaService.unlinkUser(personaId);
-      showNotification(response.message, "success");
-      fetchPersonas(pagination.current_page);
-    } catch (error) {
-      console.error("Error al desvincular usuario:", error);
-      showNotification(
-        parseError(error, "No se pudo realizar la desvinculación."),
-        "error",
-      );
-    } finally {
-      setIsLinkingUser(null);
-    }
+  const handleUnlinkUser = (personaId) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: "Desvincular Usuario",
+      message:
+        "¿Deseas desvincular el usuario de esta persona? Se revocarán sus roles y vínculos institucionales.",
+      confirmText: "Desvincular",
+      variant: "warning",
+      onConfirm: async () => {
+        try {
+          setConfirmConfig((prev) => ({ ...prev, isLoading: true }));
+          setIsLinkingUser(personaId);
+          const response = await personaService.unlinkUser(personaId);
+          showNotification(response.message, "success");
+          fetchPersonas(pagination.current_page);
+          closeConfirm();
+        } catch (error) {
+          console.error("Error al desvincular usuario:", error);
+          showNotification(
+            parseError(error, "No se pudo realizar la desvinculación."),
+            "error",
+          );
+          closeConfirm();
+        } finally {
+          setIsLinkingUser(null);
+          setConfirmConfig((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const handleResendActivation = async (personaId) => {
@@ -435,27 +615,212 @@ export default function PersonaManagement() {
       </div>
 
       {/* Filtros y Búsqueda */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-secondary-200">
-        <form onSubmit={handleSearch} className="flex gap-3 w-full lg:max-w-md">
-          <div className="relative flex-1">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
-              <Search className="w-5 h-5" />
-            </span>
-            <input
-              type="text"
-              placeholder="Buscar por nombre, apellido o DNI..."
-              className="w-full pl-10 pr-4 py-2.5 bg-secondary-50 border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all text-sm font-bold"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <button
-            type="submit"
-            className="px-6 py-2.5 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors"
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-secondary-200 space-y-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <form
+            onSubmit={handleSearch}
+            className="flex gap-2 w-full sm:max-w-md"
           >
-            Buscar
-          </button>
-        </form>
+            <div className="relative flex-1">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary-400">
+                <Search className="w-5 h-5" />
+              </span>
+              <input
+                type="text"
+                placeholder="Buscar por nombre, apellido o DNI..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm font-medium transition-all shadow-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <button
+              type="submit"
+              className="px-4 py-2.5 bg-secondary-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-all shadow-sm"
+            >
+              Buscar
+            </button>
+          </form>
+
+          {/* Botones de Control de Filtros */}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <button
+              type="button"
+              onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm border transition-all shadow-sm ${
+                activeFiltersCount > 0 || isFilterPanelOpen
+                  ? "bg-primary-50 text-primary-700 border-primary-300 ring-2 ring-primary-100"
+                  : "bg-white text-secondary-700 border-secondary-300 hover:bg-secondary-100"
+              }`}
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span>Filtros</span>
+              {activeFiltersCount > 0 && (
+                <span className="ml-1 px-2 py-0.5 text-xs font-black bg-primary-600 text-white rounded-full">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+
+            {activeFiltersCount > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAllFilters}
+                className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-bold text-red-600 hover:text-red-800 bg-red-50 border border-red-200 rounded-xl transition-all"
+                title="Limpiar todos los filtros"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Limpiar</span>
+              </button>
+            )}
+          </div>
+        </div>
+{/* Panel Desplegable de Filtros Avanzados */}
+        {isFilterPanelOpen && (
+          <div className="pt-4 border-t border-secondary-200 animate-fadeIn">
+            <div className="p-4 bg-white rounded-2xl border border-secondary-200 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Columna 1: Documentación y Género */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <IdCard className="w-3.5 h-3.5 text-primary-500" />{" "}
+                  Documentación y Género
+                </h4>
+                <div className="space-y-2">
+                  <select
+                    value={filterDocTipoId}
+                    onChange={(e) => setFilterDocTipoId(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
+                  >
+                    <option value="">Todos los Tipos de Documento</option>
+                    {docTipos.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nombre}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={filterSexoId}
+                    onChange={(e) => setFilterSexoId(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
+                  >
+                    <option value="">Todos los Sexos</option>
+                    {sexos.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={filterGeneroId}
+                    onChange={(e) => setFilterGeneroId(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
+                  >
+                    <option value="">Todos los Géneros</option>
+                    {generos.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Columna 2: Padrón y Cuenta */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-primary-500" /> Padrón y
+                  Cuenta
+                </h4>
+                <div className="space-y-2">
+                  <select
+                    value={filterHasUser}
+                    onChange={(e) => setFilterHasUser(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
+                  >
+                    <option value="">Todos</option>
+                    <option value="con">Con cuenta</option>
+                    <option value="sin">Sin cuenta</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+{/* Pills de Filtros Activos */}
+        {(filterDocTipoId ||
+          filterSexoId ||
+          filterGeneroId ||
+          filterHasUser) && (
+          <div className="flex flex-wrap gap-2">
+            {filterDocTipoId && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary-50 border border-primary-200 text-primary-700 text-xs font-bold rounded-lg">
+                Doc:{" "}
+                {docTipos.find((t) => String(t.id) === String(filterDocTipoId))
+                  ?.nombre || filterDocTipoId}
+                <button
+                  type="button"
+                  onClick={() => setFilterDocTipoId("")}
+                  className="hover:text-primary-900"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {filterSexoId && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary-50 border border-primary-200 text-primary-700 text-xs font-bold rounded-lg">
+                Sexo:{" "}
+                {sexos.find((s) => String(s.id) === String(filterSexoId))
+                  ?.nombre || filterSexoId}
+                <button
+                  type="button"
+                  onClick={() => setFilterSexoId("")}
+                  className="hover:text-primary-900"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {filterGeneroId && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary-50 border border-primary-200 text-primary-700 text-xs font-bold rounded-lg">
+                Género:{" "}
+                {generos.find((g) => String(g.id) === String(filterGeneroId))
+                  ?.nombre || filterGeneroId}
+                <button
+                  type="button"
+                  onClick={() => setFilterGeneroId("")}
+                  className="hover:text-primary-900"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {filterHasUser === "con" && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary-50 border border-primary-200 text-primary-700 text-xs font-bold rounded-lg">
+                Con cuenta
+                <button
+                  type="button"
+                  onClick={() => setFilterHasUser("")}
+                  className="hover:text-primary-900"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {filterHasUser === "sin" && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary-50 border border-primary-200 text-primary-700 text-xs font-bold rounded-lg">
+                Sin cuenta
+                <button
+                  type="button"
+                  onClick={() => setFilterHasUser("")}
+                  className="hover:text-primary-900"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Listado */}
@@ -472,11 +837,32 @@ export default function PersonaManagement() {
             <table className="w-full text-left">
               <thead className="bg-secondary-50 border-b border-secondary-200">
                 <tr>
-                  <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">
-                    Apellido y Nombre
+                  <th
+                    onClick={() => handleSort("apellido")}
+                    className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider cursor-pointer hover:bg-secondary-100 transition-colors group"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Apellido y Nombre</span>
+                      {renderSortIcon("apellido")}
+                    </div>
                   </th>
-                  <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">
-                    Documento
+                  <th
+                    onClick={() => handleSort("documento_numero")}
+                    className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider cursor-pointer hover:bg-secondary-100 transition-colors group"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Documento</span>
+                      {renderSortIcon("documento_numero")}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("created_at")}
+                    className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider cursor-pointer hover:bg-secondary-100 transition-colors group"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Fecha de Registro</span>
+                      {renderSortIcon("created_at")}
+                    </div>
                   </th>
                   <th className="px-6 py-4 text-xs font-bold text-secondary-500 uppercase tracking-wider">
                     Vinculación Usuario
@@ -497,8 +883,9 @@ export default function PersonaManagement() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-secondary-100 flex items-center justify-center text-secondary-700 font-bold border border-secondary-200 shadow-sm">
-                          {persona.apellido.charAt(0).toUpperCase()}
+                        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-white shadow-sm">
+                          {(persona.apellido?.charAt(0) || "A").toUpperCase()}
+                          {(persona.nombre?.charAt(0) || "").toUpperCase()}
                         </div>
                         <div>
                           <p className="text-sm font-black text-secondary-900 uppercase">
@@ -514,6 +901,13 @@ export default function PersonaManagement() {
                       <span className="text-xs font-bold text-secondary-700 bg-secondary-100 px-2 py-1 rounded">
                         {persona.documento_tipo?.nombre}{" "}
                         {persona.documento_numero}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-semibold text-secondary-600">
+                        {persona.created_at
+                          ? new Date(persona.created_at).toLocaleDateString()
+                          : "-"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -567,9 +961,32 @@ export default function PersonaManagement() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
-                        <span className="text-[10px] text-secondary-400 font-medium italic">
-                          Sin roles administrativos.
-                        </span>
+                        {persona.roles?.length ? (
+                          persona.roles.map((role) => (
+                            <span
+                              key={role.id ?? role.name}
+                              className="px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-black uppercase rounded shadow-sm"
+                            >
+                              {role.name.replace("_", " ")}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[10px] text-secondary-400 font-medium italic">
+                            Sin roles administrativos.
+                          </span>
+                        )}
+                        {persona.escuelas_personas?.map((ep) => (
+                          <span
+                            key={ep.id}
+                            className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded border border-indigo-100 shadow-sm"
+                            title={ep.escuela?.nombre}
+                          >
+                            {ep.role?.name?.replace("_", " ")}:{" "}
+                            {ep.escuela?.nombre?.length > 20
+                              ? ep.escuela.nombre.substring(0, 17) + "..."
+                              : ep.escuela?.nombre}
+                          </span>
+                        ))}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -1090,6 +1507,21 @@ export default function PersonaManagement() {
         onConfirm={handleConfirmUnlink}
         onCancel={handleCancelUnlink}
         context={confirmationPending?.context}
+      />
+
+      {/* MODAL DE CONFIRMACIÓN GLOBAL */}
+      <ConfirmationModal
+        isOpen={confirmConfig.isOpen}
+        onClose={closeConfirm}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        variant={confirmConfig.variant}
+        showInput={confirmConfig.showInput}
+        inputPlaceholder={confirmConfig.inputPlaceholder}
+        isLoading={confirmConfig.isLoading}
       />
     </div>
   );

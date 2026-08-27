@@ -11,7 +11,6 @@ import {
   SlidersHorizontal,
   RotateCcw,
   Building2,
-  MapPin,
   Shield,
   ArrowUpDown,
   ArrowUp,
@@ -23,7 +22,6 @@ import userService from "../../services/userService";
 import documentoTipoService from "../../services/documentoTipoService";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import UserDetailModal from "../../components/UserDetailModal";
-import geografiaService from "../../services/geografiaService";
 
 /**
  * Página de administración integral de usuarios.
@@ -74,10 +72,7 @@ const UserManagement = () => {
 
   const [isLinkingPersona, setIsLinkingPersona] = useState(false);
 
-  // Filtros geográficos
-  const [filterProvinciaId, setFilterProvinciaId] = useState("");
-  const [filterRegionId, setFilterRegionId] = useState("");
-  const [filterDistritoId, setFilterDistritoId] = useState("");
+  // Filtros
   const [filterRole, setFilterRole] = useState("");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
@@ -85,11 +80,6 @@ const UserManagement = () => {
   const [filterPasswordSet, setFilterPasswordSet] = useState("");
   const [filterEmailVerified, setFilterEmailVerified] = useState("");
   const [filterPersonaLinked, setFilterPersonaLinked] = useState("");
-
-  // Catálogos geográficos
-  const [provincias, setProvincias] = useState([]);
-  const [regiones, setRegiones] = useState([]);
-  const [departamentos, setDepartamentos] = useState([]);
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -134,49 +124,6 @@ const UserManagement = () => {
   };
 
   // --- CARGA DE DATOS ---
-  const fetchProvincias = async () => {
-    try {
-      const response = await geografiaService.getProvincias();
-      setProvincias(response.data || response || []);
-    } catch (error) {
-      console.error("Error al cargar provincias:", error);
-    }
-  };
-
-  const fetchRegiones = async (provinciaId) => {
-    if (!provinciaId) {
-      setRegiones([]);
-      return;
-    }
-    try {
-      const response = await geografiaService.getRegiones({
-        provincia_id: provinciaId,
-      });
-      setRegiones(response.data || response || []);
-    } catch (error) {
-      console.error("Error al cargar regiones:", error);
-      setRegiones([]);
-    }
-  };
-
-  const fetchDepartamentos = async (provinciaId, regionId) => {
-    if (!provinciaId && !regionId) {
-      setDepartamentos([]);
-      return;
-    }
-    try {
-      const params = regionId ? { region_id: regionId } : {};
-      const response = await geografiaService.getDepartamentos(
-        provinciaId,
-        params,
-      );
-      setDepartamentos(response.data || response || []);
-    } catch (error) {
-      console.error("Error al cargar departamentos:", error);
-      setDepartamentos([]);
-    }
-  };
-
   useEffect(() => {
     currentPageRef.current = pagination.current_page;
   }, [pagination.current_page]);
@@ -197,42 +144,12 @@ const UserManagement = () => {
     };
   }, [hasAccess]);
 
-  useEffect(() => {
-    fetchProvincias();
-  }, []);
-
-  useEffect(() => {
-    setFilterRegionId("");
-    setFilterDistritoId("");
-    if (filterProvinciaId) {
-      fetchRegiones(filterProvinciaId);
-      fetchDepartamentos(filterProvinciaId);
-    } else {
-      setRegiones([]);
-      setDepartamentos([]);
-    }
-  }, [filterProvinciaId]);
-
-  useEffect(() => {
-    setFilterDistritoId("");
-    if (filterRegionId && filterProvinciaId) {
-      fetchDepartamentos(null, filterRegionId);
-    } else if (filterProvinciaId) {
-      fetchDepartamentos(filterProvinciaId);
-    } else {
-      setDepartamentos([]);
-    }
-  }, [filterRegionId, filterProvinciaId]);
-
   const fetchUsers = async (page = 1) => {
     try {
       setIsUsersLoading(true);
       const response = await userService.getAll({
         search: userSearch,
         cue_anexo: filterCueAnexo,
-        provincia_id: filterProvinciaId || undefined,
-        region_id: filterRegionId || undefined,
-        departamento_id: filterDistritoId || undefined,
         role: filterRole || undefined,
         password_set: filterPasswordSet !== "" ? filterPasswordSet : undefined,
         email_verified: filterEmailVerified || undefined,
@@ -295,9 +212,6 @@ const UserManagement = () => {
     fetchUsersRef.current(1);
   }, [
     filterRole,
-    filterProvinciaId,
-    filterRegionId,
-    filterDistritoId,
     filterPasswordSet,
     filterEmailVerified,
     filterPersonaLinked,
@@ -368,9 +282,6 @@ const UserManagement = () => {
 
   const activeFiltersCount = [
     filterCueAnexo,
-    filterProvinciaId,
-    filterRegionId,
-    filterDistritoId,
     filterRole,
     filterPasswordSet,
     filterEmailVerified,
@@ -380,9 +291,6 @@ const UserManagement = () => {
   const handleClearAllFilters = () => {
     setUserSearch("");
     setFilterCueAnexo("");
-    setFilterProvinciaId("");
-    setFilterRegionId("");
-    setFilterDistritoId("");
     setFilterRole("");
     setFilterPasswordSet("");
     setFilterEmailVerified("");
@@ -810,57 +718,7 @@ const UserManagement = () => {
           {isFilterPanelOpen && (
             <div className="pt-4 border-t border-secondary-200 animate-fadeIn">
               <div className="p-4 bg-white rounded-2xl border border-secondary-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Columna 1: Ámbito Territorial */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-primary-500" />{" "}
-                    Territorial
-                  </h4>
-                  <div className="space-y-2">
-                    <select
-                      value={filterProvinciaId}
-                      onChange={(e) => setFilterProvinciaId(e.target.value)}
-                      className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none"
-                    >
-                      <option value="">Todas las Provincias</option>
-                      {provincias.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.nombre}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={filterRegionId}
-                      onChange={(e) => setFilterRegionId(e.target.value)}
-                      disabled={!filterProvinciaId}
-                      className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
-                    >
-                      <option value="">Todas las Regiones</option>
-                      {regiones.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          Región {r.numero}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={filterDistritoId}
-                      onChange={(e) => setFilterDistritoId(e.target.value)}
-                      disabled={!filterProvinciaId}
-                      className="w-full px-3 py-2 bg-secondary-50 border border-secondary-300 rounded-xl text-xs font-bold text-secondary-700 focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
-                    >
-                      <option value="">Todos los Distritos</option>
-                      {departamentos.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Columna 2: Institucional & Perfil */}
+                {/* Columna 1: Institucional & Perfil */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5 text-primary-500" />{" "}
@@ -893,7 +751,7 @@ const UserManagement = () => {
                   </div>
                 </div>
 
-                {/* Columna 3: Estado de Cuenta & Padrón */}
+                {/* Columna 2: Estado de Cuenta & Padrón */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-black text-secondary-400 uppercase tracking-wider flex items-center gap-1.5">
                     <Shield className="w-3.5 h-3.5 text-primary-500" /> Cuenta y
@@ -943,52 +801,6 @@ const UserManagement = () => {
               <span className="text-[10px] font-black text-secondary-400 uppercase tracking-wider">
                 Filtros Activos:
               </span>
-
-              {filterProvinciaId && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-200">
-                  Provincia:{" "}
-                  {provincias.find((p) => p.id == filterProvinciaId)?.nombre ||
-                    filterProvinciaId}
-                  <button
-                    type="button"
-                    onClick={() => setFilterProvinciaId("")}
-                    className="hover:text-primary-900"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-
-              {filterRegionId && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-200">
-                  Región:{" "}
-                  {regiones.find((r) => r.id == filterRegionId)?.numero
-                    ? `Región ${regiones.find((r) => r.id == filterRegionId).numero}`
-                    : filterRegionId}
-                  <button
-                    type="button"
-                    onClick={() => setFilterRegionId("")}
-                    className="hover:text-primary-900"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-
-              {filterDistritoId && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-200">
-                  Distrito:{" "}
-                  {departamentos.find((d) => d.id == filterDistritoId)
-                    ?.nombre || filterDistritoId}
-                  <button
-                    type="button"
-                    onClick={() => setFilterDistritoId("")}
-                    className="hover:text-primary-900"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
 
               {filterRole && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200">
@@ -1262,7 +1074,7 @@ const UserManagement = () => {
                           )}
 
                         {user.estado === "vinculacion_pendiente" &&
-                          (isSuperUser) && (
+                          isSuperUser && (
                             <button
                               onClick={() => handleConfirmVinculation(user)}
                               className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white text-[10px] font-black uppercase rounded-lg hover:bg-amber-700 transition-all shadow-md active:scale-95 animate-pulse"
@@ -1290,7 +1102,7 @@ const UserManagement = () => {
                             user.es_administrador ||
                             user.roles?.some((r) => r.name === "superuser")
                           ) &&
-                          (isSuperUser) &&
+                          isSuperUser &&
                           (user.persona ? (
                             <button
                               onClick={() => handleQuickUnlinkUser(user)}
