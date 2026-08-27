@@ -6,10 +6,24 @@ import {
   act,
 } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import React, { useEffect } from "react";
 import Profile from "../Profile";
 import { useAuth } from "../../context/AuthContext";
 import { BrowserRouter } from "react-router-dom";
 import userService from "../../services/userService";
+
+// 1. Mock de react-easy-crop que dispara onCropComplete con coordenadas válidas
+vi.mock("react-easy-crop", () => ({
+  default: ({ onCropComplete }) => {
+    useEffect(() => {
+      onCropComplete?.(
+        { x: 0, y: 0, width: 100, height: 100 },
+        { x: 0, y: 0, width: 512, height: 512 },
+      );
+    }, [onCropComplete]);
+    return <div data-testid="mock-cropper" />;
+  },
+}));
 
 // Mock de hooks y servicios
 vi.mock("../../context/AuthContext", () => ({
@@ -34,6 +48,32 @@ vi.mock("../../services/documentoTipoService", () => ({
 // Mock de URL.createObjectURL
 global.URL.createObjectURL = vi.fn(() => "mock-url");
 
+// Mocks para Canvas e Image requeridos por getCroppedImg en JSDOM
+HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
+  drawImage: vi.fn(),
+  translate: vi.fn(),
+  scale: vi.fn(),
+}));
+
+HTMLCanvasElement.prototype.toBlob = vi.fn((callback) => {
+  callback(new Blob(["mock-blob"], { type: "image/jpeg" }));
+});
+
+global.Image = class {
+  constructor() {
+    setTimeout(() => {
+      this.onload?.();
+      this.dispatchEvent?.(new Event("load"));
+    }, 0);
+  }
+  addEventListener(event, handler) {
+    if (event === "load") {
+      setTimeout(handler, 0);
+    }
+  }
+  removeEventListener() {}
+};
+
 describe("Profile Component", () => {
   const mockCheckAuth = vi.fn();
   const mockShowNotification = vi.fn();
@@ -56,30 +96,37 @@ describe("Profile Component", () => {
   });
 
   it("debe renderizar la información del perfil correctamente", async () => {
+    let container;
     await act(async () => {
-      render(
+      const result = render(
         <BrowserRouter>
           <Profile />
         </BrowserRouter>,
       );
+      container = result.container;
     });
 
-    expect(screen.getByDisplayValue("Alex")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("alex@example.com")).toBeInTheDocument();
+    const nombreInput = container.querySelector('input[name="nombre"]');
+    const emailInput = container.querySelector('input[name="email"]');
+
+    expect(nombreInput).toHaveValue("Alex");
+    expect(emailInput).toHaveValue("alex@example.com");
   });
 
   it("debe llamar a updateProfile al enviar el formulario de perfil", async () => {
     userService.updateProfile.mockResolvedValue({ message: "Success" });
 
+    let container;
     await act(async () => {
-      render(
+      const result = render(
         <BrowserRouter>
           <Profile />
         </BrowserRouter>,
       );
+      container = result.container;
     });
 
-    const nombreInput = screen.getByDisplayValue("Alex");
+    const nombreInput = container.querySelector('input[name="nombre"]');
     await act(async () => {
       fireEvent.change(nombreInput, {
         target: { value: "AlexUpdated", name: "nombre" },
@@ -149,21 +196,17 @@ describe("Profile Component", () => {
       container = result.container;
     });
 
-    // El campo nombre debe estar deshabilitado
-    const nombreInput = screen.getByDisplayValue("Alex");
+    const nombreInput = container.querySelector('input[name="nombre"]');
     expect(nombreInput).toBeDisabled();
 
-    // El campo email debe estar habilitado para correcciones
-    const emailInput = screen.getByDisplayValue("alex@example.com");
+    const emailInput = container.querySelector('input[name="email"]');
     expect(emailInput).not.toBeDisabled();
 
-    // Los campos de contraseña deben estar deshabilitados
     const currentPassInput = container.querySelector(
       'input[name="current_password"]',
     );
     expect(currentPassInput).toBeDisabled();
 
-    // El botón de actualizar debe estar presente
     expect(
       screen.getByRole("button", { name: /Actualizar Perfil/i }),
     ).toBeInTheDocument();
@@ -225,7 +268,7 @@ describe("Profile Component", () => {
 
   it("debe manejar la subida de avatar", async () => {
     userService.updateAvatar.mockResolvedValue({
-      message: "Foto de perfil actualizada.",
+      message: "Foto de perfil actualizada con éxito.",
       user: { ...mockUser, avatar_url: "new-avatar.jpg" },
     });
 
@@ -242,22 +285,35 @@ describe("Profile Component", () => {
     const file = new File(["hello"], "hello.png", { type: "image/png" });
     const input = container.querySelector('input[type="file"]');
 
+    // 1. Cargar archivo
     await act(async () => {
       fireEvent.change(input, { target: { files: [file] } });
     });
 
-    const submitBtn = screen.getByRole("button", { name: /Subir Nueva Foto/i });
+    // 2. Confirmar recorte en el modal
+    const cropBtn = await screen.findByRole("button", {
+      name: /Recortar Foto/i,
+    });
+    await act(async () => {
+      fireEvent.click(cropBtn);
+    });
+
+    // 3. Guardar foto
+    const submitBtn = await screen.findByRole("button", {
+      name: /Aplicar y Guardar Foto/i,
+    });
     await act(async () => {
       fireEvent.click(submitBtn);
     });
 
+    // 4. Verificaciones
     await waitFor(() => {
       expect(userService.updateAvatar).toHaveBeenCalled();
     });
 
     await waitFor(() => {
       expect(mockShowNotification).toHaveBeenCalledWith(
-        "Foto de perfil actualizada.",
+        "Foto de perfil actualizada con éxito.",
         "success",
       );
       expect(mockCheckAuth).toHaveBeenCalled();
