@@ -196,16 +196,16 @@ const Layout = ({ children }) => {
     });
   }
 
-  const isConduccion = ["director",
+  const isConduccion = [
+    "director",
     "vicedirector",
     "secretario",
-    "prosecretario"].includes(activeRoleName);
-  
+    "prosecretario",
+  ].includes(activeRoleName);
+
   const canAccessCupof = isSuperUser || isConduccion;
 
-  if (
-    hasPermission("sistema.usuarios") || isConduccion
-  ) {
+  if (hasPermission("sistema.usuarios") || isConduccion) {
     navItems.push({
       name: "Escuelas",
       icon: <School className="w-6 h-6" />,
@@ -230,8 +230,7 @@ const Layout = ({ children }) => {
 
   if (
     isSuperUser ||
-    (hasPermission("sistema.usuarios") &&
-      !isRestrictedFromGeneralPanel)
+    (hasPermission("sistema.usuarios") && !isRestrictedFromGeneralPanel)
   ) {
     navItems.push({
       name: "Panel General",
@@ -360,12 +359,9 @@ const Layout = ({ children }) => {
 
   const hasCurricularVerPermission =
     hasPermission("planes.ver") ||
-    [
-      "director",
-      "vicedirector",
-      "secretario",
-      "prosecretario",
-    ].includes(activeRoleName);
+    ["director", "vicedirector", "secretario", "prosecretario"].includes(
+      activeRoleName,
+    );
 
   if (isSuperUser || hasCurricularVerPermission) {
     navItems.push({
@@ -645,14 +641,12 @@ const Layout = ({ children }) => {
                   )}
                 </div>
               </div>
-              {/* <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-primary-200 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
-                                {user?.avatar_url ? <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" /> : <span>{user?.nombre?.charAt(0)}</span>}
-                            </div> */}
               <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center border-2 border-primary-200 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
                 <img
                   src={user?.avatar_url || defaultAvatar}
                   alt="Avatar"
                   className="w-full h-full object-cover"
+                  crossOrigin="use-credentials"
                   onError={(e) => {
                     // Si la URL del backend viene con dato pero el archivo no existe en la carpeta
                     e.target.onerror = null;

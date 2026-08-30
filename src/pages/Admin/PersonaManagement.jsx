@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import Cropper from "react-easy-crop";
 import {
   UserPlus,
   Search,
@@ -19,6 +20,7 @@ import {
   ArrowDown,
   IdCard,
   Shield,
+  Camera,
   MapPin,
   CheckCircle2,
   ChevronLeft,
@@ -35,6 +37,56 @@ import nacionService from "../../services/nacionService";
 import geografiaService from "../../services/geografiaService";
 import ConfirmUnlinkUserModal from "../../components/ConfirmUnlinkUserModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
+
+const createImage = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", (error) => reject(error));
+    image.src = url;
+  });
+
+async function getCroppedImg(imageSrc, pixelCrop) {
+  if (!imageSrc) {
+    throw new Error("No hay imagen para recortar.");
+  }
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("No se pudo obtener el contexto de dibujo 2D.");
+  }
+  const crop =
+    pixelCrop && typeof pixelCrop.x === "number"
+      ? pixelCrop
+      : { x: 0, y: 0, width: 100, height: 100 };
+  const TARGET_SIZE = 512;
+  canvas.width = TARGET_SIZE;
+  canvas.height = TARGET_SIZE;
+  ctx.drawImage(
+    image,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
+    0,
+    0,
+    TARGET_SIZE,
+    TARGET_SIZE,
+  );
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => {
+        const file = new File([blob], "foto_cropped.jpg", {
+          type: "image/jpeg",
+        });
+        resolve(file);
+      },
+      "image/jpeg",
+      0.85,
+    );
+  });
+}
 
 /**
  * Componente para la gestión integral del Padrón de Personas (Agentes).
@@ -126,8 +178,6 @@ export default function PersonaManagement() {
     tramite: "",
     CUIL_prefijo: "",
     CUIL_sufijo: "",
-    posee_cpi_si: false,
-    posee_docExt_si: false,
     nacion_id: "",
     provincia_id: "",
     departamento_id: "",
@@ -137,6 +187,27 @@ export default function PersonaManagement() {
 
   // Stepper
   const [currentStep, setCurrentStep] = useState(1);
+
+  // Estados de Foto de Perfil (Subida / cámara / recorte)
+  const [fotoFile, setFotoFile] = useState(null);
+  const [fotoPreview, setFotoPreview] = useState(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [cropImageSrc, setCropImageSrc] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const fotoInputRef = useRef(null);
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
 
   // Catálogos
   const [docSituaciones, setDocSituaciones] = useState([]);
@@ -420,8 +491,6 @@ export default function PersonaManagement() {
       tramite: full.tramite ?? "",
       CUIL_prefijo: full.CUIL_prefijo ?? "",
       CUIL_sufijo: full.CUIL_sufijo ?? "",
-      posee_cpi_si: full.posee_cpi_si ?? false,
-      posee_docExt_si: full.posee_docExt_si ?? false,
       nacion_id: full.nacion_id ?? "",
       provincia_id: full.provincia_id ?? "",
       departamento_id: full.departamento_id ?? "",
@@ -447,6 +516,8 @@ export default function PersonaManagement() {
       }
     }
 
+    setFotoPreview(full.foto_url || null);
+    setFotoFile(null);
     setCurrentStep(1);
     setIsCreateModalOpen(true);
   };
@@ -494,6 +565,117 @@ export default function PersonaManagement() {
   const situacionNoPoseeDoc = docSituaciones.find(
     (s) => String(s.id) === String(personaFormData.documento_situacion_id),
   );
+  const esIndocumentado = String(personaFormData.documento_tipo_id) === "7";
+  const tipoDoc = docTipos.find(
+    (t) => String(t.id) === String(personaFormData.documento_tipo_id),
+  );
+  const etiquetaNumeroDocumento = !tipoDoc
+    ? "Número de Documento"
+    : /dni/i.test(tipoDoc.nombre)
+      ? "Nº de DNI"
+      : /cpi/i.test(tipoDoc.nombre)
+        ? "Nº de CPI"
+        : /extranjero/i.test(tipoDoc.nombre)
+          ? "Nº de Documento Extranjero"
+          : /pasaporte/i.test(tipoDoc.nombre)
+            ? "Nº de Pasaporte"
+            : "Nº de Documento";
+
+  const handleFotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      setCropImageSrc(reader.result);
+      setShowCropModal(true);
+    });
+    reader.readAsDataURL(file);
+  };
+
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleCropConfirm = async () => {
+    try {
+      const croppedFile = await getCroppedImg(cropImageSrc, croppedAreaPixels);
+      setFotoFile(croppedFile);
+      setFotoPreview(URL.createObjectURL(croppedFile));
+      setShowCropModal(false);
+    } catch (error) {
+      console.error("Error al recortar imagen:", error);
+      showNotification("No se pudo recortar la imagen.", "error");
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showNotification(
+        "Tu navegador no permite acceder a la cámara en sitios sin HTTPS. Accedé por localhost o habilitá SSL.",
+        "error",
+      );
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 480, height: 480, facingMode: "user" },
+        audio: false,
+      });
+      setCameraStream(stream);
+      setShowCameraModal(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (error) {
+      let msg = "No se pudo acceder a la cámara.";
+      if (error.name === "NotAllowedError") {
+        msg =
+          "Permiso denegado. Habilitá la cámara en la configuración del navegador.";
+      } else if (error.name === "NotFoundError") {
+        msg = "No se encontró ninguna cámara en este dispositivo.";
+      }
+      showNotification(msg, "error");
+    }
+  };
+
+  const handleCloseCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+    }
+    setCameraStream(null);
+    setShowCameraModal(false);
+  };
+
+  const captureFromCamera = () => {
+    const video = videoRef.current;
+    if (!video || !cameraStream) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob(
+      (blob) => {
+        const file = new File([blob], "foto_camera.jpg", {
+          type: "image/jpeg",
+        });
+        setFotoFile(file);
+        setFotoPreview(URL.createObjectURL(file));
+        setShowCameraModal(false);
+        cameraStream.getTracks().forEach((t) => t.stop());
+        setCameraStream(null);
+      },
+      "image/jpeg",
+      0.9,
+    );
+  };
+
+  const handleDeleteFoto = () => {
+    setFotoFile(null);
+    setFotoPreview(null);
+  };
 
   const handleCreatePersona = () => {
     setIsEditMode(false);
@@ -513,8 +695,6 @@ export default function PersonaManagement() {
       tramite: "",
       CUIL_prefijo: "",
       CUIL_sufijo: "",
-      posee_cpi_si: false,
-      posee_docExt_si: false,
       nacion_id: "",
       provincia_id: "",
       departamento_id: "",
@@ -523,6 +703,8 @@ export default function PersonaManagement() {
     });
     setDepartamentos([]);
     setLocalidades([]);
+    setFotoPreview(null);
+    setFotoFile(null);
     setCurrentStep(1);
     setIsCreateModalOpen(true);
   };
@@ -536,6 +718,17 @@ export default function PersonaManagement() {
     const noPosee = /no posee/i.test(situacion?.nombre || "");
     if (noPosee) {
       setFormValue("documento_tipo_id", "");
+      setFormValue("documento_numero", "");
+      setFormValue("tramite", "");
+      setFormValue("CUIL_prefijo", "");
+      setFormValue("CUIL_sufijo", "");
+    }
+  };
+
+  const handleTipoDocumentoChange = (e) => {
+    const value = e.target.value;
+    setFormValue("documento_tipo_id", value);
+    if (String(value) === "7") {
       setFormValue("documento_numero", "");
       setFormValue("tramite", "");
       setFormValue("CUIL_prefijo", "");
@@ -570,6 +763,7 @@ export default function PersonaManagement() {
     e.preventDefault();
     try {
       setIsSavingPersona(true);
+      let savedId = editingPersonaId;
       if (isEditMode) {
         await personaService.update(editingPersonaId, personaFormData);
         showNotification(
@@ -577,11 +771,17 @@ export default function PersonaManagement() {
           "success",
         );
       } else {
-        await personaService.create(personaFormData);
+        const res = await personaService.create(personaFormData);
+        savedId = res?.data?.data?.id ?? res?.data?.id ?? res?.id;
         showNotification(
           "Persona registrada con éxito en el padrón.",
           "success",
         );
+      }
+      if (savedId && fotoFile) {
+        const fd = new FormData();
+        fd.append("foto", fotoFile);
+        await personaService.uploadFoto(savedId, fd);
       }
       setIsCreateModalOpen(false);
       fetchPersonas(isEditMode ? pagination.current_page : 1);
@@ -1002,10 +1202,19 @@ export default function PersonaManagement() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-white shadow-sm">
-                          {(persona.apellido?.charAt(0) || "A").toUpperCase()}
-                          {(persona.nombre?.charAt(0) || "").toUpperCase()}
-                        </div>
+                        {persona.foto_url ? (
+                          <img
+                            src={persona.foto_url}
+                            crossOrigin="use-credentials"
+                            alt=""
+                            className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border-2 border-white shadow-sm">
+                            {(persona.apellido?.charAt(0) || "A").toUpperCase()}
+                            {(persona.nombre?.charAt(0) || "").toUpperCase()}
+                          </div>
+                        )}
                         <div>
                           <p className="text-sm font-black text-secondary-900 uppercase">
                             {persona.apellido}
@@ -1209,6 +1418,16 @@ export default function PersonaManagement() {
                       Información de Identidad
                     </h3>
                   </div>
+                  {selectedPersona.foto_url && (
+                    <div className="flex -mt-2">
+                      <img
+                        src={selectedPersona.foto_url}
+                        crossOrigin="use-credentials"
+                        alt="Foto de perfil"
+                        className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                      />
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-secondary-50 p-6 rounded-2xl border border-secondary-100">
                     <div className="space-y-0.5">
                       <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
@@ -1395,6 +1614,58 @@ export default function PersonaManagement() {
                   <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
                     <User className="w-4 h-4" /> Datos de Identidad
                   </h3>
+                  <div className="mb-6 flex flex-col sm:flex-row items-center gap-6">
+                    <div className="relative">
+                      <input
+                        type="file"
+                        ref={fotoInputRef}
+                        onChange={handleFotoUpload}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                      <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-primary-100 shadow-lg bg-secondary-100 flex items-center justify-center">
+                        {fotoPreview ? (
+                          <img
+                            src={fotoPreview}
+                            crossOrigin="use-credentials"
+                            alt="Foto de perfil"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-primary-600 font-black text-4xl">
+                            {(
+                              personaFormData.apellido?.charAt(0) || "?"
+                            ).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fotoInputRef.current?.click()}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95"
+                      >
+                        <UserPlus className="w-4 h-4" /> Subir Archivo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleTakePhoto}
+                        className="flex items-center gap-2 px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95"
+                      >
+                        <Camera className="w-4 h-4" /> Tomar Foto
+                      </button>
+                      {fotoPreview && (
+                        <button
+                          type="button"
+                          onClick={handleDeleteFoto}
+                          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95"
+                        >
+                          <Trash2 className="w-4 h-4" /> Eliminar
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   {isEditMode && isEmailLocked && (
                     <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
                       Esta persona tiene un usuario vinculado. Los campos DNI y
@@ -1542,75 +1813,41 @@ export default function PersonaManagement() {
                       </select>
                     </div>
 
-                    {situacionNoPoseeDoc?.nombre &&
-                    /no posee/i.test(situacionNoPoseeDoc.nombre) ? (
-                      <>
-                        <div className="md:col-span-2 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                          <p className="text-xs font-bold text-amber-700 mb-3">
-                            No posee DNI argentino. Indicá la documentación
-                            alternativa:
-                          </p>
-                          <div className="flex flex-col sm:flex-row gap-6">
-                            <label className="flex items-center gap-3 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                className="w-5 h-5 accent-primary-600"
-                                checked={!!personaFormData.posee_cpi_si}
-                                onChange={(e) =>
-                                  setFormValue("posee_cpi_si", e.target.checked)
-                                }
-                              />
-                              <span className="text-sm font-bold text-secondary-700">
-                                ¿Posee CPI?
-                              </span>
-                            </label>
-                            <label className="flex items-center gap-3 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                className="w-5 h-5 accent-primary-600"
-                                checked={!!personaFormData.posee_docExt_si}
-                                onChange={(e) =>
-                                  setFormValue(
-                                    "posee_docExt_si",
-                                    e.target.checked,
-                                  )
-                                }
-                              />
-                              <span className="text-sm font-bold text-secondary-700">
-                                ¿Posee Documento Extranjero?
-                              </span>
-                            </label>
-                          </div>
-                        </div>
-                      </>
+                    <div className="md:col-span-2 space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Tipo de Documento *
+                      </label>
+                      <select
+                        disabled={isEmailLocked}
+                        className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold ${
+                          isEmailLocked
+                            ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                            : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                        }`}
+                        value={personaFormData.documento_tipo_id}
+                        onChange={handleTipoDocumentoChange}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {docTipos.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {esIndocumentado ? (
+                      <div className="md:col-span-2 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                        <p className="text-xs font-bold text-amber-700">
+                          Persona registrada como INDOCUMENTADA. No se solicitan
+                          número de documento, trámite ni CUIL.
+                        </p>
+                      </div>
                     ) : (
                       <>
                         <div className="space-y-1">
                           <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                            Tipo Documento
-                          </label>
-                          <select
-                            disabled={isEmailLocked}
-                            className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold ${
-                              isEmailLocked
-                                ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                                : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                            }`}
-                            value={personaFormData.documento_tipo_id}
-                            onChange={handleInputChange}
-                            name="documento_tipo_id"
-                          >
-                            <option value="">Seleccionar...</option>
-                            {docTipos.map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.nombre}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                            Número Documento
+                            {etiquetaNumeroDocumento}
                           </label>
                           <input
                             type="text"
@@ -1625,9 +1862,9 @@ export default function PersonaManagement() {
                             name="documento_numero"
                           />
                         </div>
-                        <div className="md:col-span-2 space-y-1">
+                        <div className="space-y-1">
                           <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                            Nº de Trámite del DNI
+                            Nº de Trámite
                           </label>
                           <input
                             type="text"
@@ -1656,7 +1893,7 @@ export default function PersonaManagement() {
                               }
                             />
                             <span className="text-secondary-400 font-black">
-                              -
+                              -{" "}
                             </span>
                             <input
                               type="text"
@@ -1668,7 +1905,7 @@ export default function PersonaManagement() {
                               name="documento_numero"
                             />
                             <span className="text-secondary-400 font-black">
-                              -
+                              -{" "}
                             </span>
                             <input
                               type="text"
@@ -1934,6 +2171,109 @@ export default function PersonaManagement() {
                 )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE RECORTE DE FOTO */}
+      {showCropModal && cropImageSrc && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-secondary-900/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-secondary-100 flex items-center justify-between">
+              <h3 className="text-sm font-black text-secondary-700 uppercase tracking-widest">
+                Recortar Foto
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCropModal(false)}
+                className="text-secondary-400 hover:text-secondary-600 transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="relative w-full h-80 bg-secondary-900">
+              <Cropper
+                image={cropImageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.1}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full accent-primary-600"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCropModal(false)}
+                  className="px-4 py-2 bg-secondary-100 text-secondary-700 rounded-xl font-bold uppercase text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCropConfirm}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-xl font-bold uppercase text-xs hover:bg-primary-700"
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CÁMARA */}
+      {showCameraModal && cameraStream && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-secondary-900/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-secondary-100 flex items-center justify-between">
+              <h3 className="text-sm font-black text-secondary-700 uppercase tracking-widest">
+                Tomar Foto
+              </h3>
+              <button
+                type="button"
+                onClick={handleCloseCamera}
+                className="text-secondary-400 hover:text-secondary-600 transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-80 object-cover bg-secondary-900 scale-x-[-1]"
+            />
+            <div className="px-6 py-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCloseCamera}
+                className="px-4 py-2 bg-secondary-100 text-secondary-700 rounded-xl font-bold uppercase text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={captureFromCamera}
+                className="px-4 py-2 bg-primary-600 text-white rounded-xl font-bold uppercase text-xs hover:bg-primary-700"
+              >
+                Capturar
+              </button>
+            </div>
           </div>
         </div>
       )}

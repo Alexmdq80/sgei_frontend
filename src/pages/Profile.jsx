@@ -524,6 +524,7 @@ const Profile = () => {
                 <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-secondary-200 bg-secondary-100">
                   <img
                     src={preview || defaultAvatar}
+                    crossOrigin="use-credentials"
                     alt="Avatar del usuario"
                     className="w-full h-full object-cover"
                     onError={(e) => {

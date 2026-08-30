@@ -141,6 +141,24 @@ const personaService = {
     const response = await api.get("/admin/comunidad-educativa", { params });
     return response.data;
   },
+
+  /**
+   * Sube o reemplaza la foto de perfil de una persona.
+   */
+  async uploadFoto(id, formData) {
+    const response = await api.post(`/admin/personas/${id}/foto`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
+
+  /**
+   * Elimina la foto de perfil de una persona.
+   */
+  async deleteFoto(id) {
+    const response = await api.delete(`/admin/personas/${id}/foto`);
+    return response.data;
+  },
 };
 
 export default personaService;
