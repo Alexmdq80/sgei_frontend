@@ -298,8 +298,18 @@ describe("Profile Component", () => {
       fireEvent.click(cropBtn);
     });
 
-    // 3. Guardar foto
-    const submitBtn = await screen.findByRole("button", {
+    // 3. Esperar (de forma determinística) a que el recorte termine:
+    //    el botón aparece y queda habilitado solo cuando `avatar` ya está listo.
+    await waitFor(
+      () => {
+        expect(
+          screen.getByRole("button", { name: /Aplicar y Guardar Foto/i }),
+        ).toBeEnabled();
+      },
+      { timeout: 5000 },
+    );
+
+    const submitBtn = screen.getByRole("button", {
       name: /Aplicar y Guardar Foto/i,
     });
     await act(async () => {

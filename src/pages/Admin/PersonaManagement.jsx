@@ -19,14 +19,20 @@ import {
   ArrowDown,
   IdCard,
   Shield,
+  MapPin,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
 import personaService from "../../services/personaService";
-import cupofService from "../../services/cupofService";
 import documentoTipoService from "../../services/documentoTipoService";
 import sexoService from "../../services/sexoService";
 import generoService from "../../services/generoService";
+import documentoSituacionService from "../../services/documentoSituacionService";
+import nacionService from "../../services/nacionService";
+import geografiaService from "../../services/geografiaService";
 import ConfirmUnlinkUserModal from "../../components/ConfirmUnlinkUserModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
 
@@ -98,19 +104,6 @@ export default function PersonaManagement() {
   const [editingPersonaId, setEditingPersonaId] = useState(null);
   const [isEmailLocked, setIsEmailLocked] = useState(false);
 
-  // Estados de Asignación (CUPOF)
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [cupofSearchTerm, setCupofSearchTerm] = useState("");
-  const [availableCupofs, setAvailableCupofs] = useState([]);
-  const [isSearchingCupof, setIsSearchingCupof] = useState(false);
-  const [isSavingAssignment, setIsSavingAssignment] = useState(false);
-  const [assignmentData, setAssignmentData] = useState({
-    cupof_id: "",
-    situacion_revista: "titular",
-    fecha_inicio: new Date().toISOString().split("T")[0],
-    resolucion: "",
-  });
-
   // Estados de Roles Administrativos (Hierarchy Rules)
 
   // Estados de Carga Específicos
@@ -122,10 +115,35 @@ export default function PersonaManagement() {
   const [personaFormData, setPersonaFormData] = useState({
     apellido: "",
     nombre: "",
+    nombre_alternativo: "",
+    sexo_id: "",
+    genero_id: "",
+    nacionalidad_nacion_id: "",
+    nacimiento_fecha: "",
+    documento_situacion_id: "",
     documento_tipo_id: "",
     documento_numero: "",
+    tramite: "",
+    CUIL_prefijo: "",
+    CUIL_sufijo: "",
+    posee_cpi_si: false,
+    posee_docExt_si: false,
+    nacion_id: "",
+    provincia_id: "",
+    departamento_id: "",
+    localidad_id: "",
     email: "",
   });
+
+  // Stepper
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // Catálogos
+  const [docSituaciones, setDocSituaciones] = useState([]);
+  const [nacions, setNacions] = useState([]);
+  const [provincias, setProvincias] = useState([]);
+  const [departamentos, setDepartamentos] = useState([]);
+  const [localidades, setLocalidades] = useState([]);
 
   const fetchPersonas = async (page = 1) => {
     if (!canManage) return;
@@ -171,6 +189,33 @@ export default function PersonaManagement() {
     }
   };
 
+  const fetchDocSituaciones = async () => {
+    try {
+      const r = await documentoSituacionService.getAll();
+      setDocSituaciones(r?.data?.data || r?.data || r || []);
+    } catch (error) {
+      console.error("Error al cargar situaciones de documento:", error);
+    }
+  };
+
+  const fetchNaciones = async () => {
+    try {
+      const r = await nacionService.getAll({ per_page: 1000, search: "" });
+      setNacions(r?.data?.data || r?.data || r || []);
+    } catch (error) {
+      console.error("Error al cargar naciones:", error);
+    }
+  };
+
+  const fetchProvincias = async () => {
+    try {
+      const r = await geografiaService.getProvincias();
+      setProvincias(r?.data?.data || r?.data || r || []);
+    } catch (error) {
+      console.error("Error al cargar provincias:", error);
+    }
+  };
+
   const fetchSexos = async () => {
     try {
       const r = await sexoService.getAll();
@@ -189,15 +234,13 @@ export default function PersonaManagement() {
     }
   };
 
-
-
-
-
-
   useEffect(() => {
     fetchDocTipos();
     fetchSexos();
     fetchGeneros();
+    fetchDocSituaciones();
+    fetchNaciones();
+    fetchProvincias();
     fetchPersonas();
   }, []);
 
@@ -261,8 +304,7 @@ export default function PersonaManagement() {
   const handleSort = (key) => {
     setSortConfig((prev) => ({
       key,
-      direction:
-        prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
   };
 
@@ -304,13 +346,6 @@ export default function PersonaManagement() {
       console.error("Error al refrescar detalles de la persona:", error);
     }
   };
-
-
-
-
-
-
-
 
   const handleViewPersona = async (id) => {
     try {
@@ -357,81 +392,108 @@ export default function PersonaManagement() {
     });
   };
 
-  const handleSearchCupof = async (e) => {
-    e.preventDefault();
-    if (cupofSearchTerm.length < 3) {
-      showNotification(
-        "Ingresa al menos 3 caracteres para buscar un CUPOF.",
-        "warning",
-      );
-      return;
-    }
-    try {
-      setIsSearchingCupof(true);
-      const response = await cupofService.getAll({
-        search: cupofSearchTerm,
-        only_available: true,
-      });
-      setAvailableCupofs(response.data || []);
-      if (response.data?.length === 0) {
-        showNotification(
-          "No se encontraron CUPOF vacantes con ese criterio.",
-          "info",
-        );
-      }
-    } catch (error) {
-      console.error("Error al buscar CUPOF:", error);
-      showNotification(
-        parseError(error, "Error al buscar posiciones disponibles."),
-        "error",
-      );
-    } finally {
-      setIsSearchingCupof(false);
-    }
-  };
-
-  const handleSaveAssignment = async () => {
-    if (!assignmentData.cupof_id) {
-      showNotification("Debes seleccionar un puesto (CUPOF).", "warning");
-      return;
-    }
-    try {
-      setIsSavingAssignment(true);
-      await cupofService.assign(assignmentData.cupof_id, {
-        persona_id: selectedPersona.id,
-        situacion_revista: assignmentData.situacion_revista,
-        fecha_inicio: assignmentData.fecha_inicio,
-        resolucion: assignmentData.resolucion,
-      });
-
-      showNotification("Asignación realizada con éxito.", "success");
-      setIsAssignModalOpen(false);
-      setIsDetailsModalOpen(false);
-      fetchPersonas(pagination.current_page);
-    } catch (error) {
-      console.error("Error al asignar CUPOF:", error);
-      showNotification(
-        parseError(error, "No se pudo completar la asignación."),
-        "error",
-      );
-    } finally {
-      setIsSavingAssignment(false);
-    }
-  };
-
-  const handleEditPersona = (persona) => {
+  const handleEditPersona = async (persona) => {
     setIsEditMode(true);
-    setIsEmailLocked(!!persona.usuario_id); // Bloquear email y DNI si tiene usuario vinculado
+    setIsEmailLocked(!!persona.usuario_id);
     setEditingPersonaId(persona.id);
+
+    // Traemos el detalle completo (que ya viene con todas las relaciones)
+    let full = persona;
+    try {
+      const res = await personaService.getById(persona.id);
+      full = res?.data ?? res ?? persona;
+    } catch (error) {
+      console.error("Error al cargar detalle para editar:", error);
+    }
+
     setPersonaFormData({
-      apellido: persona.apellido,
-      nombre: persona.nombre,
-      documento_tipo_id: persona.documento_tipo_id,
-      documento_numero: persona.documento_numero,
-      email: persona.contacto?.email || persona.usuario_email || "",
+      apellido: full.apellido ?? "",
+      nombre: full.nombre ?? "",
+      nombre_alternativo: full.nombre_alternativo ?? "",
+      sexo_id: full.sexo_id ?? "",
+      genero_id: full.genero_id ?? "",
+      nacionalidad_nacion_id: full.nacionalidad_nacion_id ?? "",
+      nacimiento_fecha: full.nacimiento_fecha ?? "",
+      documento_situacion_id: full.documento_situacion_id ?? "",
+      documento_tipo_id: full.documento_tipo_id ?? "",
+      documento_numero: full.documento_numero ?? "",
+      tramite: full.tramite ?? "",
+      CUIL_prefijo: full.CUIL_prefijo ?? "",
+      CUIL_sufijo: full.CUIL_sufijo ?? "",
+      posee_cpi_si: full.posee_cpi_si ?? false,
+      posee_docExt_si: full.posee_docExt_si ?? false,
+      nacion_id: full.nacion_id ?? "",
+      provincia_id: full.provincia_id ?? "",
+      departamento_id: full.departamento_id ?? "",
+      localidad_id: full.localidad_id ?? "",
+      email: full.contacto?.email || full.usuario_email || "",
     });
+
+    // Precargar cascada geográfica en edición
+    if (full.provincia_id) {
+      try {
+        const r = await geografiaService.getDepartamentos(full.provincia_id);
+        setDepartamentos(r?.data?.data || r?.data || r || []);
+      } catch (e) {
+        console.error("Error al precargar departamentos:", e);
+      }
+    }
+    if (full.departamento_id) {
+      try {
+        const r = await geografiaService.getLocalidades(full.departamento_id);
+        setLocalidades(r?.data?.data || r?.data || r || []);
+      } catch (e) {
+        console.error("Error al precargar localidades:", e);
+      }
+    }
+
+    setCurrentStep(1);
     setIsCreateModalOpen(true);
   };
+
+  const setFormValue = (field, value) => {
+    setPersonaFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormValue(name, value);
+  };
+
+  const handleProvinciaChange = async (e) => {
+    const value = e.target.value;
+    setFormValue("provincia_id", value);
+    setDepartamentos([]);
+    setLocalidades([]);
+    setFormValue("departamento_id", "");
+    setFormValue("localidad_id", "");
+    if (!value) return;
+    try {
+      const r = await geografiaService.getDepartamentos(value);
+      setDepartamentos(r?.data?.data || r?.data || r || []);
+    } catch (error) {
+      console.error("Error al cargar departamentos:", error);
+    }
+  };
+
+  const handleDepartamentoChange = async (e) => {
+    const value = e.target.value;
+    setFormValue("departamento_id", value);
+    setLocalidades([]);
+    setFormValue("localidad_id", "");
+    if (!value) return;
+    try {
+      const r = await geografiaService.getLocalidades(value);
+      setLocalidades(r?.data?.data || r?.data || r || []);
+    } catch (error) {
+      console.error("Error al cargar localidades:", error);
+    }
+  };
+
+  // Si la situación NO posee DNI → limpiamos los campos de documento/CUIL
+  const situacionNoPoseeDoc = docSituaciones.find(
+    (s) => String(s.id) === String(personaFormData.documento_situacion_id),
+  );
 
   const handleCreatePersona = () => {
     setIsEditMode(false);
@@ -440,12 +502,69 @@ export default function PersonaManagement() {
     setPersonaFormData({
       apellido: "",
       nombre: "",
+      nombre_alternativo: "",
+      sexo_id: "",
+      genero_id: "",
+      nacionalidad_nacion_id: "",
+      nacimiento_fecha: "",
+      documento_situacion_id: "",
       documento_tipo_id: "",
       documento_numero: "",
+      tramite: "",
+      CUIL_prefijo: "",
+      CUIL_sufijo: "",
+      posee_cpi_si: false,
+      posee_docExt_si: false,
+      nacion_id: "",
+      provincia_id: "",
+      departamento_id: "",
+      localidad_id: "",
       email: "",
     });
+    setDepartamentos([]);
+    setLocalidades([]);
+    setCurrentStep(1);
     setIsCreateModalOpen(true);
   };
+
+  const handleSituacionChange = (e) => {
+    const value = e.target.value;
+    setFormValue("documento_situacion_id", value);
+    const situacion = docSituaciones.find(
+      (s) => String(s.id) === String(value),
+    );
+    const noPosee = /no posee/i.test(situacion?.nombre || "");
+    if (noPosee) {
+      setFormValue("documento_tipo_id", "");
+      setFormValue("documento_numero", "");
+      setFormValue("tramite", "");
+      setFormValue("CUIL_prefijo", "");
+      setFormValue("CUIL_sufijo", "");
+    }
+  };
+
+  const validateStep = (step) => {
+    switch (step) {
+      case 1:
+        if (
+          !personaFormData.apellido.trim() ||
+          !personaFormData.nombre.trim()
+        ) {
+          showNotification("Debes completar Apellido y Nombre.", "error");
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
+  };
+
+  const handleNextStep = () => {
+    if (!validateStep(currentStep)) return;
+    setCurrentStep((s) => Math.min(s + 1, 4));
+  };
+
+  const handlePrevStep = () => setCurrentStep((s) => Math.max(s - 1, 1));
 
   const handleSubmitPersona = async (e) => {
     e.preventDefault();
@@ -674,7 +793,7 @@ export default function PersonaManagement() {
             )}
           </div>
         </div>
-{/* Panel Desplegable de Filtros Avanzados */}
+        {/* Panel Desplegable de Filtros Avanzados */}
         {isFilterPanelOpen && (
           <div className="pt-4 border-t border-secondary-200 animate-fadeIn">
             <div className="p-4 bg-white rounded-2xl border border-secondary-200 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -747,7 +866,7 @@ export default function PersonaManagement() {
             </div>
           </div>
         )}
-{/* Pills de Filtros Activos */}
+        {/* Pills de Filtros Activos */}
         {(filterDocTipoId ||
           filterSexoId ||
           filterGeneroId ||
@@ -1171,16 +1290,6 @@ export default function PersonaManagement() {
                 </div>
 
                 <div className="pt-4 flex flex-col sm:flex-row gap-3">
-                  {(isSuperUser || isConduccion) && (
-                    <button
-                      type="button"
-                      onClick={() => setIsAssignModalOpen(true)}
-                      className="flex-1 px-6 py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-[0.98] shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <Link className="w-5 h-5" />
-                      Asignar CUPOF
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={() => setIsDetailsModalOpen(false)}
@@ -1198,11 +1307,12 @@ export default function PersonaManagement() {
       {/* MODAL DE CREACIÓN / EDICIÓN */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col border border-secondary-100">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col border border-secondary-100">
+            {/* Header */}
             <div className="relative bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500 px-8 py-5">
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="absolute top-4 right-4 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+                className="absolute top-4 right-4 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                 aria-label="Cerrar"
               >
                 <X className="w-5 h-5" />
@@ -1211,11 +1321,11 @@ export default function PersonaManagement() {
                 <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white text-2xl font-black border-2 border-white/40 shadow-lg">
                   {personaFormData.apellido?.charAt(0)?.toUpperCase() || "?"}
                 </div>
-                <div className="min-w-0">
-                  <h2 className="text-xl font-black text-white truncate">
+                <div>
+                  <h2 className="text-xl font-black text-white">
                     {isEditMode ? "Modificar Registro" : "Registrar Persona"}
                   </h2>
-                  <p className="text-white/80 text-sm font-medium truncate">
+                  <p className="text-white/80 text-sm font-medium">
                     {isEditMode
                       ? `${personaFormData.apellido}, ${personaFormData.nombre}`
                       : "Alta en el Padrón"}
@@ -1224,279 +1334,606 @@ export default function PersonaManagement() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmitPersona} className="overflow-y-auto flex-1 p-6 space-y-6">
-              <section>
-                <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
-                  <User className="w-4 h-4" /> Datos de Identidad
-                </h3>
-                {isEditMode && isEmailLocked && (
-                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
-                    Esta persona tiene un usuario vinculado. Los campos DNI y
-                    Email están bloqueados para preservar la integridad del
-                    vínculo.
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                    Apellido
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                    value={personaFormData.apellido}
-                    onChange={(e) =>
-                      setPersonaFormData((prev) => ({
-                        ...prev,
-                        apellido: e.target.value.toUpperCase(),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                    Nombre
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                    value={personaFormData.nombre}
-                    onChange={(e) =>
-                      setPersonaFormData((prev) => ({
-                        ...prev,
-                        nombre: e.target.value.toUpperCase(),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                    Tipo Documento
-                  </label>
-                  <select
-                    required
-                    disabled={isEmailLocked}
-                    title={
-                      isEmailLocked
-                        ? "El tipo de documento está bloqueado porque la persona tiene un usuario vinculado."
-                        : ""
-                    }
-                    className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold ${
-                      isEmailLocked
-                        ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                    }`}
-                    value={personaFormData.documento_tipo_id}
-                    onChange={(e) =>
-                      setPersonaFormData((prev) => ({
-                        ...prev,
-                        documento_tipo_id: e.target.value,
-                      }))
-                    }
+            {/* Stepper */}
+            <div className="px-8 py-4 border-b border-secondary-100 bg-secondary-50/50">
+              <div className="flex items-center">
+                {[
+                  { n: 1, label: "Identidad", Icon: User },
+                  { n: 2, label: "Documento", Icon: IdCard },
+                  { n: 3, label: "Nacimiento", Icon: MapPin },
+                  { n: 4, label: "Contacto y Resumen", Icon: CheckCircle2 },
+                ].map(({ n, label, Icon }, idx) => (
+                  <div
+                    key={n}
+                    className="flex items-center flex-1 last:flex-none"
                   >
-                    <option value="">Seleccionar...</option>
-                    {docTipos.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                    Número Documento
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={isEmailLocked}
-                    title={
-                      isEmailLocked
-                        ? "El número de documento está bloqueado porque la persona tiene un usuario vinculado."
-                        : ""
-                    }
-                    className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold ${
-                      isEmailLocked
-                        ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                    }`}
-                    value={personaFormData.documento_numero}
-                    onChange={(e) =>
-                      setPersonaFormData((prev) => ({
-                        ...prev,
-                        documento_numero: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                    Email (Opcional)
-                  </label>
-                  <input
-                    type="email"
-                    disabled={isEmailLocked}
-                    title={
-                      isEmailLocked
-                        ? "El email está bloqueado porque la persona tiene un usuario vinculado."
-                        : ""
-                    }
-                    className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold lowercase ${
-                      isEmailLocked
-                        ? "bg-secondary-100 text-secondary-400 cursor-not-allowed"
-                        : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                    }`}
-                    value={personaFormData.email}
-                    onChange={(e) =>
-                      setPersonaFormData((prev) => ({
-                        ...prev,
-                        email: e.target.value.toLowerCase(),
-                      }))
-                    }
-                  />
-                </div>
-                </div>
-              </section>
+                    <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                      <div
+                        className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${
+                          currentStep === n
+                            ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
+                            : currentStep > n
+                              ? "bg-green-500 border-green-500 text-white"
+                              : "bg-white border-secondary-300 text-secondary-400"
+                        }`}
+                      >
+                        {currentStep > n ? (
+                          <CheckCircle2 className="w-5 h-5" />
+                        ) : (
+                          <Icon className="w-5 h-5" />
+                        )}
+                      </div>
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-wider ${
+                          currentStep === n
+                            ? "text-primary-700"
+                            : "text-secondary-400"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                    {idx < 3 && (
+                      <div
+                        className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
+                          currentStep > n ? "bg-green-500" : "bg-secondary-200"
+                        }`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <form
+              onSubmit={handleSubmitPersona}
+              className="overflow-y-auto flex-1 p-6 space-y-6"
+            >
+              {/* STEP 1: IDENTIDAD */}
+              {currentStep === 1 && (
+                <section>
+                  <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
+                    <User className="w-4 h-4" /> Datos de Identidad
+                  </h3>
+                  {isEditMode && isEmailLocked && (
+                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
+                      Esta persona tiene un usuario vinculado. Los campos DNI y
+                      Email están bloqueados para preservar la integridad del
+                      vínculo.
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Apellido *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                        value={personaFormData.apellido}
+                        onChange={(e) =>
+                          setFormValue("apellido", e.target.value.toUpperCase())
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Nombre *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                        value={personaFormData.nombre}
+                        onChange={(e) =>
+                          setFormValue("nombre", e.target.value.toUpperCase())
+                        }
+                      />
+                    </div>
+                    <div className="md:col-span-2 space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Nombre Alternativo / Social
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                        value={personaFormData.nombre_alternativo}
+                        onChange={(e) =>
+                          setFormValue(
+                            "nombre_alternativo",
+                            e.target.value.toUpperCase(),
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Sexo
+                      </label>
+                      <select
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={personaFormData.sexo_id}
+                        onChange={handleInputChange}
+                        name="sexo_id"
+                      >
+                        <option value="">Seleccionar...</option>
+                        {sexos.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Género
+                      </label>
+                      <select
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={personaFormData.genero_id}
+                        onChange={handleInputChange}
+                        name="genero_id"
+                      >
+                        <option value="">Seleccionar...</option>
+                        {generos.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Nacionalidad
+                      </label>
+                      <select
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={personaFormData.nacionalidad_nacion_id}
+                        onChange={handleInputChange}
+                        name="nacionalidad_nacion_id"
+                      >
+                        <option value="">Seleccionar...</option>
+                        {nacions.map((n) => (
+                          <option key={n.id} value={n.id}>
+                            {n.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Fecha de Nacimiento
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={personaFormData.nacimiento_fecha}
+                        onChange={handleInputChange}
+                        name="nacimiento_fecha"
+                      />
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* STEP 2: DOCUMENTACIÓN Y CUIL */}
+              {currentStep === 2 && (
+                <section>
+                  <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
+                    <IdCard className="w-4 h-4" /> Documentación y CUIL
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2 space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Situación del Documento
+                      </label>
+                      <select
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={personaFormData.documento_situacion_id}
+                        onChange={handleSituacionChange}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {docSituaciones.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {situacionNoPoseeDoc?.nombre &&
+                    /no posee/i.test(situacionNoPoseeDoc.nombre) ? (
+                      <>
+                        <div className="md:col-span-2 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                          <p className="text-xs font-bold text-amber-700 mb-3">
+                            No posee DNI argentino. Indicá la documentación
+                            alternativa:
+                          </p>
+                          <div className="flex flex-col sm:flex-row gap-6">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="w-5 h-5 accent-primary-600"
+                                checked={!!personaFormData.posee_cpi_si}
+                                onChange={(e) =>
+                                  setFormValue("posee_cpi_si", e.target.checked)
+                                }
+                              />
+                              <span className="text-sm font-bold text-secondary-700">
+                                ¿Posee CPI?
+                              </span>
+                            </label>
+                            <label className="flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="w-5 h-5 accent-primary-600"
+                                checked={!!personaFormData.posee_docExt_si}
+                                onChange={(e) =>
+                                  setFormValue(
+                                    "posee_docExt_si",
+                                    e.target.checked,
+                                  )
+                                }
+                              />
+                              <span className="text-sm font-bold text-secondary-700">
+                                ¿Posee Documento Extranjero?
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                            Tipo Documento
+                          </label>
+                          <select
+                            disabled={isEmailLocked}
+                            className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold ${
+                              isEmailLocked
+                                ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                                : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                            }`}
+                            value={personaFormData.documento_tipo_id}
+                            onChange={handleInputChange}
+                            name="documento_tipo_id"
+                          >
+                            <option value="">Seleccionar...</option>
+                            {docTipos.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.nombre}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                            Número Documento
+                          </label>
+                          <input
+                            type="text"
+                            disabled={isEmailLocked}
+                            className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold ${
+                              isEmailLocked
+                                ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                                : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                            }`}
+                            value={personaFormData.documento_numero}
+                            onChange={handleInputChange}
+                            name="documento_numero"
+                          />
+                        </div>
+                        <div className="md:col-span-2 space-y-1">
+                          <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                            Nº de Trámite del DNI
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                            value={personaFormData.tramite}
+                            onChange={handleInputChange}
+                            name="tramite"
+                          />
+                        </div>
+                        <div className="md:col-span-2 p-4 bg-secondary-50 border border-secondary-200 rounded-xl">
+                          <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 block">
+                            CUIL
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              maxLength={2}
+                              placeholder="20"
+                              className="w-16 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
+                              value={personaFormData.CUIL_prefijo}
+                              onChange={(e) =>
+                                setFormValue(
+                                  "CUIL_prefijo",
+                                  e.target.value.replace(/\D/g, ""),
+                                )
+                              }
+                            />
+                            <span className="text-secondary-400 font-black">
+                              -
+                            </span>
+                            <input
+                              type="text"
+                              disabled={isEmailLocked}
+                              placeholder="DNI"
+                              className="flex-1 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
+                              value={personaFormData.documento_numero}
+                              onChange={handleInputChange}
+                              name="documento_numero"
+                            />
+                            <span className="text-secondary-400 font-black">
+                              -
+                            </span>
+                            <input
+                              type="text"
+                              maxLength={1}
+                              placeholder="8"
+                              className="w-14 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
+                              value={personaFormData.CUIL_sufijo}
+                              onChange={(e) =>
+                                setFormValue(
+                                  "CUIL_sufijo",
+                                  e.target.value.replace(/\D/g, ""),
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* STEP 3: LUGAR DE NACIMIENTO */}
+              {currentStep === 3 && (
+                <section>
+                  <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
+                    <MapPin className="w-4 h-4" /> Lugar de Nacimiento
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        País
+                      </label>
+                      <select
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={personaFormData.nacion_id}
+                        onChange={handleInputChange}
+                        name="nacion_id"
+                      >
+                        <option value="">Seleccionar...</option>
+                        {nacions.map((n) => (
+                          <option key={n.id} value={n.id}>
+                            {n.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Provincia
+                      </label>
+                      <select
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={personaFormData.provincia_id}
+                        onChange={handleProvinciaChange}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {provincias.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Departamento
+                      </label>
+                      <select
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
+                        value={personaFormData.departamento_id}
+                        onChange={handleDepartamentoChange}
+                        disabled={!personaFormData.provincia_id}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {departamentos.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Localidad
+                      </label>
+                      <select
+                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
+                        value={personaFormData.localidad_id}
+                        onChange={handleInputChange}
+                        name="localidad_id"
+                        disabled={!personaFormData.departamento_id}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {localidades.map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* STEP 4: CONTACTO Y RESUMEN */}
+              {currentStep === 4 && (
+                <section className="space-y-6">
+                  <div>
+                    <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" /> Contacto y Resumen
+                    </h3>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                        Email de Contacto
+                      </label>
+                      <input
+                        type="email"
+                        disabled={isEmailLocked}
+                        className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold lowercase ${
+                          isEmailLocked
+                            ? "bg-secondary-100 text-secondary-400 cursor-not-allowed"
+                            : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                        }`}
+                        value={personaFormData.email}
+                        onChange={(e) =>
+                          setFormValue("email", e.target.value.toLowerCase())
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Resumen */}
+                  <div className="bg-secondary-50 border border-secondary-200 rounded-2xl p-5 space-y-4">
+                    <h4 className="text-xs font-black text-secondary-500 uppercase tracking-widest flex items-center gap-2">
+                      <Eye className="w-4 h-4" /> Ficha de Resumen
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                          Nombre
+                        </p>
+                        <p className="font-black text-secondary-900 uppercase">
+                          {personaFormData.apellido} {personaFormData.nombre}
+                        </p>
+                      </div>
+                      {personaFormData.nombre_alternativo && (
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                            Nombre Social
+                          </p>
+                          <p className="font-bold text-secondary-900 uppercase">
+                            {personaFormData.nombre_alternativo}
+                          </p>
+                        </div>
+                      )}
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                          Documento
+                        </p>
+                        <p className="font-bold text-secondary-900 uppercase">
+                          {personaFormData.documento_numero
+                            ? `${personaFormData.documento_numero}`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                          Sexo / Género
+                        </p>
+                        <p className="font-bold text-secondary-900 uppercase">
+                          {sexos.find(
+                            (s) =>
+                              String(s.id) === String(personaFormData.sexo_id),
+                          )?.nombre || "—"}{" "}
+                          /{" "}
+                          {generos.find(
+                            (g) =>
+                              String(g.id) ===
+                              String(personaFormData.genero_id),
+                          )?.nombre || "—"}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                          Fecha de Nacimiento
+                        </p>
+                        <p className="font-bold text-secondary-900">
+                          {personaFormData.nacimiento_fecha || "—"}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                          Lugar de Nacimiento
+                        </p>
+                        <p className="font-bold text-secondary-900 uppercase">
+                          {nacions.find(
+                            (n) =>
+                              String(n.id) ===
+                              String(personaFormData.nacion_id),
+                          )?.nombre || "—"}
+                          {personaFormData.localidad_id && " · "}
+                          {localidades.find(
+                            (l) =>
+                              String(l.id) ===
+                              String(personaFormData.localidad_id),
+                          )?.nombre || ""}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                          Email
+                        </p>
+                        <p className="font-bold text-secondary-900 lowercase">
+                          {personaFormData.email || "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Footer del Stepper */}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="flex-1 px-6 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200 transition-all active:scale-[0.98]"
+                  className="px-5 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200 transition-all active:scale-[0.98]"
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSavingPersona}
-                  className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50"
-                >
-                  {isSavingPersona
-                    ? "Guardando..."
-                    : isEditMode
-                      ? "Guardar Cambios"
-                      : "Registrar Persona"}
-                </button>
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={handlePrevStep}
+                    className="flex items-center gap-2 px-5 py-3 bg-white border border-secondary-300 text-secondary-700 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-100 transition-all active:scale-[0.98]"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Anterior
+                  </button>
+                )}
+                <div className="flex-1" />
+                {currentStep < 4 ? (
+                  <button
+                    type="button"
+                    onClick={handleNextStep}
+                    className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-[0.98] shadow-lg"
+                  >
+                    Siguiente <ChevronRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={isSavingPersona}
+                    className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    {isSavingPersona
+                      ? "Guardando..."
+                      : isEditMode
+                        ? "Guardar Cambios"
+                        : "Guardar Registro"}
+                  </button>
+                )}
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL ASIGNACIÓN CUPOF */}
-      {isAssignModalOpen && selectedPersona && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-secondary-900/70 backdrop-blur-md animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-primary-100">
-            <div className="p-6 border-b border-secondary-100 bg-primary-50 flex items-center justify-between">
-              <h2 className="text-xl font-black text-primary-900 uppercase">
-                Vincular a Cargo (CUPOF)
-              </h2>
-              <button
-                onClick={() => setIsAssignModalOpen(false)}
-                className="text-primary-400 hover:text-primary-600"
-              >
-                <X />
-              </button>
-            </div>
-            <div className="p-8 space-y-6">
-              <form onSubmit={handleSearchCupof} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Buscar CUPOF por código o escuela..."
-                  className="flex-1 px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
-                  value={cupofSearchTerm}
-                  onChange={(e) => setCupofSearchTerm(e.target.value)}
-                />
-                <button
-                  type="submit"
-                  disabled={isSearchingCupof}
-                  className="px-6 py-3 bg-secondary-900 text-white rounded-xl font-bold uppercase text-xs tracking-widest disabled:opacity-50"
-                >
-                  {isSearchingCupof ? "..." : "Buscar"}
-                </button>
-              </form>
-              {availableCupofs.length > 0 && (
-                <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                  {availableCupofs.map((cupof) => (
-                    <button
-                      key={cupof.id}
-                      onClick={() =>
-                        setAssignmentData((prev) => ({
-                          ...prev,
-                          cupof_id: cupof.id,
-                        }))
-                      }
-                      className={`w-full p-4 rounded-xl border-2 text-left transition-all ${assignmentData.cupof_id === cupof.id ? "border-primary-500 bg-primary-50 ring-2" : "border-secondary-100 hover:border-primary-200"}`}
-                    >
-                      <p className="text-xs font-black text-secondary-900 uppercase">
-                        {cupof.codigo_cupof} - {cupof.tipo_puesto}
-                      </p>
-                      <p className="text-[10px] text-secondary-500 font-bold uppercase">
-                        {cupof.escuela?.nombre}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {assignmentData.cupof_id && (
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-secondary-100 animate-fadeIn">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                      Revista
-                    </label>
-                    <select
-                      className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
-                      value={assignmentData.situacion_revista}
-                      onChange={(e) =>
-                        setAssignmentData((prev) => ({
-                          ...prev,
-                          situacion_revista: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="titular">Titular</option>
-                      <option value="provisional">Provisional</option>
-                      <option value="suplente">Suplente</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                      Inicio
-                    </label>
-                    <input
-                      type="date"
-                      className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-xl text-sm font-bold"
-                      value={assignmentData.fecha_inicio}
-                      onChange={(e) =>
-                        setAssignmentData((prev) => ({
-                          ...prev,
-                          fecha_inicio: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsAssignModalOpen(false)}
-                  className="flex-1 py-4 bg-secondary-100 text-secondary-600 rounded-2xl font-black uppercase tracking-widest"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSaveAssignment}
-                  disabled={isSavingAssignment || !assignmentData.cupof_id}
-                  className="flex-[2] py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl disabled:opacity-50"
-                >
-                  {isSavingAssignment
-                    ? "Confirmando..."
-                    : "Confirmar Asignación"}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}

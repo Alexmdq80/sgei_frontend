@@ -22,9 +22,22 @@ const createImage = (url) =>
   });
 
 async function getCroppedImg(imageSrc, pixelCrop) {
+  if (!imageSrc) {
+    throw new Error("No hay imagen para recortar.");
+  }
+
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("No se pudo obtener el contexto de dibujo 2D.");
+  }
+
+  // Si el cropper aún no entregó coordenadas, usamos el recorte completo.
+  const crop =
+    pixelCrop && typeof pixelCrop.x === "number"
+      ? pixelCrop
+      : { x: 0, y: 0, width: 100, height: 100 };
 
   const TARGET_SIZE = 512;
   canvas.width = TARGET_SIZE;
@@ -32,10 +45,10 @@ async function getCroppedImg(imageSrc, pixelCrop) {
 
   ctx.drawImage(
     image,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
     0,
     0,
     TARGET_SIZE,
@@ -194,7 +207,11 @@ const Profile = () => {
   // Confirmar recorte del modal
   const handleConfirmCrop = async () => {
     try {
-      const croppedFile = await getCroppedImg(cropImageSrc, croppedAreaPixels);
+      const crop =
+        croppedAreaPixels && typeof croppedAreaPixels.x === "number"
+          ? croppedAreaPixels
+          : { x: 0, y: 0, width: 100, height: 100 };
+      const croppedFile = await getCroppedImg(cropImageSrc, crop);
       setAvatar(croppedFile);
       setPreview(URL.createObjectURL(croppedFile));
       setShowCropModal(false);
