@@ -25,7 +25,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-} from "lucide-react";
+} from "lucide-react";  
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
 import personaService from "../../services/personaService";
@@ -1655,7 +1655,7 @@ export default function PersonaManagement() {
                   <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
                     <User className="w-4 h-4" /> Datos de Identidad
                   </h3>
-                  {!esFallecida && (
+{!esFallecida && (
                   <div className="mb-6 flex flex-col sm:flex-row items-center gap-6">
                     <div className="relative">
                       <input
@@ -1708,7 +1708,7 @@ export default function PersonaManagement() {
                       )}
                     </div>
                   </div>
-                  )}
+)}
                   {isEditMode && isEmailLocked && (
                     <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
                       Esta persona tiene un usuario vinculado. Los campos DNI y
@@ -1761,7 +1761,7 @@ export default function PersonaManagement() {
                         }
                       />
                     </div>
-                    {!esFallecida && (
+                 {!esFallecida && (
                     <>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
@@ -1800,7 +1800,7 @@ export default function PersonaManagement() {
                       </select>
                     </div>
                     </>
-                    )}
+                  )}
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                         Nacionalidad
@@ -1819,7 +1819,7 @@ export default function PersonaManagement() {
                         ))}
                       </select>
                     </div>
-                    {!esFallecida && (
+{!esFallecida && (
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                         Fecha de Nacimiento
@@ -1832,7 +1832,7 @@ export default function PersonaManagement() {
                         name="nacimiento_fecha"
                       />
                     </div>
-                    )}
+)}
                   </div>
                 </section>
               )}
@@ -1844,7 +1844,7 @@ export default function PersonaManagement() {
                     <IdCard className="w-4 h-4" /> Documentación y CUIL
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {!esFallecida && (
+{!esFallecida && (
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                         Situación del Documento
@@ -1862,7 +1862,7 @@ export default function PersonaManagement() {
                         ))}
                       </select>
                     </div>
-                    )}
+)}
 
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
@@ -1913,7 +1913,7 @@ export default function PersonaManagement() {
                             name="documento_numero"
                           />
                         </div>
-                        {!esFallecida && (
+{!esFallecida && (
                         <div className="space-y-1">
                           <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                             Nº de Trámite
@@ -1926,7 +1926,7 @@ export default function PersonaManagement() {
                             name="tramite"
                           />
                         </div>
-                        )}
+)}
                         {!esFallecida && (
                         <div className="md:col-span-2 p-4 bg-secondary-50 border border-secondary-200 rounded-xl">
                           <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 block">
@@ -1976,7 +1976,7 @@ export default function PersonaManagement() {
                             />
                           </div>
                         </div>
-                        )}
+)}
                       </>
                     )}
                   </div>
