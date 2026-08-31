@@ -183,6 +183,7 @@ export default function PersonaManagement() {
     departamento_id: "",
     localidad_id: "",
     email: "",
+    vive_si: 1,
   });
 
   // Stepper
@@ -496,6 +497,7 @@ export default function PersonaManagement() {
       departamento_id: full.departamento_id ?? "",
       localidad_id: full.localidad_id ?? "",
       email: full.contacto?.email || full.usuario_email || "",
+      vive_si: full.vive_si ?? 1,     
     });
 
     // Precargar cascada geográfica en edición
@@ -524,6 +526,24 @@ export default function PersonaManagement() {
 
   const setFormValue = (field, value) => {
     setPersonaFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Interruptor de estado de vida
+  const esFallecida = Number(personaFormData.vive_si) === 0;
+
+  const todasLasEtapas = [
+    { n: 1, label: "Identidad", Icon: User },
+    { n: 2, label: "Documento", Icon: IdCard },
+    { n: 3, label: "Nacimiento", Icon: MapPin },
+    { n: 4, label: "Contacto y Resumen", Icon: CheckCircle2 },
+  ];
+  const etapasVisibles = esFallecida
+    ? todasLasEtapas.filter((s) => s.n <= 2)
+    : todasLasEtapas;
+
+  const handleViveChange = (checked) => {
+    setFormValue("vive_si", checked ? 1 : 0);
+    if (!checked && currentStep > 2) setCurrentStep(1);
   };
 
   const handleInputChange = (e) => {
@@ -700,6 +720,7 @@ export default function PersonaManagement() {
       departamento_id: "",
       localidad_id: "",
       email: "",
+      vive_si: 1,
     });
     setDepartamentos([]);
     setLocalidades([]);
@@ -754,7 +775,8 @@ export default function PersonaManagement() {
 
   const handleNextStep = () => {
     if (!validateStep(currentStep)) return;
-    setCurrentStep((s) => Math.min(s + 1, 4));
+    const max = esFallecida ? 2 : 4;
+    setCurrentStep((s) => Math.min(s + 1, max));
   };
 
   const handlePrevStep = () => setCurrentStep((s) => Math.max(s - 1, 1));
@@ -1552,16 +1574,35 @@ export default function PersonaManagement() {
                 </div>
               </div>
             </div>
-
+            {/* Estado de Vida */}
+            <div className="px-8 py-3 border-b border-secondary-100 bg-white flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-black text-secondary-700 uppercase">Estado de Vida</p>
+                <p className="text-[10px] text-secondary-500 font-medium">
+                  {esFallecida
+                    ? "Persona fallecida: solo se registran datos de identidad."
+                    : "Persona con vida: se registran todos los datos."}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-black uppercase ${esFallecida ? "text-red-600" : "text-green-600"}`}>
+                  {esFallecida ? "Fallecido/a" : "Con vida"}
+                </span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={!esFallecida}
+                    onChange={(e) => handleViveChange(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-secondary-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                </label>
+              </div>
+            </div>
             {/* Stepper */}
             <div className="px-8 py-4 border-b border-secondary-100 bg-secondary-50/50">
               <div className="flex items-center">
-                {[
-                  { n: 1, label: "Identidad", Icon: User },
-                  { n: 2, label: "Documento", Icon: IdCard },
-                  { n: 3, label: "Nacimiento", Icon: MapPin },
-                  { n: 4, label: "Contacto y Resumen", Icon: CheckCircle2 },
-                ].map(({ n, label, Icon }, idx) => (
+                {etapasVisibles.map(({ n, label, Icon }, idx) => (
                   <div
                     key={n}
                     className="flex items-center flex-1 last:flex-none"
@@ -1592,9 +1633,9 @@ export default function PersonaManagement() {
                         {label}
                       </span>
                     </div>
-                    {idx < 3 && (
+                     {idx < etapasVisibles.length - 1 && (   
                       <div
-                        className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
+                          className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
                           currentStep > n ? "bg-green-500" : "bg-secondary-200"
                         }`}
                       />
@@ -1614,6 +1655,7 @@ export default function PersonaManagement() {
                   <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
                     <User className="w-4 h-4" /> Datos de Identidad
                   </h3>
+                  {!esFallecida && (
                   <div className="mb-6 flex flex-col sm:flex-row items-center gap-6">
                     <div className="relative">
                       <input
@@ -1666,6 +1708,7 @@ export default function PersonaManagement() {
                       )}
                     </div>
                   </div>
+                  )}
                   {isEditMode && isEmailLocked && (
                     <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
                       Esta persona tiene un usuario vinculado. Los campos DNI y
@@ -1718,6 +1761,8 @@ export default function PersonaManagement() {
                         }
                       />
                     </div>
+                    {!esFallecida && (
+                    <>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                         Sexo
@@ -1754,6 +1799,8 @@ export default function PersonaManagement() {
                         ))}
                       </select>
                     </div>
+                    </>
+                    )}
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                         Nacionalidad
@@ -1772,6 +1819,7 @@ export default function PersonaManagement() {
                         ))}
                       </select>
                     </div>
+                    {!esFallecida && (
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                         Fecha de Nacimiento
@@ -1784,6 +1832,7 @@ export default function PersonaManagement() {
                         name="nacimiento_fecha"
                       />
                     </div>
+                    )}
                   </div>
                 </section>
               )}
@@ -1795,6 +1844,7 @@ export default function PersonaManagement() {
                     <IdCard className="w-4 h-4" /> Documentación y CUIL
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {!esFallecida && (
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                         Situación del Documento
@@ -1812,6 +1862,7 @@ export default function PersonaManagement() {
                         ))}
                       </select>
                     </div>
+                    )}
 
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
@@ -1862,6 +1913,7 @@ export default function PersonaManagement() {
                             name="documento_numero"
                           />
                         </div>
+                        {!esFallecida && (
                         <div className="space-y-1">
                           <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                             Nº de Trámite
@@ -1874,6 +1926,8 @@ export default function PersonaManagement() {
                             name="tramite"
                           />
                         </div>
+                        )}
+                        {!esFallecida && (
                         <div className="md:col-span-2 p-4 bg-secondary-50 border border-secondary-200 rounded-xl">
                           <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 block">
                             CUIL
@@ -1922,6 +1976,7 @@ export default function PersonaManagement() {
                             />
                           </div>
                         </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -1929,7 +1984,7 @@ export default function PersonaManagement() {
               )}
 
               {/* STEP 3: LUGAR DE NACIMIENTO */}
-              {currentStep === 3 && (
+              {!esFallecida && currentStep === 3 && (
                 <section>
                   <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
                     <MapPin className="w-4 h-4" /> Lugar de Nacimiento
@@ -2012,7 +2067,7 @@ export default function PersonaManagement() {
               )}
 
               {/* STEP 4: CONTACTO Y RESUMEN */}
-              {currentStep === 4 && (
+              {!esFallecida && currentStep === 4 && (
                 <section className="space-y-6">
                   <div>
                     <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
@@ -2147,7 +2202,7 @@ export default function PersonaManagement() {
                   </button>
                 )}
                 <div className="flex-1" />
-                {currentStep < 4 ? (
+                {currentStep < etapasVisibles.length ? (
                   <button
                     type="button"
                     onClick={handleNextStep}
