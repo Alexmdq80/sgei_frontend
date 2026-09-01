@@ -783,6 +783,13 @@ export default function PersonaManagement() {
 
   const handleSubmitPersona = async (e) => {
     e.preventDefault();
+
+    // Si no está en el último paso, solo avanza (evita guardar por "Enter" o clic prematuro)
+    if (currentStep < etapasVisibles.length) {
+      handleNextStep();
+      return;
+    }
+
     try {
       setIsSavingPersona(true);
       let savedId = editingPersonaId;
@@ -809,7 +816,6 @@ export default function PersonaManagement() {
       fetchPersonas(isEditMode ? pagination.current_page : 1);
     } catch (error) {
       if (error.isConfirmationRequired) {
-        // Guardar el contexto y el payload para reenviar con confirmación
         setConfirmationPending({
           payload: { ...personaFormData },
           context: error.confirmationContext,
@@ -1647,6 +1653,14 @@ export default function PersonaManagement() {
 
             <form
               onSubmit={handleSubmitPersona}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
+                  if (currentStep < etapasVisibles.length) {
+                    e.preventDefault();
+                    handleNextStep();
+                  }
+                }
+              }}
               className="overflow-y-auto flex-1 p-6 space-y-6"
             >
               {/* STEP 1: IDENTIDAD */}
@@ -2204,6 +2218,7 @@ export default function PersonaManagement() {
                 <div className="flex-1" />
                 {currentStep < etapasVisibles.length ? (
                   <button
+                    key="btn-next"
                     type="button"
                     onClick={handleNextStep}
                     className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-[0.98] shadow-lg"
@@ -2212,6 +2227,7 @@ export default function PersonaManagement() {
                   </button>
                 ) : (
                   <button
+                    key="btn-submit"
                     type="submit"
                     disabled={isSavingPersona}
                     className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50"
