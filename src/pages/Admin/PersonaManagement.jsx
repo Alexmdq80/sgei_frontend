@@ -25,7 +25,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-} from "lucide-react";  
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
 import personaService from "../../services/personaService";
@@ -497,7 +497,7 @@ export default function PersonaManagement() {
       departamento_id: full.departamento_id ?? "",
       localidad_id: full.localidad_id ?? "",
       email: full.contacto?.email || full.usuario_email || "",
-      vive_si: full.vive_si ?? 1,     
+      vive_si: full.vive_si ?? 1,
     });
 
     // Precargar cascada geográfica en edición
@@ -581,11 +581,21 @@ export default function PersonaManagement() {
     }
   };
 
-  // Si la situación NO posee DNI → limpiamos los campos de documento/CUIL
-  const situacionNoPoseeDoc = docSituaciones.find(
+  // Lógica reactiva entre Situación del Documento y Tipo de Documento
+  const situacionActual = docSituaciones.find(
     (s) => String(s.id) === String(personaFormData.documento_situacion_id),
   );
+  const noPoseeSituacion = /no posee/i.test(situacionActual?.nombre || "");
+  const poseeDni =
+    !!personaFormData.documento_situacion_id && !noPoseeSituacion;
   const esIndocumentado = String(personaFormData.documento_tipo_id) === "7";
+  const tipoOptions = noPoseeSituacion
+    ? docTipos.filter(
+        (t) =>
+          String(t.id) !== "1" ||
+          String(personaFormData.documento_tipo_id) === "1",
+      )
+    : docTipos;
   const tipoDoc = docTipos.find(
     (t) => String(t.id) === String(personaFormData.documento_tipo_id),
   );
@@ -737,12 +747,17 @@ export default function PersonaManagement() {
       (s) => String(s.id) === String(value),
     );
     const noPosee = /no posee/i.test(situacion?.nombre || "");
+
     if (noPosee) {
+      // "No posee DNI": habilitar elección de tipo excluyendo DNI
       setFormValue("documento_tipo_id", "");
       setFormValue("documento_numero", "");
       setFormValue("tramite", "");
       setFormValue("CUIL_prefijo", "");
       setFormValue("CUIL_sufijo", "");
+    } else if (situacion) {
+      // Situación afirmativa (posee DNI): fijar DNI (ID 1) automáticamente
+      setFormValue("documento_tipo_id", "1");
     }
   };
 
@@ -768,6 +783,19 @@ export default function PersonaManagement() {
           return false;
         }
         return true;
+      case 2: {
+        const tipo = String(personaFormData.documento_tipo_id ?? "");
+        const numero = String(personaFormData.documento_numero ?? "").trim();
+        if (!tipo) {
+          showNotification("Debes seleccionar el Tipo de Documento.", "error");
+          return false;
+        }
+        if (tipo !== "7" && !numero) {
+          showNotification("Debes cargar el Número de Documento.", "error");
+          return false;
+        }
+        return true;
+      }
       default:
         return true;
     }
@@ -789,6 +817,9 @@ export default function PersonaManagement() {
       handleNextStep();
       return;
     }
+
+    // Validar el último paso antes de guardar (p.ej. caso fallecida: paso 2 es el final)
+    if (!validateStep(currentStep)) return;
 
     try {
       setIsSavingPersona(true);
@@ -1583,7 +1614,9 @@ export default function PersonaManagement() {
             {/* Estado de Vida */}
             <div className="px-8 py-3 border-b border-secondary-100 bg-white flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-black text-secondary-700 uppercase">Estado de Vida</p>
+                <p className="text-xs font-black text-secondary-700 uppercase">
+                  Estado de Vida
+                </p>
                 <p className="text-[10px] text-secondary-500 font-medium">
                   {esFallecida
                     ? "Persona fallecida: solo se registran datos de identidad."
@@ -1591,7 +1624,9 @@ export default function PersonaManagement() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`text-sm font-black uppercase ${esFallecida ? "text-red-600" : "text-green-600"}`}>
+                <span
+                  className={`text-sm font-black uppercase ${esFallecida ? "text-red-600" : "text-green-600"}`}
+                >
                   {esFallecida ? "Fallecido/a" : "Con vida"}
                 </span>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -1639,9 +1674,9 @@ export default function PersonaManagement() {
                         {label}
                       </span>
                     </div>
-                     {idx < etapasVisibles.length - 1 && (   
+                    {idx < etapasVisibles.length - 1 && (
                       <div
-                          className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
+                        className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
                           currentStep > n ? "bg-green-500" : "bg-secondary-200"
                         }`}
                       />
@@ -1669,60 +1704,60 @@ export default function PersonaManagement() {
                   <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
                     <User className="w-4 h-4" /> Datos de Identidad
                   </h3>
-{!esFallecida && (
-                  <div className="mb-6 flex flex-col sm:flex-row items-center gap-6">
-                    <div className="relative">
-                      <input
-                        type="file"
-                        ref={fotoInputRef}
-                        onChange={handleFotoUpload}
-                        accept="image/*"
-                        className="hidden"
-                      />
-                      <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-primary-100 shadow-lg bg-secondary-100 flex items-center justify-center">
-                        {fotoPreview ? (
-                          <img
-                            src={fotoPreview}
-                            crossOrigin="use-credentials"
-                            alt="Foto de perfil"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-primary-600 font-black text-4xl">
-                            {(
-                              personaFormData.apellido?.charAt(0) || "?"
-                            ).toUpperCase()}
-                          </div>
+                  {!esFallecida && (
+                    <div className="mb-6 flex flex-col sm:flex-row items-center gap-6">
+                      <div className="relative">
+                        <input
+                          type="file"
+                          ref={fotoInputRef}
+                          onChange={handleFotoUpload}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-primary-100 shadow-lg bg-secondary-100 flex items-center justify-center">
+                          {fotoPreview ? (
+                            <img
+                              src={fotoPreview}
+                              crossOrigin="use-credentials"
+                              alt="Foto de perfil"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-primary-600 font-black text-4xl">
+                              {(
+                                personaFormData.apellido?.charAt(0) || "?"
+                              ).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fotoInputRef.current?.click()}
+                          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95"
+                        >
+                          <UserPlus className="w-4 h-4" /> Subir Archivo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleTakePhoto}
+                          className="flex items-center gap-2 px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95"
+                        >
+                          <Camera className="w-4 h-4" /> Tomar Foto
+                        </button>
+                        {fotoPreview && (
+                          <button
+                            type="button"
+                            onClick={handleDeleteFoto}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95"
+                          >
+                            <Trash2 className="w-4 h-4" /> Eliminar
+                          </button>
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => fotoInputRef.current?.click()}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95"
-                      >
-                        <UserPlus className="w-4 h-4" /> Subir Archivo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleTakePhoto}
-                        className="flex items-center gap-2 px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95"
-                      >
-                        <Camera className="w-4 h-4" /> Tomar Foto
-                      </button>
-                      {fotoPreview && (
-                        <button
-                          type="button"
-                          onClick={handleDeleteFoto}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95"
-                        >
-                          <Trash2 className="w-4 h-4" /> Eliminar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-)}
+                  )}
                   {isEditMode && isEmailLocked && (
                     <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
                       Esta persona tiene un usuario vinculado. Los campos DNI y
@@ -1775,46 +1810,46 @@ export default function PersonaManagement() {
                         }
                       />
                     </div>
-                 {!esFallecida && (
-                    <>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                        Sexo
-                      </label>
-                      <select
-                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                        value={personaFormData.sexo_id}
-                        onChange={handleInputChange}
-                        name="sexo_id"
-                      >
-                        <option value="">Seleccionar...</option>
-                        {sexos.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.nombre}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                        Género
-                      </label>
-                      <select
-                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                        value={personaFormData.genero_id}
-                        onChange={handleInputChange}
-                        name="genero_id"
-                      >
-                        <option value="">Seleccionar...</option>
-                        {generos.map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.nombre}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    </>
-                  )}
+                    {!esFallecida && (
+                      <>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                            Sexo
+                          </label>
+                          <select
+                            className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                            value={personaFormData.sexo_id}
+                            onChange={handleInputChange}
+                            name="sexo_id"
+                          >
+                            <option value="">Seleccionar...</option>
+                            {sexos.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.nombre}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                            Género
+                          </label>
+                          <select
+                            className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                            value={personaFormData.genero_id}
+                            onChange={handleInputChange}
+                            name="genero_id"
+                          >
+                            <option value="">Seleccionar...</option>
+                            {generos.map((g) => (
+                              <option key={g.id} value={g.id}>
+                                {g.nombre}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </>
+                    )}
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                         Nacionalidad
@@ -1833,20 +1868,20 @@ export default function PersonaManagement() {
                         ))}
                       </select>
                     </div>
-{!esFallecida && (
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                        Fecha de Nacimiento
-                      </label>
-                      <input
-                        type="date"
-                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                        value={personaFormData.nacimiento_fecha}
-                        onChange={handleInputChange}
-                        name="nacimiento_fecha"
-                      />
-                    </div>
-)}
+                    {!esFallecida && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                          Fecha de Nacimiento
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                          value={personaFormData.nacimiento_fecha}
+                          onChange={handleInputChange}
+                          name="nacimiento_fecha"
+                        />
+                      </div>
+                    )}
                   </div>
                 </section>
               )}
@@ -1858,34 +1893,34 @@ export default function PersonaManagement() {
                     <IdCard className="w-4 h-4" /> Documentación y CUIL
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-{!esFallecida && (
-                    <div className="md:col-span-2 space-y-1">
-                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                        Situación del Documento
-                      </label>
-                      <select
-                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                        value={personaFormData.documento_situacion_id}
-                        onChange={handleSituacionChange}
-                      >
-                        <option value="">Seleccionar...</option>
-                        {docSituaciones.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.nombre}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-)}
+                    {
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                          Situación del Documento
+                        </label>
+                        <select
+                          className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                          value={personaFormData.documento_situacion_id}
+                          onChange={handleSituacionChange}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {docSituaciones.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    }
 
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                         Tipo de Documento *
                       </label>
                       <select
-                        disabled={isEmailLocked}
+                        disabled={isEmailLocked || poseeDni}
                         className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold ${
-                          isEmailLocked
+                          isEmailLocked || poseeDni
                             ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
                             : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
                         }`}
@@ -1893,19 +1928,29 @@ export default function PersonaManagement() {
                         onChange={handleTipoDocumentoChange}
                       >
                         <option value="">Seleccionar...</option>
-                        {docTipos.map((t) => (
+                        {tipoOptions.map((t) => (
                           <option key={t.id} value={t.id}>
                             {t.nombre}
                           </option>
                         ))}
                       </select>
+                      {poseeDni && (
+                        <p
+                          id="tipo-doc-hint"
+                          className="text-[10px] font-semibold text-primary-600 mt-1"
+                        >
+                          Por poseer DNI, el tipo de documento queda fijado
+                          automáticamente como DNI.
+                        </p>
+                      )}
                     </div>
 
                     {esIndocumentado ? (
                       <div className="md:col-span-2 p-4 bg-amber-50 border border-amber-200 rounded-xl">
                         <p className="text-xs font-bold text-amber-700">
-                          Persona registrada como INDOCUMENTADA. No se solicitan
-                          número de documento, trámite ni CUIL.
+                          Persona registrada como INDOCUMENTADA. Se generará
+                          automáticamente un identificador provisorio (ej.
+                          IND-000001). No se solicitan trámite ni CUIL.
                         </p>
                       </div>
                     ) : (
@@ -1927,70 +1972,70 @@ export default function PersonaManagement() {
                             name="documento_numero"
                           />
                         </div>
-{!esFallecida && (
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                            Nº de Trámite
-                          </label>
-                          <input
-                            type="text"
-                            className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                            value={personaFormData.tramite}
-                            onChange={handleInputChange}
-                            name="tramite"
-                          />
-                        </div>
-)}
                         {!esFallecida && (
-                        <div className="md:col-span-2 p-4 bg-secondary-50 border border-secondary-200 rounded-xl">
-                          <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 block">
-                            CUIL
-                          </label>
-                          <div className="flex items-center gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                              Nº de Trámite
+                            </label>
                             <input
                               type="text"
-                              maxLength={2}
-                              placeholder="20"
-                              className="w-16 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
-                              value={personaFormData.CUIL_prefijo}
-                              onChange={(e) =>
-                                setFormValue(
-                                  "CUIL_prefijo",
-                                  e.target.value.replace(/\D/g, ""),
-                                )
-                              }
-                            />
-                            <span className="text-secondary-400 font-black">
-                              -{" "}
-                            </span>
-                            <input
-                              type="text"
-                              disabled={isEmailLocked}
-                              placeholder="DNI"
-                              className="flex-1 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
-                              value={personaFormData.documento_numero}
+                              className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                              value={personaFormData.tramite}
                               onChange={handleInputChange}
-                              name="documento_numero"
-                            />
-                            <span className="text-secondary-400 font-black">
-                              -{" "}
-                            </span>
-                            <input
-                              type="text"
-                              maxLength={1}
-                              placeholder="8"
-                              className="w-14 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
-                              value={personaFormData.CUIL_sufijo}
-                              onChange={(e) =>
-                                setFormValue(
-                                  "CUIL_sufijo",
-                                  e.target.value.replace(/\D/g, ""),
-                                )
-                              }
+                              name="tramite"
                             />
                           </div>
-                        </div>
-)}
+                        )}
+                        {!esFallecida && (
+                          <div className="md:col-span-2 p-4 bg-secondary-50 border border-secondary-200 rounded-xl">
+                            <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 block">
+                              CUIL
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                maxLength={2}
+                                placeholder="20"
+                                className="w-16 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
+                                value={personaFormData.CUIL_prefijo}
+                                onChange={(e) =>
+                                  setFormValue(
+                                    "CUIL_prefijo",
+                                    e.target.value.replace(/\D/g, ""),
+                                  )
+                                }
+                              />
+                              <span className="text-secondary-400 font-black">
+                                -{" "}
+                              </span>
+                              <input
+                                type="text"
+                                disabled={isEmailLocked}
+                                placeholder="DNI"
+                                className="flex-1 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
+                                value={personaFormData.documento_numero}
+                                onChange={handleInputChange}
+                                name="documento_numero"
+                              />
+                              <span className="text-secondary-400 font-black">
+                                -{" "}
+                              </span>
+                              <input
+                                type="text"
+                                maxLength={1}
+                                placeholder="8"
+                                className="w-14 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
+                                value={personaFormData.CUIL_sufijo}
+                                onChange={(e) =>
+                                  setFormValue(
+                                    "CUIL_sufijo",
+                                    e.target.value.replace(/\D/g, ""),
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
