@@ -13,7 +13,7 @@ export default function ConfirmUnlinkUserModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
+    <div role="dialog" aria-modal="true" aria-label="Confirmar desvinculación" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn border border-red-100">
         <div className="p-8">
           {/* Icono y Título */}
