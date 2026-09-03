@@ -18,5 +18,5 @@ export const SEARCH_DEBOUNCE_MS = 400;
 export const PER_PAGE = 10;
 
 // Pasos máximos del Stepper según estado de vida
-export const MAX_STEP_VIVA = 4;
+export const MAX_STEP_VIVA = 5;
 export const MAX_STEP_FALLECIDA = 2;

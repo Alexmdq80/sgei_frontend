@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Heart
 } from "lucide-react";
 import { DOC_TIPO_DNI, DOC_TIPO_INDOCUMENTADO } from "../utils/constants";
 
@@ -59,6 +60,7 @@ export default function PersonaFormModal({
   );
   const noPoseeSituacion = /no posee/i.test(situacionActual?.nombre || "");
   const poseeDni = !!formData.documento_situacion_id && !noPoseeSituacion;
+  const esDni = String(formData.documento_tipo_id) === DOC_TIPO_DNI;
   const esIndocumentado =
     String(formData.documento_tipo_id) === DOC_TIPO_INDOCUMENTADO;
   const tipoOptions = noPoseeSituacion
@@ -88,7 +90,8 @@ export default function PersonaFormModal({
     { n: 1, label: "Identidad", Icon: User },
     { n: 2, label: "Documento", Icon: IdCard },
     { n: 3, label: "Nacimiento", Icon: MapPin },
-    { n: 4, label: "Contacto y Resumen", Icon: CheckCircle2 },
+    { n: 4, label: "Sexo y Género", Icon: Heart },
+    { n: 5, label: "Contacto y Resumen", Icon: CheckCircle2 },
   ];
   const etapasVisibles = esFallecida
     ? todasLasEtapas.filter((s) => s.n <= 2)
@@ -162,7 +165,7 @@ export default function PersonaFormModal({
         {/* Stepper */}
         <div className="px-8 py-4 border-b border-secondary-100 bg-secondary-50/50">
           <div className="flex items-center">
-            {etapasVisibles.map(({ n, label, Icon }, idx) => (
+            {etapasVisibles.map(({ n, label, Icon: StepIcon  }, idx) => (
               <div
                 key={n}
                 className="flex items-center flex-1 last:flex-none"
@@ -180,7 +183,7 @@ export default function PersonaFormModal({
                     {currentStep > n ? (
                       <CheckCircle2 className="w-5 h-5" />
                     ) : (
-                      <Icon className="w-5 h-5" />
+                      <StepIcon className="w-5 h-5" />
                     )}
                   </div>
                   <span
@@ -311,7 +314,7 @@ export default function PersonaFormModal({
                     }
                   />
                 </div>
-                <div className="md:col-span-2 space-y-1">
+                <div className="space-y-1">
                   <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                     Nombre Alternativo / Social
                   </label>
@@ -326,47 +329,7 @@ export default function PersonaFormModal({
                       )
                     }
                   />
-                </div>
-                {!esFallecida && (
-                  <>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                        Sexo
-                      </label>
-                      <select
-                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                        value={formData.sexo_id}
-                        onChange={onInputChange}
-                        name="sexo_id"
-                      >
-                        <option value="">Seleccionar...</option>
-                        {sexos.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.nombre}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                        Género
-                      </label>
-                      <select
-                        className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                        value={formData.genero_id}
-                        onChange={onInputChange}
-                        name="genero_id"
-                      >
-                        <option value="">Seleccionar...</option>
-                        {generos.map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.nombre}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </>
-                )}
+                </div>               
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                     Nacionalidad
@@ -384,21 +347,7 @@ export default function PersonaFormModal({
                       </option>
                     ))}
                   </select>
-                </div>
-                {!esFallecida && (
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      Fecha de Nacimiento
-                    </label>
-                    <input
-                      type="date"
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                      value={formData.nacimiento_fecha}
-                      onChange={onInputChange}
-                      name="nacimiento_fecha"
-                    />
-                  </div>
-                )}
+                </div>                
               </div>
             </section>
           )}
@@ -428,7 +377,7 @@ export default function PersonaFormModal({
                   </select>
                 </div>
 
-                <div className="md:col-span-2 space-y-1">
+                <div className="space-y-1">
                   <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                     Tipo de Documento *
                   </label>
@@ -486,52 +435,73 @@ export default function PersonaFormModal({
                         onChange={onInputChange}
                         name="documento_numero"
                       />
-                    </div>
-                    {!esFallecida && (
+                    </div>                    
+                    {esDni && !esFallecida && (                      
                       <div className="md:col-span-2 p-4 bg-secondary-50 border border-secondary-200 rounded-xl">
-                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 block">
-                          CUIL
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            maxLength={2}
-                            placeholder="20"
-                            className="w-16 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
-                            value={formData.CUIL_prefijo}
-                            onChange={(e) =>
-                              onFieldChange(
-                                "CUIL_prefijo",
-                                e.target.value.replace(/\D/g, ""),
-                              )
-                            }
-                          />
-                          <span className="text-secondary-400 font-black">-</span>
-                          
-                          {/* AQUÍ VA EL READONLY: */}
-                          <input
-                            type="text"
-                            readOnly
-                            tabIndex={-1}
-                            placeholder="DNI"
-                            className="flex-1 px-3 py-2 bg-secondary-100 border border-secondary-300 rounded-xl text-sm font-bold text-secondary-600 text-center cursor-not-allowed outline-none"
-                            value={formData.documento_numero}
-                          />
-                          
-                          <span className="text-secondary-400 font-black">-</span>
-                          <input
-                            type="text"
-                            maxLength={1}
-                            placeholder="8"
-                            className="w-14 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
-                            value={formData.CUIL_sufijo}
-                            onChange={(e) =>
-                              onFieldChange(
-                                "CUIL_sufijo",
-                                e.target.value.replace(/\D/g, ""),
-                              )
-                            }
-                          />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div className="space-y-1">
+                            <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                              Nº de Trámite
+                            </label>
+                            <input
+                              type="text"
+                              disabled={isEmailLocked}
+                              className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold ${
+                                isEmailLocked
+                                  ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                                  : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                              }`}
+                              value={formData.tramite}
+                              onChange={onInputChange}
+                              name="tramite"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 block">
+                              CUIL
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                maxLength={2}
+                                placeholder="20"
+                                className="w-16 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
+                                value={formData.CUIL_prefijo}
+                                onChange={(e) =>
+                                  onFieldChange(
+                                    "CUIL_prefijo",
+                                    e.target.value.replace(/\D/g, ""),
+                                  )
+                                }
+                              />
+                              <span className="text-secondary-400 font-black">-</span>
+                              
+                              {/* AQUÍ VA EL READONLY: */}
+                              <input
+                                type="text"
+                                readOnly
+                                tabIndex={-1}
+                                placeholder="DNI"
+                                className="flex-1 px-3 py-2 bg-secondary-100 border border-secondary-300 rounded-xl text-sm font-bold text-secondary-600 text-center cursor-not-allowed outline-none"
+                                value={formData.documento_numero}
+                              />
+                              
+                              <span className="text-secondary-400 font-black">-</span>
+                              <input
+                                type="text"
+                                maxLength={1}
+                                placeholder="8"
+                                className="w-14 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
+                                value={formData.CUIL_sufijo}
+                                onChange={(e) =>
+                                  onFieldChange(
+                                    "CUIL_sufijo",
+                                    e.target.value.replace(/\D/g, ""),
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -545,9 +515,21 @@ export default function PersonaFormModal({
           {!esFallecida && currentStep === 3 && (
             <section>
               <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
-                <MapPin className="w-4 h-4" /> Lugar de Nacimiento
+                <MapPin className="w-4 h-4" /> Fecha y Lugar de Nacimiento
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                    Fecha de Nacimiento
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                    value={formData.nacimiento_fecha}
+                    onChange={onInputChange}
+                    name="nacimiento_fecha"
+                  />
+                </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                     País
@@ -624,8 +606,55 @@ export default function PersonaFormModal({
             </section>
           )}
 
-          {/* STEP 4: CONTACTO Y RESUMEN */}
+          {/* STEP 4: SEXO Y GÉNERO */}
           {!esFallecida && currentStep === 4 && (
+            <section>
+              <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
+                <Heart className="w-4 h-4" /> Sexo y Género
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                    Sexo
+                  </label>
+                  <select
+                    className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                    value={formData.sexo_id}
+                    onChange={onInputChange}
+                    name="sexo_id"
+                  >
+                    <option value="">Seleccionar...</option>
+                    {sexos.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                    Género
+                  </label>
+                  <select
+                    className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                    value={formData.genero_id}
+                    onChange={onInputChange}
+                    name="genero_id"
+                  >
+                    <option value="">Seleccionar...</option>
+                    {generos.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* STEP 5: CONTACTO Y RESUMEN */}
+          {!esFallecida && currentStep === 5 && (
             <section className="space-y-6">
               <div>
                 <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">

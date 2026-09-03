@@ -656,7 +656,7 @@ export default function PersonaManagement() {
   const handleSubmitPersona = async (e) => {
     e.preventDefault();
 
-    if (currentStep < (esFallecida ? 2 : 4)) {
+    if (currentStep < (esFallecida ? 2 : 5)) {
       handleNextStep();
       return;
     }
