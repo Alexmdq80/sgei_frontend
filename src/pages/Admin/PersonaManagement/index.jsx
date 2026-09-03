@@ -160,14 +160,21 @@ export default function PersonaManagement() {
     setFotoPreview(newPreview);
   };
 
+  // 1. Apagar la cámara cuando cambie el stream
   useEffect(() => {
     return () => {
       if (cameraStream) {
         cameraStream.getTracks().forEach((track) => track.stop());
       }
-      revokeObjectUrl(fotoPreviewRef.current);
     };
   }, [cameraStream]);
+
+  // 2. Liberar el blob de la imagen únicamente al desmontar PersonaManagement
+  useEffect(() => {
+    return () => {
+      revokeObjectUrl(fotoPreviewRef.current);
+    };
+  }, []);
 
   const fetchPersonas = async (page = 1) => {
     if (!canManage) return;
@@ -255,7 +262,6 @@ export default function PersonaManagement() {
     fetchGeneros();
     fetchDocSituaciones();
     fetchNaciones();
-    fetchPersonas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -371,7 +377,11 @@ export default function PersonaManagement() {
           setConfirmConfig((prev) => ({ ...prev, isLoading: true }));
           await personaService.delete(persona.id);
           showNotification("Registro eliminado con éxito.", "success");
-          fetchPersonas(pagination.current_page);
+          const nextPage = personas.length === 1 && pagination.current_page > 1
+            ? pagination.current_page - 1
+            : pagination.current_page;
+
+          fetchPersonas(nextPage);
           closeConfirm();
         } catch (error) {
           console.error("Error al eliminar persona:", error);
@@ -590,16 +600,10 @@ export default function PersonaManagement() {
       });
       setCameraStream(stream);
       setShowCameraModal(true);
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }, 100);
     } catch (error) {
       let msg = "No se pudo acceder a la cámara.";
       if (error.name === "NotAllowedError") {
-        msg =
-          "Permiso denegado. Habilitá la cámara en la configuración del navegador.";
+        msg = "Permiso denegado. Habilitá la cámara en la configuración del navegador.";
       } else if (error.name === "NotFoundError") {
         msg = "No se encontró ninguna cámara en este dispositivo.";
       }
@@ -617,11 +621,16 @@ export default function PersonaManagement() {
 
   const captureFromCamera = () => {
     const video = videoRef.current;
-    if (!video || !cameraStream) return;
+    // Agregamos chequeo de videoWidth para evitar imágenes vacías
+    if (!video || !cameraStream || !video.videoWidth) return;
+
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
+    // Opcional: espejar el canvas para que coincida con scale-x-[-1] del preview
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0);
     canvas.toBlob(
       (blob) => {
@@ -904,8 +913,17 @@ export default function PersonaManagement() {
           onViveChange={handleViveChange}
           onSituacionChange={handleSituacionChange}
           onTipoDocumentoChange={handleTipoDocumentoChange}
-          onProvinciaChange={(value) => handleProvinciaChange(value)}
-          onDepartamentoChange={(value) => handleDepartamentoChange(value)}
+          onProvinciaChange={(value) => {
+            setFormValue("provincia_id", value);
+            setFormValue("departamento_id", "");
+            setFormValue("localidad_id", "");
+            handleProvinciaChange(value);
+          }}
+          onDepartamentoChange={(value) => {
+            setFormValue("departamento_id", value);
+            setFormValue("localidad_id", "");
+            handleDepartamentoChange(value);
+          }}
           onClose={() => setIsCreateModalOpen(false)}
           onSubmit={handleSubmitPersona}
           onNextStep={handleNextStep}
@@ -932,6 +950,7 @@ export default function PersonaManagement() {
       {showCameraModal && cameraStream && (
         <PhotoCaptureModal
           isOpen={showCameraModal && !!cameraStream}
+          stream={cameraStream}
           videoRef={videoRef}
           onClose={handleCloseCamera}
           onCapture={captureFromCamera}

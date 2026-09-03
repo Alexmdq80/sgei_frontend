@@ -1,9 +1,22 @@
+import { useEffect } from "react";
 import { X } from "lucide-react";
 
 /**
  * Modal de captura de foto desde la cámara.
  */
-export default function PhotoCaptureModal({ isOpen, videoRef, onClose, onCapture }) {
+export default function PhotoCaptureModal({
+  isOpen,
+  stream,
+  videoRef,
+  onClose,
+  onCapture,
+}) {
+  useEffect(() => {
+    if (videoRef?.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream, videoRef]);
+
   if (!isOpen) return null;
 
   return (

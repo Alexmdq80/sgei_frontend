@@ -149,7 +149,7 @@ export default function PersonaFormModal({
             </span>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
-                tipo="checkbox"
+                type="checkbox"
                 className="sr-only peer"
                 checked={!esFallecida}
                 onChange={(e) => onViveChange(e.target.checked)}
@@ -488,20 +488,6 @@ export default function PersonaFormModal({
                       />
                     </div>
                     {!esFallecida && (
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                          Nº de Trámite
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                          value={formData.tramite}
-                          onChange={onInputChange}
-                          name="tramite"
-                        />
-                      </div>
-                    )}
-                    {!esFallecida && (
                       <div className="md:col-span-2 p-4 bg-secondary-50 border border-secondary-200 rounded-xl">
                         <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 block">
                           CUIL
@@ -520,21 +506,19 @@ export default function PersonaFormModal({
                               )
                             }
                           />
-                          <span className="text-secondary-400 font-black">
-                            -{" "}
-                          </span>
+                          <span className="text-secondary-400 font-black">-</span>
+                          
+                          {/* AQUÍ VA EL READONLY: */}
                           <input
                             type="text"
-                            disabled={isEmailLocked}
+                            readOnly
+                            tabIndex={-1}
                             placeholder="DNI"
-                            className="flex-1 px-3 py-2 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 text-center focus:ring-2 focus:ring-primary-500 outline-none"
+                            className="flex-1 px-3 py-2 bg-secondary-100 border border-secondary-300 rounded-xl text-sm font-bold text-secondary-600 text-center cursor-not-allowed outline-none"
                             value={formData.documento_numero}
-                            onChange={onInputChange}
-                            name="documento_numero"
                           />
-                          <span className="text-secondary-400 font-black">
-                            -{" "}
-                          </span>
+                          
+                          <span className="text-secondary-400 font-black">-</span>
                           <input
                             type="text"
                             maxLength={1}

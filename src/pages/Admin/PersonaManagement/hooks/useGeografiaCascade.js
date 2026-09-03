@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import geografiaService from "../../../../services/geografiaService"
+import geografiaService from "../../../../services/geografiaService";
 
 /**
  * Normaliza la respuesta de los servicios geográficos:
