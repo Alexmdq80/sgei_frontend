@@ -15,6 +15,21 @@ import {
 import { DOC_TIPO_DNI, DOC_TIPO_INDOCUMENTADO } from "../utils/constants";
 
 /**
+ * Patrón admitido para apellido/nombre/nombre_alternativo (accesibilidad):
+ * letras (incl. tildes, diéresis y ñ), espacios, apóstrofes y guiones.
+ */
+const NAME_INPUT_PATTERN = "[A-Za-zÁÉÍÓÚáéíóúÑñÜü\\s'\\-]*";
+const NAME_INPUT_TITLE =
+  "Solo letras (incluye tildes, diéresis y ñ), espacios, apóstrofes y guiones.";
+
+/**
+ * Sanitiza nombres/apellidos: elimina números y caracteres especiales y
+ * normaliza a mayúsculas.
+ */
+const sanitizeName = (value) =>
+  value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, "").toUpperCase();
+
+/**
  * Modal de creación/edición de persona con Stepper de 4 pasos.
  */
 export default function PersonaFormModal({
@@ -296,9 +311,11 @@ export default function PersonaFormModal({
                       type="text"
                       required
                       className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                      pattern={NAME_INPUT_PATTERN}
+                      title={NAME_INPUT_TITLE}
                       value={formData.apellido}
                       onChange={(e) =>
-                        onFieldChange("apellido", e.target.value.toUpperCase())
+                        onFieldChange("apellido", sanitizeName(e.target.value))
                       }
                     />
                   </div>
@@ -310,9 +327,11 @@ export default function PersonaFormModal({
                       type="text"
                       required
                       className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                      pattern={NAME_INPUT_PATTERN}
+                      title={NAME_INPUT_TITLE}
                       value={formData.nombre}
                       onChange={(e) =>
-                        onFieldChange("nombre", e.target.value.toUpperCase())
+                        onFieldChange("nombre", sanitizeName(e.target.value))
                       }
                     />
                   </div>
@@ -323,11 +342,13 @@ export default function PersonaFormModal({
                     <input
                       type="text"
                       className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                      pattern={NAME_INPUT_PATTERN}
+                      title={NAME_INPUT_TITLE}
                       value={formData.nombre_alternativo}
                       onChange={(e) =>
                         onFieldChange(
                           "nombre_alternativo",
-                          e.target.value.toUpperCase(),
+                          sanitizeName(e.target.value),
                         )
                       }
                     />
