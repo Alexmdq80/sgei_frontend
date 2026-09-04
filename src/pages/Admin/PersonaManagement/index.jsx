@@ -28,6 +28,7 @@ import PersonaDetailModal from "./components/PersonaDetailModal";
 import PersonaFormModal from "./components/PersonaFormModal";
 import PhotoCaptureModal from "./components/PhotoCaptureModal";
 import PhotoCropModal from "./components/PhotoCropModal";
+import { calcularEdad, EDAD_MAXIMA_ADMISIBLE } from "./utils/edad";
 
 /**
  * Componente para la gestión integral del Padrón de Personas (Agentes).
@@ -91,6 +92,8 @@ export default function PersonaManagement() {
   const [confirmationPending, setConfirmationPending] = useState(null);
   const [editingPersonaId, setEditingPersonaId] = useState(null);
   const [isEmailLocked, setIsEmailLocked] = useState(false);
+  // Snapshot del formulario al abrir el modal (para detectar ediciones al cancelar)
+  const personaFormSnapshotRef = useRef(null);
 
   // Estados de Carga Específicos
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
@@ -377,9 +380,10 @@ export default function PersonaManagement() {
           setConfirmConfig((prev) => ({ ...prev, isLoading: true }));
           await personaService.delete(persona.id);
           showNotification("Registro eliminado con éxito.", "success");
-          const nextPage = personas.length === 1 && pagination.current_page > 1
-            ? pagination.current_page - 1
-            : pagination.current_page;
+          const nextPage =
+            personas.length === 1 && pagination.current_page > 1
+              ? pagination.current_page - 1
+              : pagination.current_page;
 
           fetchPersonas(nextPage);
           closeConfirm();
@@ -432,6 +436,28 @@ export default function PersonaManagement() {
       vive_si: full.vive_si ?? 1,
     });
 
+    personaFormSnapshotRef.current = {
+      apellido: full.apellido ?? "",
+      nombre: full.nombre ?? "",
+      nombre_alternativo: full.nombre_alternativo ?? "",
+      sexo_id: full.sexo_id ?? "",
+      genero_id: full.genero_id ?? "",
+      nacionalidad_nacion_id: full.nacionalidad_nacion_id ?? "",
+      nacimiento_fecha: full.nacimiento_fecha ?? "",
+      documento_situacion_id: full.documento_situacion_id ?? "",
+      documento_tipo_id: full.documento_tipo_id ?? "",
+      documento_numero: full.documento_numero ?? "",
+      tramite: full.tramite ?? "",
+      CUIL_prefijo: full.CUIL_prefijo ?? "",
+      CUIL_sufijo: full.CUIL_sufijo ?? "",
+      nacion_id: full.nacion_id ?? "",
+      provincia_id: full.provincia_id ?? "",
+      departamento_id: full.departamento_id ?? "",
+      localidad_id: full.localidad_id ?? "",
+      email: full.contacto?.email || full.usuario_email || "",
+      vive_si: full.vive_si ?? 1,
+    };
+
     if (full.provincia_id) {
       await loadDepartamentos(full.provincia_id);
     }
@@ -449,38 +475,58 @@ export default function PersonaManagement() {
     setPersonaFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-    const handleCreatePersona = () => {
-        setIsEditMode(false);
-        setIsEmailLocked(false);
-        setEditingPersonaId(null);
-        setPersonaFormData({
-        apellido: "",
-        nombre: "",
-        nombre_alternativo: "",
-        sexo_id: "",
-        genero_id: "",
-        nacionalidad_nacion_id: "",
-        nacimiento_fecha: "",
-        documento_situacion_id: "",
-        documento_tipo_id: "",
-        documento_numero: "",
-        tramite: "",
-        CUIL_prefijo: "",
-        CUIL_sufijo: "",
-        nacion_id: "",
-        provincia_id: "",
-        departamento_id: "",
-        localidad_id: "",
-        email: "",
-        vive_si: 1,
-        });
-        clearCascade();
-        updateFotoPreview(null);   // ← revoca el blob previo si existía
-        setFotoFile(null);         // ← igual que el original
-        setCurrentStep(1);
-        setIsCreateModalOpen(true);
+  const handleCreatePersona = () => {
+    setIsEditMode(false);
+    setIsEmailLocked(false);
+    setEditingPersonaId(null);
+    setPersonaFormData({
+      apellido: "",
+      nombre: "",
+      nombre_alternativo: "",
+      sexo_id: "",
+      genero_id: "",
+      nacionalidad_nacion_id: "",
+      nacimiento_fecha: "",
+      documento_situacion_id: "",
+      documento_tipo_id: "",
+      documento_numero: "",
+      tramite: "",
+      CUIL_prefijo: "",
+      CUIL_sufijo: "",
+      nacion_id: "",
+      provincia_id: "",
+      departamento_id: "",
+      localidad_id: "",
+      email: "",
+      vive_si: 1,
+    });
+    personaFormSnapshotRef.current = {
+      apellido: "",
+      nombre: "",
+      nombre_alternativo: "",
+      sexo_id: "",
+      genero_id: "",
+      nacionalidad_nacion_id: "",
+      nacimiento_fecha: "",
+      documento_situacion_id: "",
+      documento_tipo_id: "",
+      documento_numero: "",
+      tramite: "",
+      CUIL_prefijo: "",
+      CUIL_sufijo: "",
+      nacion_id: "",
+      provincia_id: "",
+      departamento_id: "",
+      localidad_id: "",
+      email: "",
+      vive_si: 1,
     };
-
+    clearCascade();
+    updateFotoPreview(null); // ← revoca el blob previo si existía
+    setFotoFile(null); // ← igual que el original
+    setCurrentStep(1);
+    setIsCreateModalOpen(true);
+  };
 
   const handleSituacionChange = (e) => {
     const value = e.target.value;
@@ -515,7 +561,10 @@ export default function PersonaManagement() {
   const validateStep = (step) => {
     switch (step) {
       case 1:
-        if (!personaFormData.apellido.trim() || !personaFormData.nombre.trim()) {
+        if (
+          !personaFormData.apellido.trim() ||
+          !personaFormData.nombre.trim()
+        ) {
           showNotification("Debes completar Apellido y Nombre.", "error");
           return false;
         }
@@ -530,6 +579,37 @@ export default function PersonaManagement() {
         if (tipo !== DOC_TIPO_INDOCUMENTADO && !numero) {
           showNotification("Debes cargar el Número de Documento.", "error");
           return false;
+        }
+        if (tipo === DOC_TIPO_DNI && numero.length < 7) {
+          showNotification("El DNI debe tener entre 7 y 8 dígitos.", "error");
+          return false;
+        }
+        return true;
+      }
+      case 3: {
+        const fecha = String(personaFormData.nacimiento_fecha ?? "").trim();
+        if (fecha) {
+          const hoy = new Date();
+          const hoyStr = hoy.toISOString().split("T")[0];
+          if (fecha > hoyStr) {
+            showNotification(
+              "La fecha de nacimiento no puede ser futura.",
+              "error",
+            );
+            return false;
+          }
+          if (fecha < "1900-01-01") {
+            showNotification(
+              "La fecha de nacimiento no puede ser anterior al año 1900.",
+              "error",
+            );
+            return false;
+          }
+          const edad = calcularEdad(fecha);
+          if (edad !== null && edad > EDAD_MAXIMA_ADMISIBLE) {
+            showNotification("La edad no puede superar los 100 años.", "error");
+            return false;
+          }
         }
         return true;
       }
@@ -603,7 +683,8 @@ export default function PersonaManagement() {
     } catch (error) {
       let msg = "No se pudo acceder a la cámara.";
       if (error.name === "NotAllowedError") {
-        msg = "Permiso denegado. Habilitá la cámara en la configuración del navegador.";
+        msg =
+          "Permiso denegado. Habilitá la cámara en la configuración del navegador.";
       } else if (error.name === "NotFoundError") {
         msg = "No se encontró ninguna cámara en este dispositivo.";
       }
@@ -646,6 +727,42 @@ export default function PersonaManagement() {
       "image/jpeg",
       0.9,
     );
+  };
+
+  // Detección de cambios en el formulario vs. el snapshot inicial
+  // (incluye la foto de perfil: si hay un archivo nuevo seleccionado, cuenta como cambio)
+  const hayCambiosEnFormulario = () => {
+    const snapshot = personaFormSnapshotRef.current;
+    if (!snapshot) return false;
+    const hayCambiosEnCampos = Object.keys(snapshot).some(
+      (key) =>
+        String(personaFormData[key] ?? "") !== String(snapshot[key] ?? ""),
+    );
+    const hayFotoNueva = fotoFile !== null;
+    return hayCambiosEnCampos || hayFotoNueva;
+  };
+
+  // Cierre del modal con confirmación si hubo ediciones
+  const handleCloseCreate = () => {
+    if (hayCambiosEnFormulario()) {
+      setConfirmConfig({
+        isOpen: true,
+        title: "¿Descartar los cambios?",
+        message:
+          "El formulario tiene modificaciones sin guardar. Si continuás, se perderán los datos ingresados.",
+        confirmText: "Descartar cambios",
+        cancelText: "Continuar editando",
+        variant: "warning",
+        showInput: false,
+        isLoading: false,
+        onConfirm: () => {
+          closeConfirm();
+          setIsCreateModalOpen(false);
+        },
+      });
+    } else {
+      setIsCreateModalOpen(false);
+    }
   };
 
   const handleDeleteFoto = () => {
@@ -826,12 +943,12 @@ export default function PersonaManagement() {
           </p>
         </div>
         <button
-            onClick={handleCreatePersona}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-primary-700 transition-all active:scale-95"
-            >
-            <UserPlus className="w-5 h-5" />
-            Nueva Persona
-            </button>
+          onClick={handleCreatePersona}
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-primary-700 transition-all active:scale-95"
+        >
+          <UserPlus className="w-5 h-5" />
+          Nueva Persona
+        </button>
       </div>
 
       {/* Filtros y Búsqueda */}
@@ -924,7 +1041,7 @@ export default function PersonaManagement() {
             setFormValue("localidad_id", "");
             handleDepartamentoChange(value);
           }}
-          onClose={() => setIsCreateModalOpen(false)}
+          onClose={handleCloseCreate}
           onSubmit={handleSubmitPersona}
           onNextStep={handleNextStep}
           onPrevStep={handlePrevStep}

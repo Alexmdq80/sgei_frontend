@@ -13,6 +13,8 @@ import {
   Heart,
 } from "lucide-react";
 import { DOC_TIPO_DNI, DOC_TIPO_INDOCUMENTADO } from "../utils/constants";
+import { calcularEdad } from "../utils/edad"; // ajusta la ruta relativa según corresponda
+import { esNacionArgentina } from "../utils/nacionUtils";
 
 /**
  * Patrón admitido para apellido/nombre/nombre_alternativo (accesibilidad):
@@ -68,6 +70,13 @@ export default function PersonaFormModal({
 }) {
   // Estado de vida
   const esFallecida = Number(formData.vive_si) === 0;
+
+  const edadCalculada = calcularEdad(formData.nacimiento_fecha);
+  const hoyStr = new Date().toISOString().split("T")[0];
+  // Si la persona no nació en Argentina, no corresponde pedir
+  // provincia/departamento/localidad (en la BD solo hay geografía de Argentina)
+  const esNacimientoArgentina = esNacionArgentina(nacions, formData.nacion_id);
+  const mostrarGeoNacimiento = esNacimientoArgentina;
 
   // Lógica reactiva entre Situación del Documento y Tipo de Documento
   const situacionActual = docSituaciones.find(
@@ -449,13 +458,29 @@ export default function PersonaFormModal({
                         <input
                           type="text"
                           disabled={isEmailLocked}
+                          inputMode={esDni ? "numeric" : "text"}
+                          pattern={esDni ? "[0-9]*" : undefined}
+                          maxLength={esDni ? 8 : 20}
+                          placeholder={
+                            esDni
+                              ? "Ej: 35123456"
+                              : "Ingrese número de pasaporte / documento"
+                          }
                           className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${
                             isEmailLocked
                               ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
                               : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
                           }`}
                           value={formData.documento_numero}
-                          onChange={onInputChange}
+                          onChange={(e) => {
+                            const cleanValue = esDni
+                              ? e.target.value.replace(/\D/g, "").slice(0, 8)
+                              : e.target.value
+                                  .replace(/[^a-zA-Z0-9-]/g, "")
+                                  .toUpperCase()
+                                  .slice(0, 20);
+                            onFieldChange("documento_numero", cleanValue);
+                          }}
                           name="documento_numero"
                         />
                       </div>
@@ -469,13 +494,22 @@ export default function PersonaFormModal({
                               <input
                                 type="text"
                                 disabled={isEmailLocked}
+                                maxLength={11}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                placeholder="11 dígitos (frente/dorso del DNI)"
                                 className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${
                                   isEmailLocked
                                     ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
                                     : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
                                 }`}
                                 value={formData.tramite}
-                                onChange={onInputChange}
+                                onChange={(e) => {
+                                  const cleanValue = e.target.value
+                                    .replace(/\D/g, "")
+                                    .slice(0, 11);
+                                  onFieldChange("tramite", cleanValue);
+                                }}
                                 name="tramite"
                               />
                             </div>
@@ -546,17 +580,28 @@ export default function PersonaFormModal({
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      Fecha de Nacimiento
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest block">
+                        Fecha de Nacimiento
+                      </label>
+                      {edadCalculada !== null && (
+                        <span className="text-[11px] font-extrabold text-primary-700 bg-primary-50 border border-primary-200/80 px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-sm">
+                          🎂 {edadCalculada}{" "}
+                          {edadCalculada === 1 ? "año" : "años"}
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="date"
+                      max={hoyStr}
+                      min="1900-01-01"
                       className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
                       value={formData.nacimiento_fecha}
                       onChange={onInputChange}
                       name="nacimiento_fecha"
                     />
                   </div>
+
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
                       País
@@ -564,7 +609,14 @@ export default function PersonaFormModal({
                     <select
                       className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
                       value={formData.nacion_id}
-                      onChange={onInputChange}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        onFieldChange("nacion_id", value);
+                        // Si nacé en otro país, limpiar provincia/departamento/localidad
+                        if (value && !esNacionArgentina(nacions, value)) {
+                          onProvinciaChange("");
+                        }
+                      }}
                       name="nacion_id"
                     >
                       <option value="">Seleccionar...</option>
@@ -575,60 +627,64 @@ export default function PersonaFormModal({
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      Provincia
-                    </label>
-                    <select
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                      value={formData.provincia_id}
-                      onChange={(e) => onProvinciaChange(e.target.value)}
-                    >
-                      <option value="">Seleccionar...</option>
-                      {provincias.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      Departamento
-                    </label>
-                    <select
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
-                      value={formData.departamento_id}
-                      onChange={(e) => onDepartamentoChange(e.target.value)}
-                      disabled={!formData.provincia_id}
-                    >
-                      <option value="">Seleccionar...</option>
-                      {departamentos.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      Localidad
-                    </label>
-                    <select
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
-                      value={formData.localidad_id}
-                      onChange={onInputChange}
-                      name="localidad_id"
-                      disabled={!formData.departamento_id}
-                    >
-                      <option value="">Seleccionar...</option>
-                      {localidades.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {mostrarGeoNacimiento && (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                          Provincia
+                        </label>
+                        <select
+                          className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                          value={formData.provincia_id}
+                          onChange={(e) => onProvinciaChange(e.target.value)}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {provincias.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                          Departamento
+                        </label>
+                        <select
+                          className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
+                          value={formData.departamento_id}
+                          onChange={(e) => onDepartamentoChange(e.target.value)}
+                          disabled={!formData.provincia_id}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {departamentos.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                          Localidad
+                        </label>
+                        <select
+                          className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
+                          value={formData.localidad_id}
+                          onChange={onInputChange}
+                          name="localidad_id"
+                          disabled={!formData.departamento_id}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {localidades.map((l) => (
+                            <option key={l.id} value={l.id}>
+                              {l.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
               </section>
             )}
@@ -758,9 +814,14 @@ export default function PersonaFormModal({
                       <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
                         Fecha de Nacimiento
                       </p>
-                      <p className="font-bold text-secondary-900">
-                        {formData.nacimiento_fecha || "—"}
-                      </p>
+                      {formData.nacimiento_fecha
+                        ? `${formData.nacimiento_fecha}${
+                            edadCalculada !== null &&
+                            edadCalculada !== undefined
+                              ? ` (${edadCalculada} años)`
+                              : ""
+                          }`
+                        : "—"}
                     </div>
                     <div className="space-y-0.5">
                       <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">

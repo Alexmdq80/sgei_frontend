@@ -20,3 +20,6 @@ export const PER_PAGE = 10;
 // Pasos máximos del Stepper según estado de vida
 export const MAX_STEP_VIVA = 5;
 export const MAX_STEP_FALLECIDA = 2;
+
+// Nombre normalizado de la única nación con geografía subnacional cargada
+export const NACION_ARGENTINA = "ARGENTINA";
