@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   UserPlus,
   X,
@@ -10,7 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  Heart,
+  UploadCloud,
+  RefreshCw,
+  Image as ImageIcon,
 } from "lucide-react";
 import { DOC_TIPO_DNI, DOC_TIPO_INDOCUMENTADO } from "../utils/constants";
 import { calcularEdad } from "../utils/edad"; // ajusta la ruta relativa según corresponda
@@ -32,6 +35,15 @@ const sanitizeName = (value) =>
   value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, "").toUpperCase();
 
 /**
+ * Devuelve las clases de estado del input: rojo suave si tiene error,
+ * normal en caso contrario.
+ */
+const inputEstadoClases = (hasError) =>
+  hasError
+    ? "border border-red-300 bg-red-50/60 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+    : "border border-secondary-300 bg-white text-secondary-900 focus:ring-2 focus:ring-primary-500";
+
+/**
  * Modal de creación/edición de persona con Stepper de 4 pasos.
  */
 export default function PersonaFormModal({
@@ -40,6 +52,7 @@ export default function PersonaFormModal({
   isEmailLocked,
   isSavingPersona,
   formData,
+  errors = {},
   currentStep,
   catalogs: {
     sexos,
@@ -65,6 +78,7 @@ export default function PersonaFormModal({
   onDepartamentoChange,
   onClose,
   onSubmit,
+  onSubmitWithContinuation,
   onNextStep,
   onPrevStep,
 }) {
@@ -114,12 +128,43 @@ export default function PersonaFormModal({
     { n: 1, label: "Identidad", Icon: User },
     { n: 2, label: "Documento", Icon: IdCard },
     { n: 3, label: "Nacimiento", Icon: MapPin },
-    { n: 4, label: "Sexo y Género", Icon: Heart },
-    { n: 5, label: "Contacto y Resumen", Icon: CheckCircle2 },
+    { n: 4, label: "Foto y Resumen", Icon: CheckCircle2 },
   ];
   const etapasVisibles = esFallecida
-    ? todasLasEtapas.filter((s) => s.n <= 2)
+    ? [
+        { n: 1, label: "Identidad", Icon: User },
+        { n: 2, label: "Documento", Icon: IdCard },
+        { n: 3, label: "Resumen", Icon: CheckCircle2 },
+      ]
     : todasLasEtapas;
+
+  // Estado de arrastre para el dropzone de foto
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (file.type.startsWith("image/")) {
+        // Invoca el mismo flujo que el input file (handleFotoUpload en index.jsx)
+        onFileChange({ target: { files: [file] } });
+      }
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -250,60 +295,6 @@ export default function PersonaFormModal({
                 <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
                   <User className="w-4 h-4" /> Datos de Identidad
                 </h3>
-                {!esFallecida && (
-                  <div className="mb-6 flex flex-col sm:flex-row items-center gap-6">
-                    <div className="relative">
-                      <input
-                        type="file"
-                        ref={fotoInputRef}
-                        onChange={onFileChange}
-                        accept="image/*"
-                        className="hidden"
-                      />
-                      <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-primary-100 shadow-lg bg-secondary-100 flex items-center justify-center">
-                        {fotoPreview ? (
-                          <img
-                            src={fotoPreview}
-                            crossOrigin="use-credentials"
-                            alt="Foto de perfil"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-primary-600 font-black text-4xl">
-                            {(
-                              formData.apellido?.charAt(0) || "?"
-                            ).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => fotoInputRef.current?.click()}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95"
-                      >
-                        <UserPlus className="w-4 h-4" /> Subir Archivo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={onTakePhoto}
-                        className="flex items-center gap-2 px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95"
-                      >
-                        <Camera className="w-4 h-4" /> Tomar Foto
-                      </button>
-                      {fotoPreview && (
-                        <button
-                          type="button"
-                          onClick={onDeleteFoto}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95"
-                        >
-                          <Trash2 className="w-4 h-4" /> Eliminar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
                 {isEditMode && isEmailLocked && (
                   <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
                     Esta persona tiene un usuario vinculado. Los campos DNI y
@@ -319,7 +310,7 @@ export default function PersonaFormModal({
                     <input
                       type="text"
                       required
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                      className={`w-full px-4 py-2.5 rounded-xl text-sm font-bold text-secondary-900 uppercase outline-none transition-all ${inputEstadoClases(errors.apellido)}`}
                       pattern={NAME_INPUT_PATTERN}
                       title={NAME_INPUT_TITLE}
                       value={formData.apellido}
@@ -327,6 +318,11 @@ export default function PersonaFormModal({
                         onFieldChange("apellido", sanitizeName(e.target.value))
                       }
                     />
+                    {errors.apellido && (
+                      <p className="text-[11px] font-semibold text-red-500 mt-1">
+                        Ingresá el apellido.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
@@ -335,7 +331,7 @@ export default function PersonaFormModal({
                     <input
                       type="text"
                       required
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 uppercase focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                      className={`w-full px-4 py-2.5 rounded-xl text-sm font-bold text-secondary-900 uppercase outline-none transition-all ${inputEstadoClases(errors.nombre)}`}
                       pattern={NAME_INPUT_PATTERN}
                       title={NAME_INPUT_TITLE}
                       value={formData.nombre}
@@ -343,6 +339,11 @@ export default function PersonaFormModal({
                         onFieldChange("nombre", sanitizeName(e.target.value))
                       }
                     />
+                    {errors.nombre && (
+                      <p className="text-[11px] font-semibold text-red-500 mt-1">
+                        Ingresá el nombre.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
@@ -376,6 +377,42 @@ export default function PersonaFormModal({
                       {nacions.map((n) => (
                         <option key={n.id} value={n.id}>
                           {n.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                      Sexo
+                    </label>
+                    <select
+                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                      value={formData.sexo_id}
+                      onChange={onInputChange}
+                      name="sexo_id"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {sexos.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                      Género
+                    </label>
+                    <select
+                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                      value={formData.genero_id}
+                      onChange={onInputChange}
+                      name="genero_id"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {generos.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.nombre}
                         </option>
                       ))}
                     </select>
@@ -416,9 +453,11 @@ export default function PersonaFormModal({
                     <select
                       disabled={isEmailLocked || poseeDni}
                       className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${
-                        isEmailLocked || poseeDni
-                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                        errors.documento_tipo_id
+                          ? "bg-red-50/60 border-red-300 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                          : isEmailLocked || poseeDni
+                            ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                            : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
                       }`}
                       value={formData.documento_tipo_id}
                       onChange={onTipoDocumentoChange}
@@ -430,6 +469,11 @@ export default function PersonaFormModal({
                         </option>
                       ))}
                     </select>
+                    {errors.documento_tipo_id && (
+                      <p className="text-[11px] font-semibold text-red-500 mt-1">
+                        Seleccioná el tipo de documento.
+                      </p>
+                    )}
                     {poseeDni && (
                       <p
                         id="tipo-doc-hint"
@@ -467,9 +511,11 @@ export default function PersonaFormModal({
                               : "Ingrese número de pasaporte / documento"
                           }
                           className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${
-                            isEmailLocked
-                              ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                              : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                            errors.documento_numero
+                              ? "bg-red-50/60 border-red-300 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                              : isEmailLocked
+                                ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                                : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
                           }`}
                           value={formData.documento_numero}
                           onChange={(e) => {
@@ -483,6 +529,13 @@ export default function PersonaFormModal({
                           }}
                           name="documento_numero"
                         />
+                        {errors.documento_numero && (
+                          <p className="text-[11px] font-semibold text-red-500 mt-1">
+                            {esDni
+                              ? "El DNI debe tener entre 7 y 8 dígitos."
+                              : "Ingresá el número de documento."}
+                          </p>
+                        )}
                       </div>
                       {esDni && !esFallecida && (
                         <div className="md:col-span-2 p-4 bg-secondary-50 border border-secondary-200 rounded-xl">
@@ -580,12 +633,15 @@ export default function PersonaFormModal({
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-1 h-6">
                       <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest block">
                         Fecha de Nacimiento
                       </label>
                       {edadCalculada !== null && (
-                        <span className="text-[11px] font-extrabold text-primary-700 bg-primary-50 border border-primary-200/80 px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-sm">
+                        <span
+                          className="text-[11px] font-extrabold text-primary-700 bg-primary-50 border border-primary-200/80 px-2 py-0.5 rounded-full inline-flex
+  items-center gap-1 shadow-sm"
+                        >
                           🎂 {edadCalculada}{" "}
                           {edadCalculada === 1 ? "año" : "años"}
                         </span>
@@ -595,17 +651,24 @@ export default function PersonaFormModal({
                       type="date"
                       max={hoyStr}
                       min="1900-01-01"
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
+                      className={`w-full px-4 py-2.5 rounded-xl text-sm font-bold text-secondary-900 outline-none ${inputEstadoClases(errors.nacimiento_fecha)}`}
                       value={formData.nacimiento_fecha}
                       onChange={onInputChange}
                       name="nacimiento_fecha"
                     />
+                    {errors.nacimiento_fecha && (
+                      <p className="text-[11px] font-semibold text-red-500 mt-1">
+                        La fecha no es válida.
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      País
-                    </label>
+                    <div className="flex items-center justify-between mb-1 h-6">
+                      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest block">
+                        País
+                      </label>
+                    </div>
                     <select
                       className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
                       value={formData.nacion_id}
@@ -688,60 +751,100 @@ export default function PersonaFormModal({
                 </div>
               </section>
             )}
-
-            {/* STEP 4: SEXO Y GÉNERO */}
-            {!esFallecida && currentStep === 4 && (
-              <section>
-                <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
-                  <Heart className="w-4 h-4" /> Sexo y Género
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      Sexo
-                    </label>
-                    <select
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                      value={formData.sexo_id}
-                      onChange={onInputChange}
-                      name="sexo_id"
-                    >
-                      <option value="">Seleccionar...</option>
-                      {sexos.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      Género
-                    </label>
-                    <select
-                      className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                      value={formData.genero_id}
-                      onChange={onInputChange}
-                      name="genero_id"
-                    >
-                      <option value="">Seleccionar...</option>
-                      {generos.map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* STEP 5: CONTACTO Y RESUMEN */}
-            {!esFallecida && currentStep === 5 && (
+            {/* STEP 4: FOTO + CONTACTO Y RESUMEN */}
+            {(currentStep === 4 || (esFallecida && currentStep === 3)) && (
               <section className="space-y-6">
+                {!esFallecida && (
+                  <div>
+                    {/* Input de archivo oculto: dispara el seleccionador nativo */}
+                    <input
+                      type="file"
+                      ref={fotoInputRef}
+                      onChange={onFileChange}
+                      accept="image/*"
+                      className="hidden"
+                    />
+
+                    {!fotoPreview ? (
+                      /* ---------- CASO A: sin foto ---------- */
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        onClick={() => fotoInputRef.current?.click()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            fotoInputRef.current?.click();
+                          }
+                        }}
+                        className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer ${
+                          isDragging
+                            ? "border-primary-500 bg-primary-50/60 scale-[1.01]"
+                            : "border-secondary-300 hover:border-primary-400 bg-secondary-50/50 hover:bg-white"
+                        }`}
+                      >
+                        <UploadCloud className="w-12 h-12 text-primary-500 mb-3" />
+                        <p className="font-bold text-secondary-800">
+                          Arrastra y suelta una imagen aquí
+                        </p>
+                        <p className="text-sm text-secondary-500 mt-1">
+                          o haz clic para explorar tus archivos
+                        </p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onTakePhoto();
+                          }}
+                          className="mt-4 flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95"
+                        >
+                          <Camera className="w-4 h-4" /> Tomar con Cámara
+                        </button>
+                        <p className="text-[10px] text-secondary-400 mt-3 font-semibold">
+                          PNG, JPG o WEBP
+                        </p>
+                      </div>
+                    ) : (
+                      /* ---------- CASO B: con foto ---------- */
+                      <div className="flex flex-col sm:flex-row items-center gap-5 rounded-2xl border border-secondary-200 bg-white p-5">
+                        <img
+                          src={fotoPreview}
+                          crossOrigin="use-credentials"
+                          alt="Foto de perfil"
+                          className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => fotoInputRef.current?.click()}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95"
+                          >
+                            <RefreshCw className="w-4 h-4" /> Cambiar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onTakePhoto}
+                            className="flex items-center gap-2 px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95"
+                          >
+                            <Camera className="w-4 h-4" /> Tomar otra
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onDeleteFoto}
+                            className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95"
+                          >
+                            <Trash2 className="w-4 h-4" /> Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div>
                   <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4" /> Contacto y Resumen
+                    <CheckCircle2 className="w-4 h-4" /> Fotografía y Resumen
                   </h3>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
@@ -879,19 +982,32 @@ export default function PersonaFormModal({
                 Siguiente <ChevronRight className="w-4 h-4" />
               </button>
             ) : (
-              <button
-                key="btn-submit"
-                type="submit"
-                disabled={isSavingPersona}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                {isSavingPersona
-                  ? "Guardando..."
-                  : isEditMode
-                    ? "Guardar Cambios"
-                    : "Guardar Registro"}
-              </button>
+              <div className="flex items-center gap-3">
+                {!isEditMode && (
+                  <button
+                    type="button"
+                    onClick={onSubmitWithContinuation}
+                    disabled={isSavingPersona}
+                    className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-[0.98] shadow-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    Guardar y Asociar Domicilio / Contacto
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  key="btn-submit"
+                  type="submit"
+                  disabled={isSavingPersona}
+                  className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {isSavingPersona
+                    ? "Guardando..."
+                    : isEditMode
+                      ? "Guardar Cambios"
+                      : "Guardar Registro"}
+                </button>
+              </div>
             )}
           </div>
         </form>

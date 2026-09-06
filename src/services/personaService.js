@@ -159,6 +159,34 @@ const personaService = {
     const response = await api.delete(`/admin/personas/${id}/foto`);
     return response.data;
   },
+
+  /** Obtiene domicilio y contacto de una persona */
+  async getDomicilioContacto(personaId) {
+    const response = await api.get(
+      `/admin/personas/${personaId}/domicilio-contacto`,
+    );
+    return response.data;
+  },
+
+  /** Guarda/actualiza domicilio y contacto */
+  async saveDomicilioContacto(personaId, data) {
+    const response = await api.put(
+      `/admin/personas/${personaId}/domicilio-contacto`,
+      data,
+    );
+    return response.data;
+  },
+
+  /** Busca calles por localidad y texto (q) */
+  async searchCalles(params = {}) {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(
+        ([, v]) => v !== "" && v !== null && v !== undefined,
+      ),
+    );
+    const response = await api.get("/admin/calles", { params: cleanParams });
+    return response.data;
+  },
 };
 
 export default personaService;

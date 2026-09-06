@@ -26,6 +26,7 @@ import PersonaFilters from "./components/PersonaFilters";
 import PersonaTable from "./components/PersonaTable";
 import PersonaDetailModal from "./components/PersonaDetailModal";
 import PersonaFormModal from "./components/PersonaFormModal";
+import PersonaDomicilioModal from "./components/PersonaDomicilioModal";
 import PhotoCaptureModal from "./components/PhotoCaptureModal";
 import PhotoCropModal from "./components/PhotoCropModal";
 import { calcularEdad, EDAD_MAXIMA_ADMISIBLE } from "./utils/edad";
@@ -88,6 +89,7 @@ export default function PersonaManagement() {
   const [selectedPersona, setSelectedPersona] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [domicilioModalPersonaId, setDomicilioModalPersonaId] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [confirmationPending, setConfirmationPending] = useState(null);
   const [editingPersonaId, setEditingPersonaId] = useState(null);
@@ -122,6 +124,9 @@ export default function PersonaManagement() {
     email: "",
     vive_si: 1,
   });
+
+  // Errores de validación del formulario: { [campo]: true | mensaje }
+  const [formErrors, setFormErrors] = useState({});
 
   // Stepper
   const [currentStep, setCurrentStep] = useState(1);
@@ -458,6 +463,8 @@ export default function PersonaManagement() {
       vive_si: full.vive_si ?? 1,
     };
 
+    setFormErrors({});
+
     if (full.provincia_id) {
       await loadDepartamentos(full.provincia_id);
     }
@@ -473,6 +480,14 @@ export default function PersonaManagement() {
 
   const setFormValue = (field, value) => {
     setPersonaFormData((prev) => ({ ...prev, [field]: value }));
+    // Al modificar un campo con error, lo limpiamos automáticamente
+    if (formErrors[field]) {
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
   const handleCreatePersona = () => {
@@ -521,6 +536,7 @@ export default function PersonaManagement() {
       email: "",
       vive_si: 1,
     };
+    setFormErrors({});
     clearCascade();
     updateFotoPreview(null); // ← revoca el blob previo si existía
     setFotoFile(null); // ← igual que el original
@@ -538,7 +554,6 @@ export default function PersonaManagement() {
 
     if (noPosee) {
       setFormValue("documento_tipo_id", "");
-      setFormValue("documento_numero", "");
       setFormValue("tramite", "");
       setFormValue("CUIL_prefijo", "");
       setFormValue("CUIL_sufijo", "");
@@ -550,66 +565,101 @@ export default function PersonaManagement() {
   const handleTipoDocumentoChange = (e) => {
     const value = e.target.value;
     setFormValue("documento_tipo_id", value);
-    if (String(value) === DOC_TIPO_INDOCUMENTADO) {
+
+    // Al elegir DNI, el número debe ser numérico (máx 8). Filtramos/re-cortamos
+    // cualquier valor previo (ej: pasaporte alfanumérico largo) al cambiar de tipo.
+    if (String(value) === DOC_TIPO_DNI) {
+      setFormValue(
+        "documento_numero",
+        String(personaFormData.documento_numero ?? "")
+          .replace(/\D/g, "")
+          .slice(0, 8),
+      );
+    } else if (String(value) === DOC_TIPO_INDOCUMENTADO) {
       setFormValue("documento_numero", "");
       setFormValue("tramite", "");
       setFormValue("CUIL_prefijo", "");
       setFormValue("CUIL_sufijo", "");
     }
   };
+  // Campos que valida cada paso (para limpiarlos o marcarlos)
+  const CAMPOS_POR_PASO = {
+    1: ["apellido", "nombre"],
+    2: ["documento_tipo_id", "documento_numero"],
+    3: ["nacimiento_fecha"],
+  };
+
+  // Marca errores para los campos de un paso según `nuevos`, limpiando el resto del paso
+  const aplicarErroresPaso = (paso, nuevos) => {
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      (CAMPOS_POR_PASO[paso] || []).forEach((f) => delete next[f]);
+      return { ...next, ...nuevos };
+    });
+  };
 
   const validateStep = (step) => {
     switch (step) {
-      case 1:
-        if (
-          !personaFormData.apellido.trim() ||
-          !personaFormData.nombre.trim()
-        ) {
-          showNotification("Debes completar Apellido y Nombre.", "error");
+      case 1: {
+        const nuevos = {};
+        if (!personaFormData.apellido.trim()) nuevos.apellido = true;
+        if (!personaFormData.nombre.trim()) nuevos.nombre = true;
+        aplicarErroresPaso(1, nuevos);
+        if (nuevos.apellido || nuevos.nombre) {
+          showNotification("Debés completar Apellido y Nombre.", "error");
           return false;
         }
         return true;
+      }
       case 2: {
         const tipo = String(personaFormData.documento_tipo_id ?? "");
         const numero = String(personaFormData.documento_numero ?? "").trim();
-        if (!tipo) {
-          showNotification("Debes seleccionar el Tipo de Documento.", "error");
+        const nuevos = {};
+        if (!tipo) nuevos.documento_tipo_id = true;
+        if (tipo !== DOC_TIPO_INDOCUMENTADO && !numero)
+          nuevos.documento_numero = true;
+        if (tipo === DOC_TIPO_DNI && /\D/.test(numero)) {
+          nuevos.documento_numero = true;
+        }
+        if (tipo === DOC_TIPO_DNI && numero.length < 7)
+          nuevos.documento_numero = true;
+        aplicarErroresPaso(2, nuevos);
+        if (nuevos.documento_tipo_id) {
+          showNotification("Debés seleccionar el Tipo de Documento.", "error");
           return false;
         }
-        if (tipo !== DOC_TIPO_INDOCUMENTADO && !numero) {
-          showNotification("Debes cargar el Número de Documento.", "error");
-          return false;
-        }
-        if (tipo === DOC_TIPO_DNI && numero.length < 7) {
-          showNotification("El DNI debe tener entre 7 y 8 dígitos.", "error");
+        if (nuevos.documento_numero) {
+          showNotification(
+            numero
+              ? "El DNI debe tener entre 7 y 8 dígitos."
+              : "Debés cargar el Número de Documento.",
+            "error",
+          );
           return false;
         }
         return true;
       }
       case 3: {
         const fecha = String(personaFormData.nacimiento_fecha ?? "").trim();
+        const nuevos = {};
         if (fecha) {
           const hoy = new Date();
           const hoyStr = hoy.toISOString().split("T")[0];
-          if (fecha > hoyStr) {
-            showNotification(
-              "La fecha de nacimiento no puede ser futura.",
-              "error",
-            );
-            return false;
+          if (fecha > hoyStr) nuevos.nacimiento_fecha = true;
+          else if (fecha < "1900-01-01") nuevos.nacimiento_fecha = true;
+          else {
+            const edad = calcularEdad(fecha);
+            if (edad !== null && edad > EDAD_MAXIMA_ADMISIBLE)
+              nuevos.nacimiento_fecha = true;
           }
-          if (fecha < "1900-01-01") {
-            showNotification(
-              "La fecha de nacimiento no puede ser anterior al año 1900.",
-              "error",
-            );
-            return false;
-          }
-          const edad = calcularEdad(fecha);
-          if (edad !== null && edad > EDAD_MAXIMA_ADMISIBLE) {
-            showNotification("La edad no puede superar los 100 años.", "error");
-            return false;
-          }
+        }
+        aplicarErroresPaso(3, nuevos);
+        if (nuevos.nacimiento_fecha) {
+          showNotification(
+            "La fecha de nacimiento no es válida: no puede ser futura, anterior a 1900 ni superar los 100 años.",
+            "error",
+          );
+          return false;
         }
         return true;
       }
@@ -630,7 +680,9 @@ export default function PersonaManagement() {
 
   const handleViveChange = (checked) => {
     setFormValue("vive_si", checked ? 1 : 0);
-    if (!checked && currentStep > 2) setCurrentStep(1);
+    if (!checked && currentStep > MAX_STEP_FALLECIDA) {
+      setCurrentStep(MAX_STEP_FALLECIDA);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -770,10 +822,42 @@ export default function PersonaManagement() {
     updateFotoPreview(null);
   };
 
+  // Guarda la persona y abre el modal de domicilio/contacto (overlay)
+  const handleSubmitWithContinuation = async (e) => {
+    e.preventDefault();
+    if (!validateStep(currentStep)) return;
+    try {
+      setIsSavingPersona(true);
+      const res = await personaService.create(personaFormData);
+      const savedId = res?.data?.data?.id ?? res?.data?.id ?? res?.id;
+      if (savedId && fotoFile) {
+        const fd = new FormData();
+        fd.append("foto", fotoFile);
+        await personaService.uploadFoto(savedId, fd);
+      }
+      setDomicilioModalPersonaId(savedId);
+      fetchPersonas(1);
+    } catch (error) {
+      console.error("Error al registrar persona:", error);
+      showNotification(
+        parseError(error, "No se pudo registrar la persona."),
+        "error",
+      );
+    } finally {
+      setIsSavingPersona(false);
+    }
+  };
+
+  // Cierra domicilio + persona juntos
+  const handleCloseDomicilioModal = () => {
+    setDomicilioModalPersonaId(null);
+    setIsCreateModalOpen(false);
+  };
+
   const handleSubmitPersona = async (e) => {
     e.preventDefault();
 
-    if (currentStep < (esFallecida ? 2 : 5)) {
+    if (currentStep < (esFallecida ? 3 : 4)) {
       handleNextStep();
       return;
     }
@@ -973,6 +1057,14 @@ export default function PersonaManagement() {
         onFilterHasUserChange={setFilterHasUser}
       />
 
+      <PersonaDomicilioModal
+        personaId={domicilioModalPersonaId}
+        isOpen={!!domicilioModalPersonaId}
+        onClose={handleCloseDomicilioModal}
+        onOmit={handleCloseDomicilioModal}
+        onSaved={handleCloseDomicilioModal}
+      />
+
       {/* Listado */}
       <PersonaTable
         personas={personas}
@@ -1020,6 +1112,7 @@ export default function PersonaManagement() {
             departamentos,
             localidades,
           }}
+          errors={formErrors}
           fotoPreview={fotoPreview}
           fotoInputRef={fotoInputRef}
           onFieldChange={setFormValue}
@@ -1045,6 +1138,7 @@ export default function PersonaManagement() {
           onSubmit={handleSubmitPersona}
           onNextStep={handleNextStep}
           onPrevStep={handlePrevStep}
+          onSubmitWithContinuation={handleSubmitWithContinuation}
         />
       )}
 
