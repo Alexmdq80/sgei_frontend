@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Phone, Home, Save, SkipForward } from "lucide-react";
-import personaService from "../../../../services/personaService";
+import personaService from "../../../services/personaService";
 import useGeografiaCascade from "../hooks/useGeografiaCascade";
 
 export default function PersonaDomicilioModal({
