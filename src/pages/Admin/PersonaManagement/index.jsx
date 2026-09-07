@@ -27,6 +27,7 @@ import PersonaTable from "./components/PersonaTable";
 import PersonaDetailModal from "./components/PersonaDetailModal";
 import PersonaFormModal from "./components/PersonaFormModal";
 import PersonaDomicilioModal from "./components/PersonaDomicilioModal";
+import PersonaContactoModal from "./components/PersonaContactoModal";
 import PhotoCaptureModal from "./components/PhotoCaptureModal";
 import PhotoCropModal from "./components/PhotoCropModal";
 import { calcularEdad, EDAD_MAXIMA_ADMISIBLE } from "./utils/edad";
@@ -77,7 +78,7 @@ export default function PersonaManagement() {
     confirmText: "Confirmar",
     cancelText: "Cancelar",
     variant: "primary",
-    onConfirm: () => {},
+    onConfirm: () => { },
     showInput: false,
     inputPlaceholder: "",
     isLoading: false,
@@ -90,6 +91,7 @@ export default function PersonaManagement() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [domicilioModalPersonaId, setDomicilioModalPersonaId] = useState(null);
+  const [contactoModalPersonaId, setContactoModalPersonaId] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [confirmationPending, setConfirmationPending] = useState(null);
   const [editingPersonaId, setEditingPersonaId] = useState(null);
@@ -823,8 +825,7 @@ export default function PersonaManagement() {
   };
 
   // Guarda la persona y abre el modal de domicilio/contacto (overlay)
-  const handleSubmitWithContinuation = async (e) => {
-    e.preventDefault();
+  const handleSubmitWithContinuation = async (tipo) => {
     if (!validateStep(currentStep)) return;
     try {
       setIsSavingPersona(true);
@@ -835,14 +836,13 @@ export default function PersonaManagement() {
         fd.append("foto", fotoFile);
         await personaService.uploadFoto(savedId, fd);
       }
-      setDomicilioModalPersonaId(savedId);
+      if (tipo === "contacto") setContactoModalPersonaId(savedId);
+      else setDomicilioModalPersonaId(savedId);
+      setIsCreateModalOpen(false);
       fetchPersonas(1);
     } catch (error) {
       console.error("Error al registrar persona:", error);
-      showNotification(
-        parseError(error, "No se pudo registrar la persona."),
-        "error",
-      );
+      // acá tu showNotification de error
     } finally {
       setIsSavingPersona(false);
     }
@@ -851,6 +851,11 @@ export default function PersonaManagement() {
   // Cierra domicilio + persona juntos
   const handleCloseDomicilioModal = () => {
     setDomicilioModalPersonaId(null);
+    setIsCreateModalOpen(false);
+  };
+
+  const handleCloseContactoModal = () => {
+    setContactoModalPersonaId(null);
     setIsCreateModalOpen(false);
   };
 
@@ -1063,6 +1068,15 @@ export default function PersonaManagement() {
         onClose={handleCloseDomicilioModal}
         onOmit={handleCloseDomicilioModal}
         onSaved={handleCloseDomicilioModal}
+      />
+
+      <PersonaContactoModal
+        personaId={contactoModalPersonaId}
+        isOpen={!!contactoModalPersonaId}
+        isEmailLocked={isEmailLocked}
+        onClose={handleCloseContactoModal}
+        onOmit={handleCloseContactoModal}
+        onSaved={handleCloseContactoModal}
       />
 
       {/* Listado */}

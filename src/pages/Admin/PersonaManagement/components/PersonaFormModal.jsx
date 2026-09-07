@@ -13,6 +13,8 @@ import {
   Eye,
   UploadCloud,
   RefreshCw,
+  Phone,
+  Home,
   Image as ImageIcon,
 } from "lucide-react";
 import { DOC_TIPO_DNI, DOC_TIPO_INDOCUMENTADO } from "../utils/constants";
@@ -103,10 +105,10 @@ export default function PersonaFormModal({
     String(formData.documento_tipo_id) === DOC_TIPO_INDOCUMENTADO;
   const tipoOptions = noPoseeSituacion
     ? docTipos.filter(
-        (t) =>
-          String(t.id) !== DOC_TIPO_DNI ||
-          String(formData.documento_tipo_id) === DOC_TIPO_DNI,
-      )
+      (t) =>
+        String(t.id) !== DOC_TIPO_DNI ||
+        String(formData.documento_tipo_id) === DOC_TIPO_DNI,
+    )
     : docTipos;
   const tipoDoc = docTipos.find(
     (t) => String(t.id) === String(formData.documento_tipo_id),
@@ -132,10 +134,10 @@ export default function PersonaFormModal({
   ];
   const etapasVisibles = esFallecida
     ? [
-        { n: 1, label: "Identidad", Icon: User },
-        { n: 2, label: "Documento", Icon: IdCard },
-        { n: 3, label: "Resumen", Icon: CheckCircle2 },
-      ]
+      { n: 1, label: "Identidad", Icon: User },
+      { n: 2, label: "Documento", Icon: IdCard },
+      { n: 3, label: "Resumen", Icon: CheckCircle2 },
+    ]
     : todasLasEtapas;
 
   // Estado de arrastre para el dropzone de foto
@@ -240,13 +242,12 @@ export default function PersonaFormModal({
               <div key={n} className="flex items-center flex-1 last:flex-none">
                 <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
                   <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${
-                      currentStep === n
-                        ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
-                        : currentStep > n
-                          ? "bg-green-500 border-green-500 text-white"
-                          : "bg-white border-secondary-300 text-secondary-400"
-                    }`}
+                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${currentStep === n
+                      ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
+                      : currentStep > n
+                        ? "bg-green-500 border-green-500 text-white"
+                        : "bg-white border-secondary-300 text-secondary-400"
+                      }`}
                   >
                     {currentStep > n ? (
                       <CheckCircle2 className="w-5 h-5" />
@@ -255,20 +256,18 @@ export default function PersonaFormModal({
                     )}
                   </div>
                   <span
-                    className={`text-[10px] font-black uppercase tracking-wider ${
-                      currentStep === n
-                        ? "text-primary-700"
-                        : "text-secondary-400"
-                    }`}
+                    className={`text-[10px] font-black uppercase tracking-wider ${currentStep === n
+                      ? "text-primary-700"
+                      : "text-secondary-400"
+                      }`}
                   >
                     {label}
                   </span>
                 </div>
                 {idx < etapasVisibles.length - 1 && (
                   <div
-                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
-                      currentStep > n ? "bg-green-500" : "bg-secondary-200"
-                    }`}
+                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${currentStep > n ? "bg-green-500" : "bg-secondary-200"
+                      }`}
                   />
                 )}
               </div>
@@ -452,13 +451,12 @@ export default function PersonaFormModal({
                     </label>
                     <select
                       disabled={isEmailLocked || poseeDni}
-                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${
-                        errors.documento_tipo_id
-                          ? "bg-red-50/60 border-red-300 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
-                          : isEmailLocked || poseeDni
-                            ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                            : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                      }`}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${errors.documento_tipo_id
+                        ? "bg-red-50/60 border-red-300 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                        : isEmailLocked || poseeDni
+                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                        }`}
                       value={formData.documento_tipo_id}
                       onChange={onTipoDocumentoChange}
                     >
@@ -510,21 +508,20 @@ export default function PersonaFormModal({
                               ? "Ej: 35123456"
                               : "Ingrese número de pasaporte / documento"
                           }
-                          className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${
-                            errors.documento_numero
-                              ? "bg-red-50/60 border-red-300 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
-                              : isEmailLocked
-                                ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                                : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                          }`}
+                          className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${errors.documento_numero
+                            ? "bg-red-50/60 border-red-300 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                            : isEmailLocked
+                              ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                              : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                            }`}
                           value={formData.documento_numero}
                           onChange={(e) => {
                             const cleanValue = esDni
                               ? e.target.value.replace(/\D/g, "").slice(0, 8)
                               : e.target.value
-                                  .replace(/[^a-zA-Z0-9-]/g, "")
-                                  .toUpperCase()
-                                  .slice(0, 20);
+                                .replace(/[^a-zA-Z0-9-]/g, "")
+                                .toUpperCase()
+                                .slice(0, 20);
                             onFieldChange("documento_numero", cleanValue);
                           }}
                           name="documento_numero"
@@ -551,11 +548,10 @@ export default function PersonaFormModal({
                                 inputMode="numeric"
                                 pattern="[0-9]*"
                                 placeholder="11 dígitos (frente/dorso del DNI)"
-                                className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${
-                                  isEmailLocked
-                                    ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                                    : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                                }`}
+                                className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${isEmailLocked
+                                  ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                                  : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                                  }`}
                                 value={formData.tramite}
                                 onChange={(e) => {
                                   const cleanValue = e.target.value
@@ -779,11 +775,10 @@ export default function PersonaFormModal({
                             fotoInputRef.current?.click();
                           }
                         }}
-                        className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer ${
-                          isDragging
-                            ? "border-primary-500 bg-primary-50/60 scale-[1.01]"
-                            : "border-secondary-300 hover:border-primary-400 bg-secondary-50/50 hover:bg-white"
-                        }`}
+                        className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer ${isDragging
+                          ? "border-primary-500 bg-primary-50/60 scale-[1.01]"
+                          : "border-secondary-300 hover:border-primary-400 bg-secondary-50/50 hover:bg-white"
+                          }`}
                       >
                         <UploadCloud className="w-12 h-12 text-primary-500 mb-3" />
                         <p className="font-bold text-secondary-800">
@@ -846,26 +841,7 @@ export default function PersonaFormModal({
                   <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4" /> Fotografía y Resumen
                   </h3>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      Email de Contacto
-                    </label>
-                    <input
-                      type="email"
-                      disabled={isEmailLocked}
-                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold lowercase outline-none ${
-                        isEmailLocked
-                          ? "bg-secondary-100 text-secondary-400 cursor-not-allowed"
-                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                      }`}
-                      value={formData.email}
-                      onChange={(e) =>
-                        onFieldChange("email", e.target.value.toLowerCase())
-                      }
-                    />
-                  </div>
                 </div>
-
                 <div className="bg-secondary-50 border border-secondary-200 rounded-2xl p-5 space-y-4">
                   <h4 className="text-xs font-black text-secondary-500 uppercase tracking-widest flex items-center gap-2">
                     <Eye className="w-4 h-4" /> Ficha de Resumen
@@ -918,12 +894,11 @@ export default function PersonaFormModal({
                         Fecha de Nacimiento
                       </p>
                       {formData.nacimiento_fecha
-                        ? `${formData.nacimiento_fecha}${
-                            edadCalculada !== null &&
-                            edadCalculada !== undefined
-                              ? ` (${edadCalculada} años)`
-                              : ""
-                          }`
+                        ? `${formData.nacimiento_fecha}${edadCalculada !== null &&
+                          edadCalculada !== undefined
+                          ? ` (${edadCalculada} años)`
+                          : ""
+                        }`
                         : "—"}
                     </div>
                     <div className="space-y-0.5">
@@ -984,15 +959,24 @@ export default function PersonaFormModal({
             ) : (
               <div className="flex items-center gap-3">
                 {!isEditMode && (
-                  <button
-                    type="button"
-                    onClick={onSubmitWithContinuation}
-                    disabled={isSavingPersona}
-                    className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-[0.98] shadow-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    Guardar y Asociar Domicilio / Contacto
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onSubmitWithContinuation("contacto")}
+                      disabled={isSavingPersona}
+                      className="flex items-center gap-2 px-4 py-3 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-[0.98] shadow-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-xs"
+                    >
+                      <Phone className="w-4 h-4" /> Guardar y Registrar Datos de Contacto
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSubmitWithContinuation("domicilio")}
+                      disabled={isSavingPersona}
+                      className="flex items-center gap-2 px-4 py-3 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-[0.98] shadow-md bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50 text-xs"
+                    >
+                      <Home className="w-4 h-4" /> Guardar y Registrar Domicilio
+                    </button>
+                  </>
                 )}
                 <button
                   key="btn-submit"

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, Phone, Home, Save, SkipForward } from "lucide-react";
-import personaService from "../../../services/personaService";
+import { X, Home, Save, SkipForward } from "lucide-react";
+import personaService from "../../../../services/personaService";
 import useGeografiaCascade from "../hooks/useGeografiaCascade";
 
 export default function PersonaDomicilioModal({
@@ -10,13 +10,7 @@ export default function PersonaDomicilioModal({
   onOmit,
   onSaved,
 }) {
-  const [contacto, setContacto] = useState({
-    telefono_codigo_area: "",
-    telefono: "",
-    celular_codigo_area: "",
-    celular: "",
-    email: "",
-  });
+
   const [domicilio, setDomicilio] = useState({
     provincia_id: "",
     departamento_id: "",
@@ -51,17 +45,6 @@ export default function PersonaDomicilioModal({
   // Sanea campos numéricos (solo dígitos)
   const soloNumeros = (valor) => valor.replace(/\D/g, "");
 
-  const setContactoField = (key) => (e) => {
-    const raw = e.target.value;
-    const esNumerico = [
-      "telefono_codigo_area",
-      "telefono",
-      "celular_codigo_area",
-      "celular",
-    ].includes(key);
-    setContacto((p) => ({ ...p, [key]: esNumerico ? soloNumeros(raw) : raw }));
-  };
-
   const setDomicilioField = (key) => (e) => {
     const raw = e.target.value;
     const esNumerico = ["numero", "piso", "torre", "codigo_postal"].includes(
@@ -82,7 +65,7 @@ export default function PersonaDomicilioModal({
       .then((r) => {
         if (active) setCalles(r?.data?.data || r?.data || r || []);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       active = false;
     };
@@ -99,7 +82,7 @@ export default function PersonaDomicilioModal({
       .then((r) => {
         if (active) setCallesEntre1(r?.data?.data || r?.data || r || []);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       active = false;
     };
@@ -116,7 +99,7 @@ export default function PersonaDomicilioModal({
       .then((r) => {
         if (active) setCallesEntre2(r?.data?.data || r?.data || r || []);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       active = false;
     };
@@ -168,7 +151,6 @@ export default function PersonaDomicilioModal({
 
   const handleSave = async () => {
     await personaService.saveDomicilioContacto(personaId, {
-      ...contacto,
       ...domicilio,
     });
     onSaved();
@@ -201,10 +183,10 @@ export default function PersonaDomicilioModal({
             </div>
             <div>
               <h2 className="text-xl font-black text-white">
-                Domicilio y Contacto
+                Domicilio
               </h2>
               <p className="text-white/80 text-sm font-medium">
-                Completá los datos de contacto y domicilio de la persona
+                Completá la ubicación y el domicilio de la persona
               </p>
             </div>
           </div>
@@ -212,74 +194,7 @@ export default function PersonaDomicilioModal({
 
         {/* Cuerpo scrolleable */}
         <div className="overflow-y-auto flex-1 min-h-0 p-6 space-y-6">
-          {/* Sección 1: Contacto Extendido */}
-          <section>
-            <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
-              <Phone className="w-4 h-4" /> Contacto Extendido
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Cód. Área Teléfono</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={10}
-                  placeholder="011"
-                  value={contacto.telefono_codigo_area}
-                  onChange={setContactoField("telefono_codigo_area")}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Teléfono Fijo</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={20}
-                  placeholder="44664455"
-                  value={contacto.telefono}
-                  onChange={setContactoField("telefono")}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Cód. Área Celular</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={10}
-                  placeholder="011"
-                  value={contacto.celular_codigo_area}
-                  onChange={setContactoField("celular_codigo_area")}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Celular</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={20}
-                  placeholder="1566443322"
-                  value={contacto.celular}
-                  onChange={setContactoField("celular")}
-                  className={inputCls}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className={labelCls}>Email de Contacto</label>
-                <input
-                  type="email"
-                  placeholder="persona@mail.com"
-                  value={contacto.email}
-                  onChange={setContactoField("email")}
-                  className={`${inputCls} lowercase`}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Sección 2: Domicilio */}
+          {/* Sección 1: Domicilio */}
           <section>
             <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
               <Home className="w-4 h-4" /> Domicilio
@@ -472,7 +387,7 @@ export default function PersonaDomicilioModal({
             onClick={handleSave}
             className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-[0.98] shadow-lg"
           >
-            <Save className="w-4 h-4" /> Guardar Domicilio y Contacto
+            <Save className="w-4 h-4" /> Guardar Domicilio
           </button>
         </div>
       </div>
