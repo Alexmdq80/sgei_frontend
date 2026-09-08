@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Eye,
   UploadCloud,
   RefreshCw,
   Image as ImageIcon,
@@ -127,7 +126,8 @@ export default function PersonaFormModal({
     { n: 1, label: "Identidad", Icon: User },
     { n: 2, label: "Documento", Icon: IdCard },
     { n: 3, label: "Nacimiento", Icon: MapPin },
-    { n: 4, label: "Foto y Resumen", Icon: CheckCircle2 },
+    { n: 4, label: "Fotografía", Icon: Camera },
+    { n: 5, label: "Resumen", Icon: CheckCircle2 },
   ];
   const etapasVisibles = esFallecida
     ? [
@@ -744,114 +744,136 @@ export default function PersonaFormModal({
                 </div>
               </section>
             )}
-            {/* STEP 4: FOTO + CONTACTO Y RESUMEN */}
-            {(currentStep === 4 || (esFallecida && currentStep === 3)) && (
-              <section className="space-y-6">
-                {!esFallecida && (
-                  <div>
-                    {/* Input de archivo oculto: dispara el seleccionador nativo */}
-                    <input
-                      type="file"
-                      ref={fotoInputRef}
-                      onChange={onFileChange}
-                      accept="image/*"
-                      className="hidden"
-                    />
+            {/* STEP 4: FOTOGRAFÍA (solo persona con vida) */}
+            {!esFallecida && currentStep === 4 && (
+              <section className="space-y-4 animate-fadeIn">
+                <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-2 flex items-center gap-2">
+                  <Camera className="w-4 h-4" /> Fotografía de Perfil
+                </h3>
+                <p className="text-xs text-secondary-500 font-medium mb-4">
+                  Sube una fotografía de la persona o captúrala con la cámara web. Este paso es opcional: puedes continuar y cargarla en otro momento si no la tienes a mano.
+                </p>
 
-                    {!fotoPreview ? (
-                      /* ---------- CASO A: sin foto ---------- */
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
+                {/* Input de archivo oculto: dispara el seleccionador nativo */}
+                <input
+                  type="file"
+                  ref={fotoInputRef}
+                  onChange={onFileChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+
+                {!fotoPreview ? (
+                  /* ---------- CASO A: sin foto ---------- */
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fotoInputRef.current?.click()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        fotoInputRef.current?.click();
+                      }
+                    }}
+                    className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer ${isDragging
+                      ? "border-primary-500 bg-primary-50/60 scale-[1.01]"
+                      : "border-secondary-300 hover:border-primary-400 bg-secondary-50/50 hover:bg-white"
+                      }`}
+                  >
+                    <UploadCloud className="w-12 h-12 text-primary-500 mb-3" />
+                    <p className="font-bold text-secondary-800">
+                      Arrastra y suelta una imagen aquí
+                    </p>
+                    <p className="text-sm text-secondary-500 mt-1">
+                      o haz clic para explorar tus archivos
+                    </p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTakePhoto();
+                      }}
+                      className="mt-4 flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95"
+                    >
+                      <Camera className="w-4 h-4" /> Tomar con Cámara
+                    </button>
+                    <p className="text-[10px] text-secondary-400 mt-3 font-semibold">
+                      PNG, JPG o WEBP
+                    </p>
+                  </div>
+                ) : (
+                  /* ---------- CASO B: con foto ---------- */
+                  <div className="flex flex-col sm:flex-row items-center gap-5 rounded-2xl border border-secondary-200 bg-white p-5">
+                    <img
+                      src={fotoPreview}
+                      crossOrigin="use-credentials"
+                      alt="Foto de perfil"
+                      className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
                         onClick={() => fotoInputRef.current?.click()}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            fotoInputRef.current?.click();
-                          }
-                        }}
-                        className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer ${isDragging
-                          ? "border-primary-500 bg-primary-50/60 scale-[1.01]"
-                          : "border-secondary-300 hover:border-primary-400 bg-secondary-50/50 hover:bg-white"
-                          }`}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95"
                       >
-                        <UploadCloud className="w-12 h-12 text-primary-500 mb-3" />
-                        <p className="font-bold text-secondary-800">
-                          Arrastra y suelta una imagen aquí
-                        </p>
-                        <p className="text-sm text-secondary-500 mt-1">
-                          o haz clic para explorar tus archivos
-                        </p>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onTakePhoto();
-                          }}
-                          className="mt-4 flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95"
-                        >
-                          <Camera className="w-4 h-4" /> Tomar con Cámara
-                        </button>
-                        <p className="text-[10px] text-secondary-400 mt-3 font-semibold">
-                          PNG, JPG o WEBP
-                        </p>
-                      </div>
-                    ) : (
-                      /* ---------- CASO B: con foto ---------- */
-                      <div className="flex flex-col sm:flex-row items-center gap-5 rounded-2xl border border-secondary-200 bg-white p-5">
-                        <img
-                          src={fotoPreview}
-                          crossOrigin="use-credentials"
-                          alt="Foto de perfil"
-                          className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
-                        />
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => fotoInputRef.current?.click()}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95"
-                          >
-                            <RefreshCw className="w-4 h-4" /> Cambiar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={onTakePhoto}
-                            className="flex items-center gap-2 px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95"
-                          >
-                            <Camera className="w-4 h-4" /> Tomar otra
-                          </button>
-                          <button
-                            type="button"
-                            onClick={onDeleteFoto}
-                            className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95"
-                          >
-                            <Trash2 className="w-4 h-4" /> Eliminar
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                        <RefreshCw className="w-4 h-4" /> Cambiar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onTakePhoto}
+                        className="flex items-center gap-2 px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95"
+                      >
+                        <Camera className="w-4 h-4" /> Tomar otra
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onDeleteFoto}
+                        className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95"
+                      >
+                        <Trash2 className="w-4 h-4" /> Eliminar
+                      </button>
+                    </div>
                   </div>
                 )}
-                <div>
-                  <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4" /> Fotografía y Resumen
-                  </h3>
-                </div>
-                <div className="bg-secondary-50 border border-secondary-200 rounded-2xl p-5 space-y-4">
-                  <h4 className="text-xs font-black text-secondary-500 uppercase tracking-widest flex items-center gap-2">
-                    <Eye className="w-4 h-4" /> Ficha de Resumen
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-0.5">
-                      <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                        Nombre
-                      </p>
-                      <p className="font-black text-secondary-900 uppercase">
+              </section>
+            )}
+
+            {/* STEP 5: RESUMEN (viva) / STEP 3: RESUMEN (fallecida) */}
+            {(currentStep === 5 || (esFallecida && currentStep === 3)) && (
+              <section className="space-y-4 animate-fadeIn">
+                <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-2 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" /> Ficha de Resumen y Confirmación
+                </h3>
+
+                <div className="bg-secondary-50 border border-secondary-200 rounded-2xl p-5 space-y-4 shadow-sm">
+                  {/* Encabezado estilo credencial con avatar */}
+                  <div className="flex items-center gap-4 pb-3 border-b border-secondary-200/80">
+                    {fotoPreview && !esFallecida ? (
+                      <img
+                        src={fotoPreview}
+                        crossOrigin="use-credentials"
+                        alt="Foto de perfil"
+                        className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xl font-black border-2 border-primary-200 shadow-sm">
+                        {formData.apellido?.charAt(0)?.toUpperCase() || "?"}
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="text-base font-black text-secondary-900 uppercase">
                         {formData.apellido} {formData.nombre}
+                      </h4>
+                      <p className="text-xs font-bold text-secondary-500 uppercase">
+                        {formData.documento_numero ? `${etiquetaNumeroDocumento}: ${formData.documento_numero}` : "Sin Documento Registrado"}
                       </p>
                     </div>
+                  </div>
+
+                  {/* Grid de detalles */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     {formData.nombre_alternativo && (
                       <div className="space-y-0.5">
                         <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
@@ -864,52 +886,31 @@ export default function PersonaFormModal({
                     )}
                     <div className="space-y-0.5">
                       <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                        Documento
-                      </p>
-                      <p className="font-bold text-secondary-900 uppercase">
-                        {formData.documento_numero
-                          ? `${formData.documento_numero}`
-                          : "—"}
-                      </p>
-                    </div>
-                    <div className="space-y-0.5">
-                      <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
                         Sexo / Género
                       </p>
                       <p className="font-bold text-secondary-900 uppercase">
-                        {sexos.find(
-                          (s) => String(s.id) === String(formData.sexo_id),
-                        )?.nombre || "—"}{" "}
-                        /{" "}
-                        {generos.find(
-                          (g) => String(g.id) === String(formData.genero_id),
-                        )?.nombre || "—"}
+                        {sexos.find((s) => String(s.id) === String(formData.sexo_id))?.nombre || "—"}{" / "}
+                        {generos.find((g) => String(g.id) === String(formData.genero_id))?.nombre || "—"}
                       </p>
                     </div>
                     <div className="space-y-0.5">
                       <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
                         Fecha de Nacimiento
                       </p>
-                      {formData.nacimiento_fecha
-                        ? `${formData.nacimiento_fecha}${edadCalculada !== null &&
-                          edadCalculada !== undefined
-                          ? ` (${edadCalculada} años)`
-                          : ""
-                        }`
-                        : "—"}
+                      <p className="font-bold text-secondary-900 uppercase">
+                        {formData.nacimiento_fecha
+                          ? `${formData.nacimiento_fecha}${edadCalculada !== null && edadCalculada !== undefined ? ` (${edadCalculada} años)` : ""}`
+                          : "—"}
+                      </p>
                     </div>
                     <div className="space-y-0.5">
                       <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
                         Lugar de Nacimiento
                       </p>
                       <p className="font-bold text-secondary-900 uppercase">
-                        {nacions.find(
-                          (n) => String(n.id) === String(formData.nacion_id),
-                        )?.nombre || "—"}
+                        {nacions.find((n) => String(n.id) === String(formData.nacion_id))?.nombre || "—"}
                         {formData.localidad_id && " · "}
-                        {localidades.find(
-                          (l) => String(l.id) === String(formData.localidad_id),
-                        )?.nombre || ""}
+                        {localidades.find((l) => String(l.id) === String(formData.localidad_id))?.nombre || ""}
                       </p>
                     </div>
                     {Boolean(formData.email) && (

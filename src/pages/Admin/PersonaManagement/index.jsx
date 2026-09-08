@@ -667,6 +667,8 @@ export default function PersonaManagement() {
         }
         return true;
       }
+      case 4:
+      case 5:
       default:
         return true;
     }
@@ -853,7 +855,7 @@ export default function PersonaManagement() {
   const handleSubmitPersona = async (e) => {
     e.preventDefault();
 
-    if (currentStep < (esFallecida ? 3 : 4)) {
+    if (currentStep < maxStep) {
       handleNextStep();
       return;
     }
