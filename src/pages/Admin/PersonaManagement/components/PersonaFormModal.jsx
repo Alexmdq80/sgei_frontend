@@ -13,8 +13,6 @@ import {
   Eye,
   UploadCloud,
   RefreshCw,
-  Phone,
-  Home,
   Image as ImageIcon,
 } from "lucide-react";
 import { DOC_TIPO_DNI, DOC_TIPO_INDOCUMENTADO } from "../utils/constants";
@@ -80,7 +78,6 @@ export default function PersonaFormModal({
   onDepartamentoChange,
   onClose,
   onSubmit,
-  onSubmitWithContinuation,
   onNextStep,
   onPrevStep,
 }) {
@@ -915,14 +912,16 @@ export default function PersonaFormModal({
                         )?.nombre || ""}
                       </p>
                     </div>
-                    <div className="space-y-0.5">
-                      <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                        Email
-                      </p>
-                      <p className="font-bold text-secondary-900 lowercase">
-                        {formData.email || "—"}
-                      </p>
-                    </div>
+                    {Boolean(formData.email) && (
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                          Email
+                        </p>
+                        <p className="font-bold text-secondary-900 lowercase">
+                          {formData.email}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </section>
@@ -957,41 +956,19 @@ export default function PersonaFormModal({
                 Siguiente <ChevronRight className="w-4 h-4" />
               </button>
             ) : (
-              <div className="flex items-center gap-3">
-                {!isEditMode && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => onSubmitWithContinuation("contacto")}
-                      disabled={isSavingPersona}
-                      className="flex items-center gap-2 px-4 py-3 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-[0.98] shadow-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-xs"
-                    >
-                      <Phone className="w-4 h-4" /> Guardar y Registrar Datos de Contacto
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onSubmitWithContinuation("domicilio")}
-                      disabled={isSavingPersona}
-                      className="flex items-center gap-2 px-4 py-3 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-[0.98] shadow-md bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50 text-xs"
-                    >
-                      <Home className="w-4 h-4" /> Guardar y Registrar Domicilio
-                    </button>
-                  </>
-                )}
-                <button
-                  key="btn-submit"
-                  type="submit"
-                  disabled={isSavingPersona}
-                  className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  {isSavingPersona
-                    ? "Guardando..."
-                    : isEditMode
-                      ? "Guardar Cambios"
-                      : "Guardar Registro"}
-                </button>
-              </div>
+              <button
+                key="btn-submit"
+                type="submit"
+                disabled={isSavingPersona}
+                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                {isSavingPersona
+                  ? "Guardando..."
+                  : isEditMode
+                    ? "Guardar Cambios"
+                    : "Guardar Registro"}
+              </button>
             )}
           </div>
         </form>

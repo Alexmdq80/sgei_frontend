@@ -28,6 +28,7 @@ import PersonaDetailModal from "./components/PersonaDetailModal";
 import PersonaFormModal from "./components/PersonaFormModal";
 import PersonaDomicilioModal from "./components/PersonaDomicilioModal";
 import PersonaContactoModal from "./components/PersonaContactoModal";
+import PersonaPostAltaModal from "./components/PersonaPostAltaModal";
 import PhotoCaptureModal from "./components/PhotoCaptureModal";
 import PhotoCropModal from "./components/PhotoCropModal";
 import { calcularEdad, EDAD_MAXIMA_ADMISIBLE } from "./utils/edad";
@@ -92,6 +93,7 @@ export default function PersonaManagement() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [domicilioModalPersonaId, setDomicilioModalPersonaId] = useState(null);
   const [contactoModalPersonaId, setContactoModalPersonaId] = useState(null);
+  const [postAltaPersona, setPostAltaPersona] = useState(null); // null o { id, apellido, nombre, documento_numero, foto_url }
   const [isEditMode, setIsEditMode] = useState(false);
   const [confirmationPending, setConfirmationPending] = useState(null);
   const [editingPersonaId, setEditingPersonaId] = useState(null);
@@ -824,30 +826,6 @@ export default function PersonaManagement() {
     updateFotoPreview(null);
   };
 
-  // Guarda la persona y abre el modal de domicilio/contacto (overlay)
-  const handleSubmitWithContinuation = async (tipo) => {
-    if (!validateStep(currentStep)) return;
-    try {
-      setIsSavingPersona(true);
-      const res = await personaService.create(personaFormData);
-      const savedId = res?.data?.data?.id ?? res?.data?.id ?? res?.id;
-      if (savedId && fotoFile) {
-        const fd = new FormData();
-        fd.append("foto", fotoFile);
-        await personaService.uploadFoto(savedId, fd);
-      }
-      if (tipo === "contacto") setContactoModalPersonaId(savedId);
-      else setDomicilioModalPersonaId(savedId);
-      setIsCreateModalOpen(false);
-      fetchPersonas(1);
-    } catch (error) {
-      console.error("Error al registrar persona:", error);
-      // acá tu showNotification de error
-    } finally {
-      setIsSavingPersona(false);
-    }
-  };
-
   // Cierra domicilio + persona juntos
   const handleCloseDomicilioModal = () => {
     setDomicilioModalPersonaId(null);
@@ -857,6 +835,19 @@ export default function PersonaManagement() {
   const handleCloseContactoModal = () => {
     setContactoModalPersonaId(null);
     setIsCreateModalOpen(false);
+  };
+
+  // Manejadores del diálogo post-alta (siguientes pasos)
+  const handleCargarContactoPostAlta = () => {
+    if (postAltaPersona?.id) setContactoModalPersonaId(postAltaPersona.id);
+  };
+
+  const handleCargarDomicilioPostAlta = () => {
+    if (postAltaPersona?.id) setDomicilioModalPersonaId(postAltaPersona.id);
+  };
+
+  const handleClosePostAlta = () => {
+    setPostAltaPersona(null);
   };
 
   const handleSubmitPersona = async (e) => {
@@ -872,6 +863,7 @@ export default function PersonaManagement() {
     try {
       setIsSavingPersona(true);
       let savedId = editingPersonaId;
+      let savedFotoUrl = null;
       if (isEditMode) {
         await personaService.update(editingPersonaId, personaFormData);
         showNotification(
@@ -889,10 +881,24 @@ export default function PersonaManagement() {
       if (savedId && fotoFile) {
         const fd = new FormData();
         fd.append("foto", fotoFile);
-        await personaService.uploadFoto(savedId, fd);
+        const fotoRes = await personaService.uploadFoto(savedId, fd);
+        savedFotoUrl = fotoRes?.data?.foto_url || fotoPreview;
       }
+      // Cerrar el modal del formulario
       setIsCreateModalOpen(false);
-      fetchPersonas(isEditMode ? pagination.current_page : 1);
+      if (!isEditMode) {
+        // Abrir diálogo de post-alta con los datos de la persona recién registrada
+        setPostAltaPersona({
+          id: savedId,
+          apellido: personaFormData.apellido,
+          nombre: personaFormData.nombre,
+          documento_numero: personaFormData.documento_numero,
+          foto_url: savedFotoUrl || fotoPreview,
+        });
+        fetchPersonas(1);
+      } else {
+        fetchPersonas(pagination.current_page);
+      }
     } catch (error) {
       if (error.isConfirmationRequired) {
         setConfirmationPending({
@@ -1152,7 +1158,17 @@ export default function PersonaManagement() {
           onSubmit={handleSubmitPersona}
           onNextStep={handleNextStep}
           onPrevStep={handlePrevStep}
-          onSubmitWithContinuation={handleSubmitWithContinuation}
+        />
+      )}
+
+      {/* MODAL POST-ALTA (Siguientes Pasos) */}
+      {postAltaPersona && (
+        <PersonaPostAltaModal
+          isOpen={!!postAltaPersona}
+          persona={postAltaPersona}
+          onCargarContacto={handleCargarContactoPostAlta}
+          onCargarDomicilio={handleCargarDomicilioPostAlta}
+          onClose={handleClosePostAlta}
         />
       )}
 
