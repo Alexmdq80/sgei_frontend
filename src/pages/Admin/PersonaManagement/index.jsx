@@ -274,7 +274,6 @@ export default function PersonaManagement() {
     fetchGeneros();
     fetchDocSituaciones();
     fetchNaciones();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Ref para mantener la referencia más reciente de fetchPersonas
@@ -671,7 +670,7 @@ export default function PersonaManagement() {
       case 5:
       default:
         return true;
-    }
+      }
   };
 
   const esFallecida = Number(personaFormData.vive_si) === 0;
