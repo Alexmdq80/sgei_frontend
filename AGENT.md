@@ -9,15 +9,12 @@
 
 - Modo de trabajo: Explicar propuesta -> Esperar confirmación -> Ejecutar en el hilo principal.
 
-- Memoria: recuerda que debes usar de la memoria de Engram lo referido al Sistema de Gestión Escolar (SGEI).
-
 ## Stack Tecnológico
 
 - **Frontend:** React JS/Vite, Vitest (Testing).
 - **Backend:** Laravel 13.
 - **Base de Datos:** MySQL
 - **Autenticación:** middleware('auth:sanctum')
-- **Persistencia de Memoria:** Engram (usar herramientas `mem_*`).
 - **Timestamps:** todos los modelos deben usarlo.
 - **SoftDeletes:** algunos las modelos deben emplearo.
 
@@ -51,13 +48,8 @@
 
 ## Flujo de Trabajo (Gentleman AI Stack)
 
-- **Memoria:** Tras finalizar una tarea o decidir un cambio arquitectónico, ejecutar `mem_save` en Engram.
 - **Testing:** Para el frontend usar vitest para todas las rutas. Priorizar el uso de Pest PHP para los tests en /backend/tests.
-- **Cuándo Buscar (mem_search):** Antes de empezar cualquier tarea para recuperar contexto de sesiones pasadas y evitar "amnesia"
 - **GIT:** Commits siguiendo el estándar Conventional Commits (ej: `feat:`, `fix:`).
-- **Cierre:** de Sesión: Antes de terminar, el agente debe ejecutar siempre mem_session_summary para que la próxima vez sepa exactamente dónde quedó
-- **Recuperación tras Compacción:** Si la conversación es larga y el modelo "compacta" el contexto, el agente debe llamar inmediatamente a mem_context para recuperar los puntos clave
-- **Uso de read_file**: el agente siempre debe usar la herramienta read_file antes de proponer cambios para garantizar que su propuesta se basa en el código actual y no en alucinaciones
 
 ## Prohibiciones
 
