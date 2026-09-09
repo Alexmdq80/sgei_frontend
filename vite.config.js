@@ -8,10 +8,11 @@ export default defineConfig({
 
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import viteReactMcp from "vite-react-mcp";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), viteReactMcp()],
   server: {
     // Esto le dice a Vite: "Confía en las peticiones que vengan de estos dominios"
     allowedHosts: ["sgei.local", "api.sgei.local"],

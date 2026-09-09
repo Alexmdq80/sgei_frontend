@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "axios": "^1.13.6",
+    "flowbite": "^4.0.2",
+    "flowbite-react": "^0.12.17",
     "laravel-echo": "^2.3.7",
     "lucide-react": "^1.8.0",
     "pusher-js": "^8.5.0",
@@ -40,6 +42,8 @@
     "postcss": "^8.5.8",
     "tailwindcss": "^3.4.19",
     "vite": "^8.0.1",
+    "vite-plugin-mcp": "^0.3.2",
+    "vite-react-mcp": "^0.3.0",
     "vitest": "^3.0.7"
   }
 }
