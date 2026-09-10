@@ -414,6 +414,20 @@ export default function PersonaFormModal({
                     </select>
                   </div>
                 </div>
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
+                    Observaciones de la Persona (Opcional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    maxLength={1000}
+                    placeholder="Notas administrativas sobre documentación, trámites civiles, partidas, etc."
+                    className="w-full px-4 py-2 bg-white border border-secondary-300 rounded-xl text-xs font-medium text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all resize-none"
+                    value={formData.observaciones || ""}
+                    onChange={(e) => onFieldChange("observaciones", e.target.value)}
+                  />
+                </div>
+
               </section>
             )}
 
@@ -920,6 +934,16 @@ export default function PersonaFormModal({
                         </p>
                         <p className="font-bold text-secondary-900 lowercase">
                           {formData.email}
+                        </p>
+                      </div>
+                    )}
+                    {Boolean(formData.observaciones) && (
+                      <div className="md:col-span-2 space-y-0.5 pt-1 border-t border-secondary-200/60">
+                        <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">
+                          Observaciones
+                        </p>
+                        <p className="text-xs font-semibold text-secondary-700 whitespace-pre-wrap">
+                          {formData.observaciones}
                         </p>
                       </div>
                     )}

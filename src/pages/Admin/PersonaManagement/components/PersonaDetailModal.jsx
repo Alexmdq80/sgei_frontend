@@ -72,6 +72,26 @@ export default function PersonaDetailModal({
                   </p>
                 </div>
               </div>
+              {persona.observaciones && (
+                <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl">
+                  <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">
+                    Observaciones Administrativas
+                  </p>
+                  <p className="text-xs font-medium text-secondary-800 whitespace-pre-wrap">
+                    {persona.observaciones}
+                  </p>
+                </div>
+              )}
+              {persona.contacto?.observaciones && (
+                <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl">
+                  <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">
+                    Observaciones de Contacto
+                  </p>
+                  <p className="text-xs font-medium text-secondary-800 whitespace-pre-wrap">
+                    {persona.contacto.observaciones}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -129,7 +149,6 @@ export default function PersonaDetailModal({
                 )}
               </div>
             </div>
-
             <div className="pt-4 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"

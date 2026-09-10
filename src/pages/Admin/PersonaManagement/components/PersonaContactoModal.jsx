@@ -16,6 +16,7 @@ export default function PersonaContactoModal({
     celular_codigo_area: "",
     celular: "",
     email: "",
+    observaciones: "",
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -35,13 +36,14 @@ export default function PersonaContactoModal({
           setContacto((prev) => ({
             ...prev,
             email: c.email ?? prev.email ?? "",
+            observaciones: c.observaciones ?? prev.observaciones ?? "",
             telefono_codigo_area: c.telefono_codigo_area ?? prev.telefono_codigo_area ?? "",
             telefono: c.telefono ?? prev.telefono ?? "",
             celular_codigo_area: c.celular_codigo_area ?? prev.celular_codigo_area ?? "",
             celular: c.celular ?? prev.celular ?? "",
           }));
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -65,7 +67,7 @@ export default function PersonaContactoModal({
     if (!personaId) return;
     setSaving(true);
     try {
-      await personaService.saveDomicilioContacto(personaId, { contacto });
+      await personaService.saveDomicilioContacto(personaId, { ...contacto });
       onSaved();
     } catch {
       // mostrá acá tu alerta de error si el proyecto usa una
@@ -191,6 +193,20 @@ export default function PersonaContactoModal({
                 className={inputCls}
               />
             </div>
+          </div>
+          {/* Observaciones de Contacto */}
+          <div className="space-y-1">
+            <label className={labelCls}>
+              Observaciones de Contacto (Opcional)
+            </label>
+            <textarea
+              rows={2}
+              maxLength={1000}
+              placeholder="Ej: Llamar por la tarde, número de la abuela, canal de emergencia"
+              className="w-full px-4 py-2 bg-white border border-secondary-300 rounded-xl text-xs font-medium text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all resize-none"
+              value={contacto.observaciones || ""}
+              onChange={setCampo("observaciones")}
+            />
           </div>
         </div>
 

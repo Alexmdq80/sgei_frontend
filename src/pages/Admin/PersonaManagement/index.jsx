@@ -126,6 +126,7 @@ export default function PersonaManagement() {
     departamento_id: "",
     localidad_id: "",
     email: "",
+    observaciones: "",
     vive_si: 1,
   });
 
@@ -441,6 +442,7 @@ export default function PersonaManagement() {
       departamento_id: full.departamento_id ?? "",
       localidad_id: full.localidad_id ?? "",
       email: full.contacto?.email || full.usuario_email || "",
+      observaciones: full.observaciones ?? "",
       vive_si: full.vive_si ?? 1,
     });
 
@@ -463,6 +465,7 @@ export default function PersonaManagement() {
       departamento_id: full.departamento_id ?? "",
       localidad_id: full.localidad_id ?? "",
       email: full.contacto?.email || full.usuario_email || "",
+      observaciones: full.observaciones ?? "",
       vive_si: full.vive_si ?? 1,
     };
 
@@ -516,6 +519,7 @@ export default function PersonaManagement() {
       departamento_id: "",
       localidad_id: "",
       email: "",
+      observaciones: "",
       vive_si: 1,
     });
     personaFormSnapshotRef.current = {
@@ -537,6 +541,7 @@ export default function PersonaManagement() {
       departamento_id: "",
       localidad_id: "",
       email: "",
+      observaciones: "",
       vive_si: 1,
     };
     setFormErrors({});
