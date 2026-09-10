@@ -160,18 +160,31 @@ const personaService = {
     return response.data;
   },
 
-  /** Obtiene domicilio y contacto de una persona */
-  async getDomicilioContacto(personaId) {
-    const response = await api.get(
-      `/admin/personas/${personaId}/domicilio-contacto`,
+  /** Obtiene el domicilio de una persona */
+  async getDomicilio(personaId) {
+    const response = await api.get(`/admin/personas/${personaId}/domicilio`);
+    return response.data;
+  },
+
+  /** Guarda/actualiza el domicilio de una persona */
+  async saveDomicilio(personaId, data) {
+    const response = await api.put(
+      `/admin/personas/${personaId}/domicilio`,
+      data,
     );
     return response.data;
   },
 
-  /** Guarda/actualiza domicilio y contacto */
-  async saveDomicilioContacto(personaId, data) {
+  /** Obtiene el contacto de una persona */
+  async getContacto(personaId) {
+    const response = await api.get(`/admin/personas/${personaId}/contacto`);
+    return response.data;
+  },
+
+  /** Guarda/actualiza el contacto de una persona */
+  async saveContacto(personaId, data) {
     const response = await api.put(
-      `/admin/personas/${personaId}/domicilio-contacto`,
+      `/admin/personas/${personaId}/contacto`,
       data,
     );
     return response.data;

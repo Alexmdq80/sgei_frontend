@@ -29,21 +29,24 @@ export default function PersonaContactoModal({
     let active = true;
     setLoading(true);
     personaService
-      .getDomicilioContacto(personaId)
+      .getContacto(personaId)
       .then((r) => {
-        const c = r?.data?.contacto || r?.contacto || {};
+        // ContactoResource: el payload viene directo en r.data (o null si no hay)
+        const c = r?.data || r || {};
         if (active)
           setContacto((prev) => ({
             ...prev,
             email: c.email ?? prev.email ?? "",
             observaciones: c.observaciones ?? prev.observaciones ?? "",
-            telefono_codigo_area: c.telefono_codigo_area ?? prev.telefono_codigo_area ?? "",
+            telefono_codigo_area:
+              c.telefono_codigo_area ?? prev.telefono_codigo_area ?? "",
             telefono: c.telefono ?? prev.telefono ?? "",
-            celular_codigo_area: c.celular_codigo_area ?? prev.celular_codigo_area ?? "",
+            celular_codigo_area:
+              c.celular_codigo_area ?? prev.celular_codigo_area ?? "",
             celular: c.celular ?? prev.celular ?? "",
           }));
       })
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -60,14 +63,17 @@ export default function PersonaContactoModal({
       "celular_codigo_area",
       "celular",
     ].includes(key);
-    setContacto((p) => ({ ...p, [key]: esNumerico ? soloNumeros(valor) : valor }));
+    setContacto((p) => ({
+      ...p,
+      [key]: esNumerico ? soloNumeros(valor) : valor,
+    }));
   };
 
   const handleSave = async () => {
     if (!personaId) return;
     setSaving(true);
     try {
-      await personaService.saveDomicilioContacto(personaId, { ...contacto });
+      await personaService.saveContacto(personaId, { ...contacto });
       onSaved();
     } catch {
       // mostrá acá tu alerta de error si el proyecto usa una
@@ -115,7 +121,9 @@ export default function PersonaContactoModal({
         {/* Cuerpo */}
         <div className="overflow-y-auto flex-1 min-h-0 p-6 space-y-6">
           {loading && (
-            <p className="text-sm text-secondary-500">Cargando datos actuales…</p>
+            <p className="text-sm text-secondary-500">
+              Cargando datos actuales…
+            </p>
           )}
 
           {/* Email */}
@@ -124,7 +132,8 @@ export default function PersonaContactoModal({
             {isEmailLocked && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4" />
-                Esta persona tiene un usuario vinculado; el email no puede editarse aquí.
+                Esta persona tiene un usuario vinculado; el email no puede
+                editarse aquí.
               </div>
             )}
             <input
@@ -133,9 +142,11 @@ export default function PersonaContactoModal({
               value={contacto.email}
               onChange={setCampo("email")}
               placeholder="persona@mail.com"
-              className={isEmailLocked
-                ? "w-full px-4 py-2.5 rounded-xl text-sm font-bold text-secondary-400 cursor-not-allowed bg-secondary-100 border border-secondary-200"
-                : inputCls}
+              className={
+                isEmailLocked
+                  ? "w-full px-4 py-2.5 rounded-xl text-sm font-bold text-secondary-400 cursor-not-allowed bg-secondary-100 border border-secondary-200"
+                  : inputCls
+              }
             />
           </div>
 

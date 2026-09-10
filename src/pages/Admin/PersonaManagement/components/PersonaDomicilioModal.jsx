@@ -10,7 +10,6 @@ export default function PersonaDomicilioModal({
   onOmit,
   onSaved,
 }) {
-
   const [domicilio, setDomicilio] = useState({
     provincia_id: "",
     departamento_id: "",
@@ -25,6 +24,9 @@ export default function PersonaDomicilioModal({
     codigo_postal: "",
     otros: "", // sigue para "observaciones" libres si querés
   });
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Estado de calles
   const [calles, setCalles] = useState([]); // calle principal
@@ -65,7 +67,7 @@ export default function PersonaDomicilioModal({
       .then((r) => {
         if (active) setCalles(r?.data?.data || r?.data || r || []);
       })
-      .catch(() => { });
+      .catch(() => {});
     return () => {
       active = false;
     };
@@ -82,7 +84,7 @@ export default function PersonaDomicilioModal({
       .then((r) => {
         if (active) setCallesEntre1(r?.data?.data || r?.data || r || []);
       })
-      .catch(() => { });
+      .catch(() => {});
     return () => {
       active = false;
     };
@@ -99,11 +101,48 @@ export default function PersonaDomicilioModal({
       .then((r) => {
         if (active) setCallesEntre2(r?.data?.data || r?.data || r || []);
       })
-      .catch(() => { });
+      .catch(() => {});
     return () => {
       active = false;
     };
   }, [domicilio.localidad_id, qEntre2]);
+
+  // Precarga los datos actuales del domicilio al abrir el modal
+  useEffect(() => {
+    if (!isOpen || !personaId) return;
+    let active = true;
+    setLoading(true);
+    personaService
+      .getDomicilio(personaId)
+      .then((r) => {
+        // DomicilioResource: el payload viene directo en r.data (o null si no hay).
+        // Nota: el backend NO expone provincia_id/departamento_id; solo localidad_id.
+        const d = r?.data || r || {};
+        if (!active) return;
+        setDomicilio((prev) => ({
+          ...prev,
+          localidad_id: d.localidad_id ?? prev.localidad_id ?? "",
+          calle_id: d.calle_id ?? prev.calle_id ?? "",
+          calle_entre_1_id: d.calle_entre_1_id ?? prev.calle_entre_1_id ?? "",
+          calle_entre_2_id: d.calle_entre_2_id ?? prev.calle_entre_2_id ?? "",
+          numero: d.numero ?? prev.numero ?? "",
+          piso: d.piso ?? prev.piso ?? "",
+          departamento: d.departamento ?? prev.departamento ?? "",
+          torre: d.torre ?? prev.torre ?? "",
+          codigo_postal: d.codigo_postal ?? prev.codigo_postal ?? "",
+          otros: d.otros ?? prev.otros ?? "",
+        }));
+        // Si hay localidad, precompletá el texto de búsqueda de la calle principal
+        if (d.calle_nombre) setQ(d.calle_nombre);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, personaId]);
 
   function CalleCombo({
     label,
@@ -150,10 +189,18 @@ export default function PersonaDomicilioModal({
   if (!isOpen || !personaId) return null;
 
   const handleSave = async () => {
-    await personaService.saveDomicilioContacto(personaId, {
-      ...domicilio,
-    });
-    onSaved();
+    if (!personaId) return;
+    setSaving(true);
+    try {
+      // Se envía el payload del domicilio. El backend solo lee las claves
+      // válidas de PersonaDomicilioRequest; las extra aquí son inofensivas.
+      await personaService.saveDomicilio(personaId, { ...domicilio });
+      onSaved();
+    } catch {
+      // mostrá acá tu alerta de error si el proyecto usa una
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inputCls =
@@ -182,9 +229,7 @@ export default function PersonaDomicilioModal({
               <Home className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-white">
-                Domicilio
-              </h2>
+              <h2 className="text-xl font-black text-white">Domicilio</h2>
               <p className="text-white/80 text-sm font-medium">
                 Completá la ubicación y el domicilio de la persona
               </p>
@@ -199,6 +244,11 @@ export default function PersonaDomicilioModal({
             <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
               <Home className="w-4 h-4" /> Domicilio
             </h3>
+            {loading && (
+              <p className="text-sm text-secondary-500">
+                Cargando datos actuales…
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Provincia */}
               <div>
