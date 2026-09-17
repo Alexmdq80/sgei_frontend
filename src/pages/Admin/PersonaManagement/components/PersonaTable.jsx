@@ -233,7 +233,7 @@ export default function PersonaTable({
                   <div className="flex justify-end gap-2">
                     {/* Domicilio */}
                     <button
-                      onClick={() => onManageDomicilio(persona.id)}
+                      onClick={() => onManageDomicilio(persona)}
                       className="p-2 text-secondary-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                       title="Gestionar Domicilio"
                     >

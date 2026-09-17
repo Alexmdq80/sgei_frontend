@@ -18,6 +18,7 @@ import useGeografiaCascade from "../hooks/useGeografiaCascade";
 import { esNacionArgentina } from "../utils/nacionUtils";
 
 export default function PersonaDomicilioModal({
+  persona,
   personaId,
   isOpen,
   nacions = [],
@@ -280,7 +281,7 @@ export default function PersonaDomicilioModal({
         if (d.provincia_id) handleProvinciaChange(d.provincia_id);
         if (d.departamento_id) handleDepartamentoChange(d.departamento_id);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -304,7 +305,7 @@ export default function PersonaDomicilioModal({
       .then((r) => {
         if (active) setCalles(r?.data?.data || r?.data || r || []);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       active = false;
     };
@@ -321,7 +322,7 @@ export default function PersonaDomicilioModal({
       .then((r) => {
         if (active) setCallesEntre1(r?.data?.data || r?.data || r || []);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       active = false;
     };
@@ -338,7 +339,7 @@ export default function PersonaDomicilioModal({
       .then((r) => {
         if (active) setCallesEntre2(r?.data?.data || r?.data || r || []);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       active = false;
     };
@@ -486,13 +487,17 @@ export default function PersonaDomicilioModal({
     </div>
   );
 
+  const personaNombre = persona?.apellido || persona?.nombre
+    ? `${persona.apellido ?? ""}, ${persona.nombre ?? ""}`.replace(/^,\s*|,\s*$/, "").trim()
+    : null;
+
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-fadeIn"
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-scaleIn flex flex-col border border-secondary-100 max-h-[90vh]">
+      <div className="h-[85vh] max-h-[760px] min-h-[580px] w-full max-w-4xl overflow-hidden flex flex-col bg-white rounded-3xl shadow-2xl border border-secondary-100 animate-scaleIn">
         {/* Header */}
         <div className="relative bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500 px-8 py-5">
           <button
@@ -507,7 +512,9 @@ export default function PersonaDomicilioModal({
               <Home className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-white">Domicilio</h2>
+              <h2 className="text-xl font-black text-white truncate max-w-[620px]" title={personaNombre}>
+                {personaNombre ? `Domicilio · ${personaNombre}` : "Domicilio"}
+              </h2>
               <p className="text-white/80 text-sm font-medium">
                 Ubicación · Vivienda · Observaciones
               </p>
@@ -522,13 +529,12 @@ export default function PersonaDomicilioModal({
               <div key={n} className="flex items-center flex-1 last:flex-none">
                 <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
                   <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${
-                      step === n
-                        ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
-                        : step > n
-                          ? "bg-green-500 border-green-500 text-white"
-                          : "bg-white border-secondary-300 text-secondary-400"
-                    }`}
+                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${step === n
+                      ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
+                      : step > n
+                        ? "bg-green-500 border-green-500 text-white"
+                        : "bg-white border-secondary-300 text-secondary-400"
+                      }`}
                   >
                     {step > n ? (
                       <CheckCircle2 className="w-5 h-5" />
@@ -537,18 +543,16 @@ export default function PersonaDomicilioModal({
                     )}
                   </div>
                   <span
-                    className={`text-[10px] font-black uppercase tracking-wider ${
-                      step === n ? "text-primary-700" : "text-secondary-400"
-                    }`}
+                    className={`text-[10px] font-black uppercase tracking-wider ${step === n ? "text-primary-700" : "text-secondary-400"
+                      }`}
                   >
                     {label}
                   </span>
                 </div>
                 {idx < ETAPAS.length - 1 && (
                   <div
-                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
-                      step > n ? "bg-green-500" : "bg-secondary-200"
-                    }`}
+                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${step > n ? "bg-green-500" : "bg-secondary-200"
+                      }`}
                   />
                 )}
               </div>

@@ -79,7 +79,7 @@ export default function PersonaManagement() {
     confirmText: "Confirmar",
     cancelText: "Cancelar",
     variant: "primary",
-    onConfirm: () => {},
+    onConfirm: () => { },
     showInput: false,
     inputPlaceholder: "",
     isLoading: false,
@@ -91,7 +91,7 @@ export default function PersonaManagement() {
   const [selectedPersona, setSelectedPersona] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [domicilioModalPersonaId, setDomicilioModalPersonaId] = useState(null);
+  const [domicilioModalPersona, setDomicilioModalPersona] = useState(null);
   const [contactoModalPersonaId, setContactoModalPersonaId] = useState(null);
   const [postAltaPersona, setPostAltaPersona] = useState(null); // null o { id, apellido, nombre, documento_numero, foto_url }
   const [isEditMode, setIsEditMode] = useState(false);
@@ -834,7 +834,7 @@ export default function PersonaManagement() {
 
   // Cierra domicilio + persona juntos
   const handleCloseDomicilioModal = () => {
-    setDomicilioModalPersonaId(null);
+    setDomicilioModalPersona(null);
     setIsCreateModalOpen(false);
   };
 
@@ -849,7 +849,7 @@ export default function PersonaManagement() {
   };
 
   const handleCargarDomicilioPostAlta = () => {
-    if (postAltaPersona?.id) setDomicilioModalPersonaId(postAltaPersona.id);
+    if (postAltaPersona) setDomicilioModalPersona(postAltaPersona);
   };
 
   const handleClosePostAlta = () => {
@@ -1075,8 +1075,9 @@ export default function PersonaManagement() {
       />
 
       <PersonaDomicilioModal
-        personaId={domicilioModalPersonaId}
-        isOpen={!!domicilioModalPersonaId}
+        persona={domicilioModalPersona}
+        personaId={domicilioModalPersona?.id || domicilioModalPersona}
+        isOpen={Boolean(domicilioModalPersona)}
         nacions={nacions}
         onClose={handleCloseDomicilioModal}
         onOmit={handleCloseDomicilioModal}
@@ -1108,7 +1109,7 @@ export default function PersonaManagement() {
         onDelete={handleDeletePersona}
         onLinkUser={handleLinkUser}
         onUnlinkUser={handleUnlinkUser}
-        onManageDomicilio={(personaId) => setDomicilioModalPersonaId(personaId)}
+        onManageDomicilio={(persona) => setDomicilioModalPersona(persona)}
         onManageContacto={(persona) => setContactoModalPersonaId(persona.id)}
       />
 
