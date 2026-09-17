@@ -1,4 +1,16 @@
-import { ArrowUpDown, ArrowUp, ArrowDown, Loader2, Link, Link2Off, Trash2, Eye, Pencil } from "lucide-react";
+import {
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+  Link,
+  Link2Off,
+  Trash2,
+  Eye,
+  Pencil,
+  Home,
+  Phone,
+} from "lucide-react";
 
 /**
  * Tabla del padrón de personas con ordenamiento, acciones y paginación.
@@ -18,6 +30,8 @@ export default function PersonaTable({
   onDelete,
   onLinkUser,
   onUnlinkUser,
+  onManageDomicilio,
+  onManageContacto,
 }) {
   const renderSortIcon = (key) => {
     if (sortConfig.key !== key) {
@@ -217,6 +231,23 @@ export default function PersonaTable({
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex justify-end gap-2">
+                    {/* Domicilio */}
+                    <button
+                      onClick={() => onManageDomicilio(persona.id)}
+                      className="p-2 text-secondary-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                      title="Gestionar Domicilio"
+                    >
+                      <Home className="w-5 h-5" />
+                    </button>
+                    {/* Contacto */}
+                    <button
+                      onClick={() => onManageContacto(persona)}
+                      className="p-2 text-secondary-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                      title="Gestionar Contacto"
+                    >
+                      <Phone className="w-5 h-5" />
+                    </button>
+
                     <button
                       onClick={() => onDelete(persona)}
                       className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

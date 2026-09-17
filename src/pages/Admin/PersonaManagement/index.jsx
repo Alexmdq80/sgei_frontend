@@ -79,7 +79,7 @@ export default function PersonaManagement() {
     confirmText: "Confirmar",
     cancelText: "Cancelar",
     variant: "primary",
-    onConfirm: () => { },
+    onConfirm: () => {},
     showInput: false,
     inputPlaceholder: "",
     isLoading: false,
@@ -675,7 +675,7 @@ export default function PersonaManagement() {
       case 5:
       default:
         return true;
-      }
+    }
   };
 
   const esFallecida = Number(personaFormData.vive_si) === 0;
@@ -1077,6 +1077,7 @@ export default function PersonaManagement() {
       <PersonaDomicilioModal
         personaId={domicilioModalPersonaId}
         isOpen={!!domicilioModalPersonaId}
+        nacions={nacions}
         onClose={handleCloseDomicilioModal}
         onOmit={handleCloseDomicilioModal}
         onSaved={handleCloseDomicilioModal}
@@ -1107,6 +1108,8 @@ export default function PersonaManagement() {
         onDelete={handleDeletePersona}
         onLinkUser={handleLinkUser}
         onUnlinkUser={handleUnlinkUser}
+        onManageDomicilio={(personaId) => setDomicilioModalPersonaId(personaId)}
+        onManageContacto={(persona) => setContactoModalPersonaId(persona.id)}
       />
 
       {/* MODAL DE DETALLES */}

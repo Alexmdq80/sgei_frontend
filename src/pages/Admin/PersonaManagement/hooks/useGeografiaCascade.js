@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import geografiaService from "../../../../services/geografiaService";
+import nacionService from "../../../../services/nacionService";
+import { esNacionArgentina } from "../utils/nacionUtils";
 
 /**
  * Normaliza la respuesta de los servicios geográficos:
@@ -10,8 +12,11 @@ const normalizeList = (r) => r?.data?.data || r?.data || r || [];
 /**
  * Hook que maneja la cascada geográfica: Provincias -> Departamentos -> Localidades.
  * Incluye un token de petición para descartar respuestas desfasadas (anti-race).
+ * Además carga el catálogo de naciones y controla que la cascada Argentina
+ * sólo se habilite cuando el país seleccionado es Argentina.
  */
 const useGeografiaCascade = () => {
+  const [nacions, setNacions] = useState([]);
   const [provincias, setProvincias] = useState([]);
   const [departamentos, setDepartamentos] = useState([]);
   const [localidades, setLocalidades] = useState([]);
@@ -19,6 +24,7 @@ const useGeografiaCascade = () => {
   // Token de petición: solo se aplica la respuesta más reciente.
   const requestIdRef = useRef(0);
 
+  // Carga inicial de provincias (flujo de nacimiento de PersonaFormModal).
   useEffect(() => {
     let active = true;
     geografiaService
@@ -32,7 +38,23 @@ const useGeografiaCascade = () => {
     return () => {
       active = false;
     };
-  }, []);  
+  }, []);
+
+  // Carga el catálogo de naciones/países.
+  useEffect(() => {
+    let active = true;
+    nacionService
+      .getAll({ per_page: 1000, search: "" })
+      .then((r) => {
+        if (active) setNacions(normalizeList(r));
+      })
+      .catch((error) => {
+        console.error("Error al cargar naciones:", error);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const loadDepartamentos = useCallback(async (provinciaId) => {
     if (!provinciaId) {
@@ -72,6 +94,14 @@ const useGeografiaCascade = () => {
     setLocalidades([]);
   }, []);
 
+  // Vacía la cascada geográfica argentina (provincias/departamentos/localidades).
+  const clearGeoArgentina = useCallback(() => {
+    ++requestIdRef.current; // invalida peticiones en vuelo
+    setProvincias([]);
+    setDepartamentos([]);
+    setLocalidades([]);
+  }, []);
+
   const handleProvinciaChange = useCallback(
     async (provinciaId) => {
       setDepartamentos([]);
@@ -91,15 +121,34 @@ const useGeografiaCascade = () => {
     [loadLocalidades],
   );
 
+  const handleNacionChange = useCallback(
+    (nacionId) => {
+      if (!nacionId || !esNacionArgentina(nacions, nacionId)) {
+        clearGeoArgentina();
+        return;
+      }
+      // Argentina: volver a cargar provincias (idempotente).
+      geografiaService
+        .getProvincias()
+        .then((r) => setProvincias(normalizeList(r)))
+        .catch((error) => console.error("Error al cargar provincias:", error));
+    },
+    [nacions, clearGeoArgentina],
+  );
+
   return {
+    nacions,
     provincias,
     departamentos,
     localidades,
+    isNacionArgentinaValue: (nacionId) => esNacionArgentina(nacions, nacionId),
     loadDepartamentos,
     loadLocalidades,
     clearCascade,
+    clearGeoArgentina,
     handleProvinciaChange,
     handleDepartamentoChange,
+    handleNacionChange,
   };
 };
 

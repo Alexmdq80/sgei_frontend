@@ -1,16 +1,42 @@
 import { useState, useEffect } from "react";
-import { X, Home, Save, SkipForward } from "lucide-react";
+import {
+  X,
+  Home,
+  Save,
+  SkipForward,
+  MapPin,
+  Building2,
+  ClipboardCheck,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Eraser,
+  AlertTriangle,
+} from "lucide-react";
 import personaService from "../../../../services/personaService";
 import useGeografiaCascade from "../hooks/useGeografiaCascade";
+import { esNacionArgentina } from "../utils/nacionUtils";
 
 export default function PersonaDomicilioModal({
   personaId,
   isOpen,
+  nacions = [],
   onClose,
   onOmit,
   onSaved,
 }) {
+  const [step, setStep] = useState(1);
+  const [domicilioDesconocido, setDomicilioDesconocido] = useState(false);
+  const [noGeo, setNoGeo] = useState({
+    provincia: false,
+    departamento: false,
+    localidad: false,
+  });
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   const [domicilio, setDomicilio] = useState({
+    nacion_id: "",
     provincia_id: "",
     departamento_id: "",
     localidad_id: "",
@@ -19,32 +45,46 @@ export default function PersonaDomicilioModal({
     calle_entre_2_id: "",
     numero: "",
     piso: "",
-    departamento: "",
+    unidad: "",
     torre: "",
     codigo_postal: "",
-    otros: "", // sigue para "observaciones" libres si querés
+    observaciones: "",
   });
 
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  // Estado de calles
-  const [calles, setCalles] = useState([]); // calle principal
+  // Texto visible de los autocompletados de calles
+  const [q, setQ] = useState("");
+  const [qEntre1, setQEntre1] = useState("");
+  const [qEntre2, setQEntre2] = useState("");
+  const [calles, setCalles] = useState([]);
   const [callesEntre1, setCallesEntre1] = useState([]);
   const [callesEntre2, setCallesEntre2] = useState([]);
-  const [q, setQ] = useState(""); // calle principal
-  const [qEntre1, setQEntre1] = useState(""); // entrecalle 1
-  const [qEntre2, setQEntre2] = useState(""); // entrecalle 2
 
   const {
     provincias,
     departamentos,
     localidades,
+    handleNacionChange,
     handleProvinciaChange,
     handleDepartamentoChange,
+    clearGeoArgentina,
   } = useGeografiaCascade();
 
-  // Sanea campos numéricos (solo dígitos)
+  const ETAPAS = [
+    { n: 1, label: "Ubicación", Icon: MapPin },
+    { n: 2, label: "Calles y Vivienda", Icon: Building2 },
+    { n: 3, label: "Resumen y Observaciones", Icon: ClipboardCheck },
+  ];
+
+  const esArgentina = esNacionArgentina(nacions, domicilio.nacion_id);
+  const esExtranjero = Boolean(domicilio.nacion_id) && !esArgentina;
+  // Argentina con geografía incompleta: hay país, pero no localidad ⇒ sin calles ni vivienda
+  const esGeoParcial = esArgentina && !domicilio.localidad_id;
+
+  const inputCls =
+    "w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none";
+  const labelCls =
+    "text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block";
+
   const soloNumeros = (valor) => valor.replace(/\D/g, "");
 
   const setDomicilioField = (key) => (e) => {
@@ -54,8 +94,205 @@ export default function PersonaDomicilioModal({
     );
     setDomicilio((p) => ({ ...p, [key]: esNumerico ? soloNumeros(raw) : raw }));
   };
+  /**
+   * Marca un nivel geográfico como "no dispongo": limpia ese nivel y todos los
+   * inferiores (geografía + calles + vivienda) para no persistir datos sucios.
+   */
+  const setNoDisponible = (nivel, on) => {
+    setNoGeo((prev) => {
+      const next = { ...prev, [nivel]: on };
+      if (nivel === "provincia" && on) {
+        next.departamento = true;
+        next.localidad = true;
+      } else if (nivel === "departamento" && on) {
+        next.localidad = true;
+      }
+      return next;
+    });
 
-  // Autocompletado de calles (busca por localidad + texto)
+    const swap = (patch) => setDomicilio((p) => ({ ...p, ...patch }));
+    if (nivel === "provincia") {
+      swap({
+        provincia_id: "",
+        departamento_id: "",
+        localidad_id: "",
+        calle_id: "",
+        calle_entre_1_id: "",
+        calle_entre_2_id: "",
+        numero: "",
+        piso: "",
+        unidad: "",
+        torre: "",
+        codigo_postal: "",
+      });
+    } else if (nivel === "departamento") {
+      swap({
+        departamento_id: "",
+        localidad_id: "",
+        calle_id: "",
+        calle_entre_1_id: "",
+        calle_entre_2_id: "",
+        numero: "",
+        piso: "",
+        unidad: "",
+        torre: "",
+        codigo_postal: "",
+      });
+    } else {
+      swap({
+        localidad_id: "",
+        calle_id: "",
+        calle_entre_1_id: "",
+        calle_entre_2_id: "",
+      });
+    }
+
+    setQ("");
+    setQEntre1("");
+    setQEntre2("");
+    setCalles([]);
+    setCallesEntre1([]);
+    setCallesEntre2([]);
+  };
+  const onNacionChange = (value) => {
+    const esAR = esNacionArgentina(nacions, value);
+    // Limpiar TODO: geografía + calles + vivienda (evita datos "sucios")
+    setDomicilio((p) => ({
+      ...p,
+      nacion_id: value,
+      provincia_id: "",
+      departamento_id: "",
+      localidad_id: "",
+      calle_id: "",
+      calle_entre_1_id: "",
+      calle_entre_2_id: "",
+      numero: "",
+      piso: "",
+      unidad: "",
+      torre: "",
+      codigo_postal: "",
+    }));
+    setQ("");
+    setQEntre1("");
+    setQEntre2("");
+    setCalles([]);
+    setCallesEntre1([]);
+    setCallesEntre2([]);
+
+    setDomicilioDesconocido(false);
+
+    if (!value) {
+      // Sin país: quedamos en el Paso 1
+      setStep(1);
+      clearGeoArgentina();
+      return;
+    }
+    if (!esAR) {
+      // País extranjero: paso a blanco y salta directo al resumen/observaciones
+      setStep(3);
+      clearGeoArgentina();
+      return;
+    }
+    // Argentina: volvemos al Paso 1 para completar la cascada
+    setStep(1);
+    handleNacionChange(value);
+  };
+
+  const onProvinciaChange = (value) => {
+    setDomicilio((p) => ({
+      ...p,
+      provincia_id: value,
+      departamento_id: "",
+      localidad_id: "",
+    }));
+    handleProvinciaChange(value);
+  };
+
+  const onDepartamentoChange = (value) => {
+    setDomicilio((p) => ({ ...p, departamento_id: value, localidad_id: "" }));
+    handleDepartamentoChange(value);
+  };
+
+  // Clave: cambiar la localidad resetea calles y entrecalles
+  const onLocalidadChange = (value) => {
+    setDomicilio((p) => ({
+      ...p,
+      localidad_id: value,
+      calle_id: "",
+      calle_entre_1_id: "",
+      calle_entre_2_id: "",
+    }));
+    setQ("");
+    setQEntre1("");
+    setQEntre2("");
+    setCalles([]);
+    setCallesEntre1([]);
+    setCallesEntre2([]);
+  };
+  useEffect(() => {
+    if (!isOpen || !personaId) return;
+    let active = true;
+    setLoading(true);
+    setStep(1);
+    setDomicilioDesconocido(false);
+
+    personaService
+      .getDomicilio(personaId)
+      .then((r) => {
+        const d = r?.data || r || null;
+        if (!active || !d) return;
+
+        // Domicilio desconocido => sin país, sin geo y con observación cargada
+        const esDesconocido =
+          !d.nacion_id &&
+          !d.localidad_id &&
+          !d.calle_id &&
+          Boolean(d.observaciones);
+        setDomicilioDesconocido(esDesconocido);
+        setStep(esDesconocido ? 3 : 1);
+
+        setDomicilio({
+          nacion_id: d.nacion_id ?? "",
+          provincia_id: d.provincia_id ?? "",
+          departamento_id: d.departamento_id ?? "",
+          localidad_id: d.localidad_id ?? "",
+          calle_id: d.calle_id ?? "",
+          calle_entre_1_id: d.calle_entre_1_id ?? "",
+          calle_entre_2_id: d.calle_entre_2_id ?? "",
+          numero: d.numero ?? "",
+          piso: d.piso ?? "",
+          unidad: d.unidad ?? "",
+          torre: d.torre ?? "",
+          codigo_postal: d.codigo_postal ?? "",
+          observaciones: d.observaciones ?? "",
+        });
+        setQ(d.calle_nombre ?? "");
+        setQEntre1(d.calle_entre_1_nombre ?? "");
+        setQEntre2(d.calle_entre_2_nombre ?? "");
+        // Un valor null persistido ⇒ el nivel se marca como "no dispongo"
+        setNoGeo({
+          provincia: !d.provincia_id,
+          departamento: !d.departamento_id,
+          localidad: !d.localidad_id,
+        });
+        // Reconstruir la cascada geográfica para los selects
+        if (d.nacion_id) handleNacionChange(d.nacion_id);
+        if (d.provincia_id) handleProvinciaChange(d.provincia_id);
+        if (d.departamento_id) handleDepartamentoChange(d.departamento_id);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+    // Los handlers del hook geográfico son estables (useCallback) pero dependen de
+    // `nacions`: incluirlos re-dispararía la carga del domicilio al terminar de
+    // cargar los países, pisando lo que el usuario ya haya ingresado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, personaId]);
   useEffect(() => {
     if (!domicilio.localidad_id || !q) {
       setCalles([]);
@@ -106,44 +343,6 @@ export default function PersonaDomicilioModal({
       active = false;
     };
   }, [domicilio.localidad_id, qEntre2]);
-
-  // Precarga los datos actuales del domicilio al abrir el modal
-  useEffect(() => {
-    if (!isOpen || !personaId) return;
-    let active = true;
-    setLoading(true);
-    personaService
-      .getDomicilio(personaId)
-      .then((r) => {
-        // DomicilioResource: el payload viene directo en r.data (o null si no hay).
-        // Nota: el backend NO expone provincia_id/departamento_id; solo localidad_id.
-        const d = r?.data || r || {};
-        if (!active) return;
-        setDomicilio((prev) => ({
-          ...prev,
-          localidad_id: d.localidad_id ?? prev.localidad_id ?? "",
-          calle_id: d.calle_id ?? prev.calle_id ?? "",
-          calle_entre_1_id: d.calle_entre_1_id ?? prev.calle_entre_1_id ?? "",
-          calle_entre_2_id: d.calle_entre_2_id ?? prev.calle_entre_2_id ?? "",
-          numero: d.numero ?? prev.numero ?? "",
-          piso: d.piso ?? prev.piso ?? "",
-          departamento: d.departamento ?? prev.departamento ?? "",
-          torre: d.torre ?? prev.torre ?? "",
-          codigo_postal: d.codigo_postal ?? prev.codigo_postal ?? "",
-          otros: d.otros ?? prev.otros ?? "",
-        }));
-        // Si hay localidad, precompletá el texto de búsqueda de la calle principal
-        if (d.calle_nombre) setQ(d.calle_nombre);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [isOpen, personaId]);
-
   function CalleCombo({
     label,
     q,
@@ -153,21 +352,21 @@ export default function PersonaDomicilioModal({
     disabled,
     placeholder,
   }) {
-    const labelCls =
+    const cLabelCls =
       "text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block";
-    const inputCls =
+    const cInputCls =
       "w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none";
 
     return (
       <div>
-        <label className={labelCls}>{label}</label>
+        <label className={cLabelCls}>{label}</label>
         <input
           type="text"
           placeholder={placeholder}
           disabled={disabled}
           value={q}
           onChange={(e) => onQChange(e.target.value)}
-          className={inputCls}
+          className={cInputCls}
         />
         {calles.length > 0 && (
           <ul className="mt-1 bg-white border border-secondary-200 rounded-xl max-h-40 overflow-y-auto">
@@ -188,25 +387,104 @@ export default function PersonaDomicilioModal({
 
   if (!isOpen || !personaId) return null;
 
+  const goNext = () => {
+    if (step === 1) {
+      if (!domicilio.nacion_id) return; // país obligatorio
+      // Sin localidad no hay Paso 2 (solo país / solo provincia / desconocido / extranjero)
+      if (domicilioDesconocido || esExtranjero || !domicilio.localidad_id) {
+        setStep(3);
+        return;
+      }
+      setStep(2);
+      return;
+    }
+    setStep((s) => Math.min(s + 1, 3));
+  };
+
+  const goPrev = () => {
+    // Desde el Paso 3 sin localidad se vuelve al Paso 1 (evita el Paso 2)
+    if (
+      step === 3 &&
+      (domicilioDesconocido || esExtranjero || !domicilio.localidad_id)
+    ) {
+      setStep(1);
+      return;
+    }
+    setStep((s) => Math.max(s - 1, 1));
+  };
+
+  const clearForm = () => {
+    setStep(1);
+    setDomicilioDesconocido(false);
+    setDomicilio({
+      nacion_id: "",
+      provincia_id: "",
+      departamento_id: "",
+      localidad_id: "",
+      calle_id: "",
+      calle_entre_1_id: "",
+      calle_entre_2_id: "",
+      numero: "",
+      piso: "",
+      unidad: "",
+      torre: "",
+      codigo_postal: "",
+      observaciones: "",
+    });
+    setQ("");
+    setQEntre1("");
+    setQEntre2("");
+    setCalles([]);
+    setCallesEntre1([]);
+    setCallesEntre2([]);
+    setNoGeo({ provincia: false, departamento: false, localidad: false });
+    clearGeoArgentina();
+  };
+
   const handleSave = async () => {
     if (!personaId) return;
     setSaving(true);
     try {
-      // Se envía el payload del domicilio. El backend solo lee las claves
-      // válidas de PersonaDomicilioRequest; las extra aquí son inofensivas.
-      await personaService.saveDomicilio(personaId, { ...domicilio });
+      if (domicilioDesconocido) {
+        await personaService.saveDomicilio(personaId, {
+          blanquear: true,
+          observaciones: domicilio.observaciones || "",
+        });
+      } else {
+        await personaService.saveDomicilio(personaId, {
+          nacion_id: domicilio.nacion_id || null,
+          provincia_id: domicilio.provincia_id || null,
+          departamento_id: domicilio.departamento_id || null,
+          localidad_id: domicilio.localidad_id || null,
+          calle_id: domicilio.calle_id || null,
+          calle_entre_1_id: domicilio.calle_entre_1_id || null,
+          calle_entre_2_id: domicilio.calle_entre_2_id || null,
+          numero: domicilio.numero || null,
+          piso: domicilio.piso || null,
+          unidad: domicilio.unidad || null,
+          torre: domicilio.torre || null,
+          codigo_postal: domicilio.codigo_postal || null,
+          observaciones: domicilio.observaciones || "",
+        });
+      }
       onSaved();
     } catch {
-      // mostrá acá tu alerta de error si el proyecto usa una
+      // mostrar acá tu alerta de error si el proyecto la usa
     } finally {
       setSaving(false);
     }
   };
 
-  const inputCls =
-    "w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none";
-  const labelCls =
-    "text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block";
+  const ResumenItem = ({ label, valor }) => (
+    <div className="flex justify-between gap-4">
+      <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest pt-0.5">
+        {label}
+      </p>
+      <p className="text-sm font-bold text-secondary-900 text-right">
+        {valor || "—"}
+      </p>
+    </div>
+  );
 
   return (
     <div
@@ -231,197 +509,470 @@ export default function PersonaDomicilioModal({
             <div>
               <h2 className="text-xl font-black text-white">Domicilio</h2>
               <p className="text-white/80 text-sm font-medium">
-                Completá la ubicación y el domicilio de la persona
+                Ubicación · Vivienda · Observaciones
               </p>
             </div>
           </div>
         </div>
 
+        {/* Stepper de 3 pasos */}
+        <div className="px-8 py-4 border-b border-secondary-100 bg-secondary-50/50">
+          <div className="flex items-center">
+            {ETAPAS.map(({ n, label, Icon: StepIcon }, idx) => (
+              <div key={n} className="flex items-center flex-1 last:flex-none">
+                <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                  <div
+                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${
+                      step === n
+                        ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
+                        : step > n
+                          ? "bg-green-500 border-green-500 text-white"
+                          : "bg-white border-secondary-300 text-secondary-400"
+                    }`}
+                  >
+                    {step > n ? (
+                      <CheckCircle2 className="w-5 h-5" />
+                    ) : (
+                      <StepIcon className="w-5 h-5" />
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-wider ${
+                      step === n ? "text-primary-700" : "text-secondary-400"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+                {idx < ETAPAS.length - 1 && (
+                  <div
+                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
+                      step > n ? "bg-green-500" : "bg-secondary-200"
+                    }`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Cuerpo scrolleable */}
         <div className="overflow-y-auto flex-1 min-h-0 p-6 space-y-6">
-          {/* Sección 1: Domicilio */}
-          <section>
-            <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-4 flex items-center gap-2">
-              <Home className="w-4 h-4" /> Domicilio
-            </h3>
-            {loading && (
-              <p className="text-sm text-secondary-500">
-                Cargando datos actuales…
-              </p>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Provincia */}
-              <div>
-                <label className={labelCls}>Provincia</label>
-                <select
-                  value={domicilio.provincia_id}
+          {loading && (
+            <p className="text-xs text-secondary-500 font-medium">
+              Cargando datos actuales…
+            </p>
+          )}
+          {step === 1 && (
+            <section className="space-y-4 animate-fadeIn">
+              <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-2 flex items-center gap-2">
+                <MapPin className="w-4 h-4" /> Localidad / Ubicación
+              </h3>
+
+              {/* Switch: Domicilio Desconocido */}
+              <label className="flex items-center gap-3 rounded-2xl border border-secondary-200 bg-secondary-50 px-4 py-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={domicilioDesconocido}
                   onChange={(e) => {
-                    const v = e.target.value;
-                    setDomicilio((p) => ({
-                      ...p,
-                      provincia_id: v,
-                      departamento_id: "",
-                      localidad_id: "",
-                      calle_id: "",
-                    }));
-                    handleProvinciaChange(v);
+                    const on = e.target.checked;
+                    setDomicilioDesconocido(on);
+                    if (on) setStep(3);
                   }}
-                  className={inputCls}
-                >
-                  <option value="">Seleccionar...</option>
-                  {provincias.map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {x.nombre}
-                    </option>
-                  ))}
-                </select>
+                />
+                <div className="w-11 h-6 bg-secondary-300 peer-focus:outline-none rounded-full relative peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                <div>
+                  <p className="text-sm font-black text-secondary-800">
+                    Declarar Domicilio Desconocido
+                  </p>
+                  <p className="text-[10px] text-secondary-500 font-medium">
+                    Salta al Paso 3 y podés justificarlo en Observaciones
+                  </p>
+                </div>
+              </label>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div className="md:col-span-2">
+                  <label className={labelCls}>País</label>
+                  <select
+                    className={inputCls}
+                    value={domicilio.nacion_id}
+                    disabled={domicilioDesconocido}
+                    onChange={(e) => onNacionChange(e.target.value)}
+                  >
+                    <option value="">Seleccionar...</option>
+                    {nacions.map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {n.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {esArgentina && (
+                  <>
+                    <div>
+                      <label className={labelCls}>Provincia</label>
+                      <select
+                        className={inputCls}
+                        value={domicilio.provincia_id}
+                        disabled={domicilioDesconocido || noGeo.provincia}
+                        onChange={(e) => onProvinciaChange(e.target.value)}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {provincias.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nombre}
+                          </option>
+                        ))}
+                      </select>
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={noGeo.provincia}
+                          disabled={domicilioDesconocido}
+                          onChange={(e) =>
+                            setNoDisponible("provincia", e.target.checked)
+                          }
+                        />
+                        <div className="w-11 h-6 bg-secondary-300 rounded-full relative peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-400"></div>
+                        <span className="text-[10px] text-secondary-500 font-medium">
+                          No dispongo de este dato
+                        </span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>Departamento</label>
+                      <select
+                        className={inputCls}
+                        value={domicilio.departamento_id}
+                        disabled={
+                          !domicilio.provincia_id ||
+                          domicilioDesconocido ||
+                          noGeo.departamento
+                        }
+                        onChange={(e) => onDepartamentoChange(e.target.value)}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {departamentos.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.nombre}
+                          </option>
+                        ))}
+                      </select>
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={noGeo.departamento}
+                          disabled={domicilioDesconocido}
+                          onChange={(e) =>
+                            setNoDisponible("departamento", e.target.checked)
+                          }
+                        />
+                        <div className="w-11 h-6 bg-secondary-300 rounded-full relative peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-400"></div>
+                        <span className="text-[10px] text-secondary-500 font-medium">
+                          No dispongo de este dato
+                        </span>
+                      </label>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className={labelCls}>Localidad</label>
+                      <select
+                        className={inputCls}
+                        value={domicilio.localidad_id}
+                        disabled={
+                          !domicilio.departamento_id ||
+                          domicilioDesconocido ||
+                          noGeo.localidad
+                        }
+                        onChange={(e) => onLocalidadChange(e.target.value)}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {localidades.map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.nombre}
+                          </option>
+                        ))}
+                      </select>
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={noGeo.localidad}
+                          disabled={domicilioDesconocido}
+                          onChange={(e) =>
+                            setNoDisponible("localidad", e.target.checked)
+                          }
+                        />
+                        <div className="w-11 h-6 bg-secondary-300 rounded-full relative peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-400"></div>
+                        <span className="text-[10px] text-secondary-500 font-medium">
+                          No dispongo de este dato
+                        </span>
+                      </label>
+                    </div>
+                  </>
+                )}
               </div>
-              {/* Departamento */}
-              <div>
-                <label className={labelCls}>Departamento</label>
-                <select
-                  value={domicilio.departamento_id}
-                  disabled={!domicilio.provincia_id}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setDomicilio((p) => ({
-                      ...p,
-                      departamento_id: v,
-                      localidad_id: "",
-                      calle_id: "",
-                    }));
-                    handleDepartamentoChange(v);
-                  }}
-                  className={inputCls}
-                >
-                  <option value="">Seleccionar...</option>
-                  {departamentos.map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {x.nombre}
-                    </option>
-                  ))}
-                </select>
+            </section>
+          )}
+          {step === 2 && (
+            <section className="space-y-4 animate-fadeIn">
+              <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-2 flex items-center gap-2">
+                <Building2 className="w-4 h-4" /> Calles y Vivienda
+              </h3>
+
+              {(domicilioDesconocido || esExtranjero) && (
+                <p className="text-xs text-amber-700 font-semibold bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  {domicilioDesconocido
+                    ? "Domicilio Desconocido: este paso queda deshabilitado."
+                    : "Domicilio en el extranjero: no se registran calles ni vivienda."}
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CalleCombo
+                  label="Calle principal"
+                  q={q}
+                  onQChange={setQ}
+                  calles={calles}
+                  disabled={
+                    !domicilio.localidad_id ||
+                    domicilioDesconocido ||
+                    noGeo.localidad
+                  }
+                  placeholder="Ej: Av. Rivadavia"
+                  onSelect={(id) =>
+                    setDomicilio((p) => ({ ...p, calle_id: id }))
+                  }
+                />
+                <CalleCombo
+                  label="Entrecalle 1"
+                  q={qEntre1}
+                  onQChange={setQEntre1}
+                  calles={callesEntre1}
+                  disabled={
+                    !domicilio.localidad_id ||
+                    domicilioDesconocido ||
+                    noGeo.localidad
+                  }
+                  placeholder="Ej: Entre calle..."
+                  onSelect={(id) =>
+                    setDomicilio((p) => ({ ...p, calle_entre_1_id: id }))
+                  }
+                />
+                <CalleCombo
+                  label="Entrecalle 2"
+                  q={qEntre2}
+                  onQChange={setQEntre2}
+                  calles={callesEntre2}
+                  disabled={
+                    !domicilio.localidad_id ||
+                    domicilioDesconocido ||
+                    noGeo.localidad
+                  }
+                  placeholder="Ej: Entre calle..."
+                  onSelect={(id) =>
+                    setDomicilio((p) => ({ ...p, calle_entre_2_id: id }))
+                  }
+                />
+                <div>
+                  <label className={labelCls}>Número</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={20}
+                    value={domicilio.numero}
+                    onChange={setDomicilioField("numero")}
+                    disabled={
+                      domicilioDesconocido || esExtranjero || noGeo.localidad
+                    }
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Piso</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={domicilio.piso}
+                    onChange={setDomicilioField("piso")}
+                    disabled={
+                      domicilioDesconocido || esExtranjero || noGeo.localidad
+                    }
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Departamento (unidad)</label>
+                  <input
+                    type="text"
+                    maxLength={10}
+                    value={domicilio.unidad}
+                    onChange={setDomicilioField("unidad")}
+                    disabled={
+                      domicilioDesconocido || esExtranjero || noGeo.localidad
+                    }
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Torre</label>
+                  <input
+                    type="text"
+                    maxLength={10}
+                    value={domicilio.torre}
+                    onChange={setDomicilioField("torre")}
+                    disabled={
+                      domicilioDesconocido || esExtranjero || noGeo.localidad
+                    }
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Código Postal</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={domicilio.codigo_postal}
+                    onChange={setDomicilioField("codigo_postal")}
+                    disabled={
+                      domicilioDesconocido || esExtranjero || noGeo.localidad
+                    }
+                    className={inputCls}
+                  />
+                </div>
               </div>
-              {/* Localidad */}
+            </section>
+          )}
+          {step === 3 && (
+            <section className="space-y-4 animate-fadeIn">
+              <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-2 flex items-center gap-2">
+                <ClipboardCheck className="w-4 h-4" /> Resumen y Confirmación
+              </h3>
+              {/* Aviso de geografía parcial (solo país / solo provincia / provincia + departamento) */}
+              {!domicilioDesconocido && esGeoParcial && (
+                <div className="bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-sky-600 flex-shrink-0" />
+                  <p className="text-xs text-sky-800 font-medium">
+                    <span className="font-black uppercase tracking-wide">
+                      Geografía parcial:{" "}
+                    </span>
+                    {domicilio.provincia_id
+                      ? domicilio.departamento_id
+                        ? "se registrarán país, provincia y departamento; las calles y la vivienda quedarán vacías."
+                        : "se registrarán país y provincia; el departamento, las calles y la vivienda quedarán vacíos."
+                      : "solo se registrará el país; no se informan provincia, departamento ni localidad."}
+                  </p>
+                </div>
+              )}
+              {domicilioDesconocido ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
+                  <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0" />
+                  <div>
+                    <p className="font-black text-amber-800 uppercase text-sm">
+                      Domicilio Desconocido
+                    </p>
+                    <p className="text-xs text-amber-700 font-medium">
+                      El domicilio geográfico quedará en blanco. Solo se
+                      persistirá la observación.
+                    </p>
+                  </div>
+                </div>
+              ) : esExtranjero ? (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex items-start gap-3">
+                  <AlertTriangle className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+                  <div>
+                    <p className="font-black text-indigo-800 uppercase text-sm">
+                      Domicilio en el extranjero
+                    </p>
+                    <p className="text-xs text-indigo-700 font-medium">
+                      Solo se guardará el país. Los campos de calles y vivienda
+                      quedarán vacíos.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-secondary-50 border border-secondary-200 rounded-2xl p-5 space-y-3 shadow-sm">
+                  <ResumenItem
+                    label="País"
+                    valor={
+                      domicilio.nacion_id &&
+                      nacions.find(
+                        (n) => String(n.id) === String(domicilio.nacion_id),
+                      )?.nombre
+                    }
+                  />
+                  <ResumenItem
+                    label="Provincia"
+                    valor={
+                      provincias.find(
+                        (p) => String(p.id) === String(domicilio.provincia_id),
+                      )?.nombre
+                    }
+                  />
+                  <ResumenItem
+                    label="Departamento"
+                    valor={
+                      departamentos.find(
+                        (d) =>
+                          String(d.id) === String(domicilio.departamento_id),
+                      )?.nombre
+                    }
+                  />
+                  <ResumenItem
+                    label="Localidad"
+                    valor={
+                      localidades.find(
+                        (l) => String(l.id) === String(domicilio.localidad_id),
+                      )?.nombre
+                    }
+                  />
+                  <ResumenItem label="Calle" valor={q} />
+                  <ResumenItem label="Número" valor={domicilio.numero} />
+                  <ResumenItem
+                    label="Piso / Dpto / Torre"
+                    valor={[domicilio.piso, domicilio.unidad, domicilio.torre]
+                      .filter(Boolean)
+                      .join(" / ")}
+                  />
+                  <ResumenItem
+                    label="Entrecalles"
+                    valor={[qEntre1, qEntre2].filter(Boolean).join(" y ")}
+                  />
+                  <ResumenItem
+                    label="Código Postal"
+                    valor={domicilio.codigo_postal}
+                  />
+                </div>
+              )}
+
               <div>
-                <label className={labelCls}>Localidad</label>
-                <select
-                  value={domicilio.localidad_id}
-                  disabled={!domicilio.departamento_id}
+                <label className={labelCls}>
+                  Observaciones del Domicilio (Opcional)
+                </label>
+                <textarea
+                  rows={3}
+                  maxLength={1000}
+                  placeholder="Ej: Se desconoce el domicilio actual, vive transitoriamente en..."
+                  className="w-full px-4 py-2 bg-white border border-secondary-300 rounded-xl text-xs font-medium text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all resize-none"
+                  value={domicilio.observaciones || ""}
                   onChange={(e) =>
                     setDomicilio((p) => ({
                       ...p,
-                      localidad_id: e.target.value,
-                      calle_id: "",
+                      observaciones: e.target.value,
                     }))
                   }
-                  className={inputCls}
-                >
-                  <option value="">Seleccionar...</option>
-                  {localidades.map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {x.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {/* Calle principal */}
-              <CalleCombo
-                label="Calle principal"
-                q={q}
-                onQChange={setQ}
-                calles={calles}
-                disabled={!domicilio.localidad_id}
-                placeholder="Ej: Av. Rivadavia"
-                onSelect={(id) => setDomicilio((p) => ({ ...p, calle_id: id }))}
-              />
-              {/* Entrecalle 1 */}
-              <CalleCombo
-                label="Entrecalle 1"
-                q={qEntre1}
-                onQChange={setQEntre1}
-                calles={callesEntre1}
-                disabled={!domicilio.localidad_id}
-                placeholder="Ej: Entre calle..."
-                onSelect={(id) =>
-                  setDomicilio((p) => ({ ...p, calle_entre_1_id: id }))
-                }
-              />
-              {/* Entrecalle 2 */}
-              <CalleCombo
-                label="Entrecalle 2"
-                q={qEntre2}
-                onQChange={setQEntre2}
-                calles={callesEntre2}
-                disabled={!domicilio.localidad_id}
-                placeholder="Ej: Entre calle..."
-                onSelect={(id) =>
-                  setDomicilio((p) => ({ ...p, calle_entre_2_id: id }))
-                }
-              />
-
-              {/* Número */}
-              <div>
-                <label className={labelCls}>Número</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={20}
-                  value={domicilio.numero}
-                  onChange={setDomicilioField("numero")}
-                  className={inputCls}
                 />
               </div>
-              {/* Piso */}
-              <div>
-                <label className={labelCls}>Piso</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={10}
-                  value={domicilio.piso}
-                  onChange={setDomicilioField("piso")}
-                  className={inputCls}
-                />
-              </div>
-              {/* Departamento (unidad) */}
-              <div>
-                <label className={labelCls}>Departamento (unidad)</label>
-                <input
-                  type="text"
-                  maxLength={10}
-                  value={domicilio.departamento}
-                  onChange={setDomicilioField("departamento")}
-                  className={inputCls}
-                />
-              </div>
-              {/* Torre */}
-              <div>
-                <label className={labelCls}>Torre</label>
-                <input
-                  type="text"
-                  maxLength={10}
-                  value={domicilio.torre}
-                  onChange={setDomicilioField("torre")}
-                  className={inputCls}
-                />
-              </div>
-              {/* Código Postal */}
-              <div>
-                <label className={labelCls}>Código Postal</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={10}
-                  value={domicilio.codigo_postal}
-                  onChange={setDomicilioField("codigo_postal")}
-                  className={inputCls}
-                />
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
         </div>
-
         {/* Footer */}
         <div className="px-8 py-4 border-t border-secondary-100 bg-white flex items-center gap-3 mt-auto shrink-0">
           <button
@@ -431,14 +982,41 @@ export default function PersonaDomicilioModal({
           >
             <SkipForward className="w-4 h-4" /> Omitir por ahora
           </button>
-          <div className="flex-1" />
           <button
             type="button"
-            onClick={handleSave}
-            className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-[0.98] shadow-lg"
+            onClick={clearForm}
+            className="px-5 py-3 border border-red-200 text-red-600 rounded-2xl font-black uppercase tracking-widest hover:bg-red-50 transition-all active:scale-[0.98] flex items-center gap-2"
           >
-            <Save className="w-4 h-4" /> Guardar Domicilio
+            <Eraser className="w-4 h-4" /> Limpiar datos
           </button>
+          <div className="flex-1" />
+          {step > 1 && (
+            <button
+              type="button"
+              onClick={goPrev}
+              className="px-5 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200 transition-all active:scale-[0.98] flex items-center gap-2"
+            >
+              <ChevronLeft className="w-4 h-4" /> Anterior
+            </button>
+          )}
+          {step < 3 ? (
+            <button
+              type="button"
+              onClick={goNext}
+              className="px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-[0.98] shadow-lg flex items-center gap-2"
+            >
+              Siguiente <ChevronRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-[0.98] shadow-lg disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" /> Guardar Domicilio
+            </button>
+          )}
         </div>
       </div>
     </div>
