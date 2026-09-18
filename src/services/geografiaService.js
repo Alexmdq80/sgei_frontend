@@ -48,6 +48,17 @@ const geografiaService = {
     },
 
     /**
+     * Búsqueda omnibox de localidades con la jerarquía completa
+     * (devuelve un array plano: { id, nombre, departamento_id, departamento: { provincia: { nacion } } }).
+     */
+    async searchLocalidades(search, perPage = 15) {
+        const response = await api.get('/localidades', {
+            params: { search, per_page: perPage },
+        });
+        return response.data;
+    },
+
+    /**
      * Obtiene las localidades de un departamento.
      */
     async getLocalidades(departamentoId, params = {}) {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Search, Loader2 } from "lucide-react";
 import {
   X,
   Home,
@@ -14,6 +15,8 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import personaService from "../../../../services/personaService";
+import geografiaService from "../../../../services/geografiaService";
+import SearchableSelect from "../../../../components/SearchableSelect";
 import useGeografiaCascade from "../hooks/useGeografiaCascade";
 import { esNacionArgentina } from "../utils/nacionUtils";
 
@@ -33,9 +36,26 @@ export default function PersonaDomicilioModal({
     departamento: false,
     localidad: false,
   });
+  const [paisTipo, setPaisTipo] = useState("argentina"); // "argentina" | "extranjero"
+  const [modoUbicacion, setModoUbicacion] = useState("omnibox"); // "omnibox" | "cascada" (fallback clásico)
+  const [qLocalidad, setQLocalidad] = useState("");
+  const [localidadesSearch, setLocalidadesSearch] = useState([]);
+  const [buscandoLocalidades, setBuscandoLocalidades] = useState(false);
+  const [ubicacionSeleccion, setUbicacionSeleccion] = useState({
+    provincia: "",
+    departamento: "",
+    localidad: "",
+  });
+  const nomPorId = (lista, id) =>
+    (lista.find((i) => String(i.id) === String(id))?.nombre || "");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
+  const nacionArgentina = nacions.find(
+    (n) => String(n.nombre).trim().toUpperCase() === "ARGENTINA",
+  );
+  const nacionsSinArgentina = nacions.filter(
+    (n) => !esNacionArgentina([n], n.id),
+  );
   const [domicilio, setDomicilio] = useState({
     nacion_id: "",
     provincia_id: "",
@@ -68,6 +88,8 @@ export default function PersonaDomicilioModal({
     handleProvinciaChange,
     handleDepartamentoChange,
     clearGeoArgentina,
+    loadDepartamentos,
+    loadLocalidades,
   } = useGeografiaCascade();
 
   const ETAPAS = [
@@ -95,68 +117,9 @@ export default function PersonaDomicilioModal({
     );
     setDomicilio((p) => ({ ...p, [key]: esNumerico ? soloNumeros(raw) : raw }));
   };
-  /**
-   * Marca un nivel geográfico como "no dispongo": limpia ese nivel y todos los
-   * inferiores (geografía + calles + vivienda) para no persistir datos sucios.
-   */
-  const setNoDisponible = (nivel, on) => {
-    setNoGeo((prev) => {
-      const next = { ...prev, [nivel]: on };
-      if (nivel === "provincia" && on) {
-        next.departamento = true;
-        next.localidad = true;
-      } else if (nivel === "departamento" && on) {
-        next.localidad = true;
-      }
-      return next;
-    });
-
-    const swap = (patch) => setDomicilio((p) => ({ ...p, ...patch }));
-    if (nivel === "provincia") {
-      swap({
-        provincia_id: "",
-        departamento_id: "",
-        localidad_id: "",
-        calle_id: "",
-        calle_entre_1_id: "",
-        calle_entre_2_id: "",
-        numero: "",
-        piso: "",
-        unidad: "",
-        torre: "",
-        codigo_postal: "",
-      });
-    } else if (nivel === "departamento") {
-      swap({
-        departamento_id: "",
-        localidad_id: "",
-        calle_id: "",
-        calle_entre_1_id: "",
-        calle_entre_2_id: "",
-        numero: "",
-        piso: "",
-        unidad: "",
-        torre: "",
-        codigo_postal: "",
-      });
-    } else {
-      swap({
-        localidad_id: "",
-        calle_id: "",
-        calle_entre_1_id: "",
-        calle_entre_2_id: "",
-      });
-    }
-
-    setQ("");
-    setQEntre1("");
-    setQEntre2("");
-    setCalles([]);
-    setCallesEntre1([]);
-    setCallesEntre2([]);
-  };
   const onNacionChange = (value) => {
     const esAR = esNacionArgentina(nacions, value);
+    if (value) setPaisTipo(esAR ? "argentina" : "extranjero"); // no pisar el chip si vino ""
     // Limpiar TODO: geografía + calles + vivienda (evita datos "sucios")
     setDomicilio((p) => ({
       ...p,
@@ -199,6 +162,25 @@ export default function PersonaDomicilioModal({
     handleNacionChange(value);
   };
 
+  const onPaisTipoChange = (tipo) => {
+    // (a) Guard anti-borrado: re-clickar el chip ya activo no hace nada
+    if (tipo === paisTipo) return;
+
+    // (b/c) Cambio de chip: actualizo el estado visual y el aviso de desconocido
+    setPaisTipo(tipo);
+    setDomicilioDesconocido(false);
+    setUbicacionSeleccion({ provincia: "", departamento: "", localidad: "" });
+
+    // (c) Chip Argentina: setear la nación ARGENTINA de una sola vez
+    if (tipo === "argentina") {
+      onNacionChange(nacionArgentina?.id || "");
+    } else {
+      // (b) Chip Extranjero: dejar sin país para elegir del SearchableSelect
+      onNacionChange("");
+    }
+  };
+
+
   const onProvinciaChange = (value) => {
     setDomicilio((p) => ({
       ...p,
@@ -229,7 +211,96 @@ export default function PersonaDomicilioModal({
     setCalles([]);
     setCallesEntre1([]);
     setCallesEntre2([]);
+    setUbicacionSeleccion({
+      provincia: nomPorId(provincias, domicilio.provincia_id),
+      departamento: nomPorId(departamentos, value),
+      localidad: nomPorId(localidades, value),
+    });
   };
+
+  // Omnibox de localidades: debounce de 250ms y mínimo 2 caracteres
+  useEffect(() => {
+    const term = (qLocalidad || "").trim();
+    if (
+      paisTipo !== "argentina" ||
+      !esArgentina ||
+      domicilioDesconocido ||
+      modoUbicacion !== "omnibox" ||
+      term.length < 2
+    ) {
+      setLocalidadesSearch([]);
+      return;
+    }
+    let active = true;
+    const timer = setTimeout(() => {
+      setBuscandoLocalidades(true);
+      geografiaService
+        .searchLocalidades(term, 15)
+        .then((r) => {
+          if (active)
+            setLocalidadesSearch(Array.isArray(r) ? r : r?.data || []);
+        })
+        .catch(() => {
+          if (active) setLocalidadesSearch([]);
+        })
+        .finally(() => {
+          if (active) setBuscandoLocalidades(false);
+        });
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [
+    paisTipo,
+    esArgentina,
+    domicilioDesconocido,
+    modoUbicacion,
+    qLocalidad,
+  ]);
+
+  // Selección desde el omnibox: autocompleta toda la jerarquía de una sola vez
+  const onSelectOmnibox = (item) => {
+    const depto = item.departamento;
+    const prov = depto?.provincia;
+    setDomicilio((p) => ({
+      ...p,
+      nacion_id: nacionArgentina?.id || p.nacion_id,
+      provincia_id: prov?.id ?? "",
+      departamento_id: depto?.id ?? item.departamento_id ?? "",
+      localidad_id: item.id,
+      calle_id: "",
+      calle_entre_1_id: "",
+      calle_entre_2_id: "",
+    }));
+    setUbicacionSeleccion({
+      provincia: prov?.nombre ?? "",
+      departamento: depto?.nombre ?? "",
+      localidad: item.nombre ?? "",
+    });
+    setQLocalidad(item.nombre);
+    setLocalidadesSearch([]);
+    setQ("");
+    setQEntre1("");
+    setQEntre2("");
+    setCalles([]);
+    setCallesEntre1([]);
+    setCallesEntre2([]);
+    setNoGeo({ provincia: false, departamento: false, localidad: false });
+    // Mantener la cascada coherente si el usuario alterna al modo clásico
+    if (prov?.id) loadDepartamentos(prov.id);
+    if (depto?.id) loadLocalidades(depto.id);
+    setModoUbicacion("omnibox");
+  };
+
+  // Domicilio nuevo sin país: preseleccionar Argentina por defecto
+  useEffect(() => {
+    if (!nacionArgentina || domicilio.nacion_id || paisTipo !== "argentina")
+      return;
+    onNacionChange(nacionArgentina.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nacionArgentina?.id, domicilio.nacion_id, paisTipo]);
+
   useEffect(() => {
     if (!isOpen || !personaId) return;
     let active = true;
@@ -276,6 +347,14 @@ export default function PersonaDomicilioModal({
           departamento: !d.departamento_id,
           localidad: !d.localidad_id,
         });
+        // Sincronizar el segmented de país con el domicilio persistido
+        if (nacions.length > 0 && d.nacion_id) {
+          setPaisTipo(
+            esNacionArgentina(nacions, d.nacion_id) ? "argentina" : "extranjero",
+          );
+        }
+        // En edición, reconstruimos la cascada: arrancar en modo clásico
+        setModoUbicacion("cascada");
         // Reconstruir la cascada geográfica para los selects
         if (d.nacion_id) handleNacionChange(d.nacion_id);
         if (d.provincia_id) handleProvinciaChange(d.provincia_id);
@@ -295,53 +374,71 @@ export default function PersonaDomicilioModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, personaId]);
   useEffect(() => {
-    if (!domicilio.localidad_id || !q) {
+    const term = q.trim();
+    if (!domicilio.localidad_id || term.length < 3) {
       setCalles([]);
       return;
     }
     let active = true;
-    personaService
-      .searchCalles({ localidad_id: domicilio.localidad_id, q })
-      .then((r) => {
-        if (active) setCalles(r?.data?.data || r?.data || r || []);
-      })
-      .catch(() => { });
+    const timer = setTimeout(() => {
+      personaService
+        .searchCalles({ localidad_id: domicilio.localidad_id, q: term })
+        .then((r) => {
+          if (active) setCalles(r?.data?.data || r?.data || r || []);
+        })
+        .catch(() => {
+          if (active) setCalles([]);
+        });
+    }, 300);
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [domicilio.localidad_id, q]);
 
   useEffect(() => {
-    if (!domicilio.localidad_id || !qEntre1) {
+    const term = qEntre1.trim();
+    if (!domicilio.localidad_id || term.length < 3) {
       setCallesEntre1([]);
       return;
     }
     let active = true;
-    personaService
-      .searchCalles({ localidad_id: domicilio.localidad_id, q: qEntre1 })
-      .then((r) => {
-        if (active) setCallesEntre1(r?.data?.data || r?.data || r || []);
-      })
-      .catch(() => { });
+    const timer = setTimeout(() => {
+      personaService
+        .searchCalles({ localidad_id: domicilio.localidad_id, q: term })
+        .then((r) => {
+          if (active) setCallesEntre1(r?.data?.data || r?.data || r || []);
+        })
+        .catch(() => {
+          if (active) setCallesEntre1([]);
+        });
+    }, 300);
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [domicilio.localidad_id, qEntre1]);
 
   useEffect(() => {
-    if (!domicilio.localidad_id || !qEntre2) {
+    const term = qEntre2.trim();
+    if (!domicilio.localidad_id || term.length < 3) {
       setCallesEntre2([]);
       return;
     }
     let active = true;
-    personaService
-      .searchCalles({ localidad_id: domicilio.localidad_id, q: qEntre2 })
-      .then((r) => {
-        if (active) setCallesEntre2(r?.data?.data || r?.data || r || []);
-      })
-      .catch(() => { });
+    const timer = setTimeout(() => {
+      personaService
+        .searchCalles({ localidad_id: domicilio.localidad_id, q: term })
+        .then((r) => {
+          if (active) setCallesEntre2(r?.data?.data || r?.data || r || []);
+        })
+        .catch(() => {
+          if (active) setCallesEntre2([]);
+        });
+    }, 300);
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [domicilio.localidad_id, qEntre2]);
   function CalleCombo({
@@ -432,6 +529,11 @@ export default function PersonaDomicilioModal({
       codigo_postal: "",
       observaciones: "",
     });
+    setPaisTipo("argentina");
+    setModoUbicacion("omnibox");
+    setQLocalidad("");
+    setLocalidadesSearch([]);
+    setUbicacionSeleccion({ provincia: "", departamento: "", localidad: "" });
     setQ("");
     setQEntre1("");
     setQEntre2("");
@@ -490,6 +592,96 @@ export default function PersonaDomicilioModal({
   const personaNombre = persona?.apellido || persona?.nombre
     ? `${persona.apellido ?? ""}, ${persona.nombre ?? ""}`.replace(/^,\s*|,\s*$/, "").trim()
     : null;
+
+  const BreadcrumbUbicacion = () => {
+    if (domicilioDesconocido) {
+      return (
+        <div className="inline-flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs font-black text-amber-700">
+          ⚠️ Ubicación: [ Domicilio Desconocido / Sin Acreditar ]
+        </div>
+      );
+    }
+    if (esExtranjero) {
+      const nombrePais = nacions.find(
+        (n) => String(n.id) === String(domicilio.nacion_id),
+      )?.nombre;
+      return (
+        <div className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-black text-indigo-700">
+          🌐 Ubicación: [ {nombrePais || "País extranjero"} ]
+        </div>
+      );
+    }
+    if (esArgentina) {
+      return (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-xs font-black text-primary-700">
+          📍 Ubicación:
+          <span className="rounded-full border border-primary-200 bg-white px-2.5 py-0.5">
+            🇦🇷 Argentina
+          </span>
+          {ubicacionSeleccion.provincia && (
+            <>
+              <span>›</span>
+              <span className="rounded-full border border-primary-200 bg-white px-2.5 py-0.5">
+                {ubicacionSeleccion.provincia}
+              </span>
+            </>
+          )}
+          {ubicacionSeleccion.departamento && (
+            <>
+              <span>›</span>
+              <span className="rounded-full border border-primary-200 bg-white px-2.5 py-0.5">
+                {ubicacionSeleccion.departamento}
+              </span>
+            </>
+          )}
+          {ubicacionSeleccion.localidad && (
+            <>
+              <span>›</span>
+              <span className="rounded-full border border-primary-200 bg-white px-2.5 py-0.5">
+                {ubicacionSeleccion.localidad}
+              </span>
+            </>
+          )}
+          {(domicilio.localidad_id || ubicacionSeleccion.localidad) && (
+            <button
+              type="button"
+              onClick={() => {
+                setUbicacionSeleccion({ provincia: "", departamento: "", localidad: "" });
+                setQLocalidad("");
+                setLocalidadesSearch([]);
+                setModoUbicacion("omnibox");
+                setDomicilio((p) => ({
+                  ...p,
+                  provincia_id: "",
+                  departamento_id: "",
+                  localidad_id: "",
+                  calle_id: "",
+                  calle_entre_1_id: "",
+                  calle_entre_2_id: "",
+                  numero: "",
+                  piso: "",
+                  unidad: "",
+                  torre: "",
+                  codigo_postal: "",
+                }));
+                setQ("");
+                setQEntre1("");
+                setQEntre2("");
+                setCalles([]);
+                setCallesEntre1([]);
+                setCallesEntre2([]);
+                setStep(1);
+              }}
+              className="ml-2 text-[10px] font-black underline hover:text-primary-900"
+            >
+              Cambiar
+            </button>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div
@@ -596,131 +788,152 @@ export default function PersonaDomicilioModal({
                 </div>
               </label>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div className="md:col-span-2">
-                  <label className={labelCls}>País</label>
-                  <select
-                    className={inputCls}
-                    value={domicilio.nacion_id}
+              <div className="md:col-span-2">
+                <label className={labelCls}>País</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <button
+                    type="button"
                     disabled={domicilioDesconocido}
-                    onChange={(e) => onNacionChange(e.target.value)}
+                    onClick={() => onPaisTipoChange("argentina")}
+                    className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${paisTipo === "argentina"
+                      ? "bg-primary-600 border-primary-600 text-white shadow"
+                      : "bg-white border-secondary-200 text-secondary-500 hover:border-primary-300"
+                      }`}
                   >
-                    <option value="">Seleccionar...</option>
-                    {nacions.map((n) => (
-                      <option key={n.id} value={n.id}>
-                        {n.nombre}
-                      </option>
-                    ))}
-                  </select>
+                    🇦🇷 Argentina
+                  </button>
+                  <button
+                    type="button"
+                    disabled={domicilioDesconocido}
+                    onClick={() => onPaisTipoChange("extranjero")}
+                    className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${paisTipo === "extranjero"
+                      ? "bg-indigo-600 border-indigo-600 text-white shadow"
+                      : "bg-white border-secondary-200 text-secondary-500 hover:border-primary-300"
+                      }`}
+                  >
+                    🌐 Extranjero
+                  </button>
                 </div>
 
-                {esArgentina && (
-                  <>
-                    <div>
-                      <label className={labelCls}>Provincia</label>
-                      <select
-                        className={inputCls}
-                        value={domicilio.provincia_id}
-                        disabled={domicilioDesconocido || noGeo.provincia}
-                        onChange={(e) => onProvinciaChange(e.target.value)}
-                      >
-                        <option value="">Seleccionar...</option>
-                        {provincias.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nombre}
-                          </option>
-                        ))}
-                      </select>
-                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={noGeo.provincia}
-                          disabled={domicilioDesconocido}
-                          onChange={(e) =>
-                            setNoDisponible("provincia", e.target.checked)
-                          }
-                        />
-                        <div className="w-11 h-6 bg-secondary-300 rounded-full relative peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-400"></div>
-                        <span className="text-[10px] text-secondary-500 font-medium">
-                          No dispongo de este dato
-                        </span>
-                      </label>
-                    </div>
-
-                    <div>
-                      <label className={labelCls}>Departamento</label>
-                      <select
-                        className={inputCls}
-                        value={domicilio.departamento_id}
-                        disabled={
-                          !domicilio.provincia_id ||
-                          domicilioDesconocido ||
-                          noGeo.departamento
-                        }
-                        onChange={(e) => onDepartamentoChange(e.target.value)}
-                      >
-                        <option value="">Seleccionar...</option>
-                        {departamentos.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.nombre}
-                          </option>
-                        ))}
-                      </select>
-                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={noGeo.departamento}
-                          disabled={domicilioDesconocido}
-                          onChange={(e) =>
-                            setNoDisponible("departamento", e.target.checked)
-                          }
-                        />
-                        <div className="w-11 h-6 bg-secondary-300 rounded-full relative peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-400"></div>
-                        <span className="text-[10px] text-secondary-500 font-medium">
-                          No dispongo de este dato
-                        </span>
-                      </label>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className={labelCls}>Localidad</label>
-                      <select
-                        className={inputCls}
-                        value={domicilio.localidad_id}
-                        disabled={
-                          !domicilio.departamento_id ||
-                          domicilioDesconocido ||
-                          noGeo.localidad
-                        }
-                        onChange={(e) => onLocalidadChange(e.target.value)}
-                      >
-                        <option value="">Seleccionar...</option>
-                        {localidades.map((l) => (
-                          <option key={l.id} value={l.id}>
-                            {l.nombre}
-                          </option>
-                        ))}
-                      </select>
-                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={noGeo.localidad}
-                          disabled={domicilioDesconocido}
-                          onChange={(e) =>
-                            setNoDisponible("localidad", e.target.checked)
-                          }
-                        />
-                        <div className="w-11 h-6 bg-secondary-300 rounded-full relative peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-400"></div>
-                        <span className="text-[10px] text-secondary-500 font-medium">
-                          No dispongo de este dato
-                        </span>
-                      </label>
-                    </div>
-                  </>
+                {paisTipo === "extranjero" && (
+                  <div className="mt-2">
+                    <SearchableSelect
+                      label="Seleccionar país extranjero"
+                      options={nacionsSinArgentina}
+                      value={domicilio.nacion_id}
+                      placeholder="Buscar país..."
+                      disabled={domicilioDesconocido}
+                      onChange={(e) => onNacionChange(e.target.value)}
+                    />
+                    <p className="text-[10px] font-medium text-secondary-500 mt-1">
+                      Al elegir un país extranjero el Paso 1 finaliza y pasarás al Resumen
+                      (Paso 3).
+                    </p>
+                  </div>
                 )}
               </div>
+
+              {paisTipo === "argentina" && esArgentina && (
+                <>
+                  {/* Omnibox de localidades */}
+                  <div className="md:col-span-2">
+                    <label className={labelCls}>Localidad / Ubicación</label>
+                    <div className="rounded-2xl border-2 border-primary-300 bg-white overflow-hidden transition-all focus-within:border-primary-500">
+                      <div className="flex items-center gap-2 px-4 py-3">
+                        <Search className="w-4 h-4 text-primary-500 flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={qLocalidad}
+                          disabled={domicilioDesconocido}
+                          onChange={(e) => setQLocalidad(e.target.value)}
+                          placeholder="Escribí tu localidad (ej. Tandil, Quilmes, San Martín)..."
+                          className="w-full bg-transparent outline-none text-sm font-bold"
+                        />
+                        {buscandoLocalidades && (
+                          <Loader2 className="w-4 h-4 text-primary-500 animate-spin flex-shrink-0" />
+                        )}
+                      </div>
+                      {localidadesSearch.length > 0 && (
+                        <ul className="border-t border-secondary-100 max-h-56 overflow-y-auto">
+                          {localidadesSearch.map((loc) => (
+                            <li
+                              key={loc.id}
+                              onClick={() => onSelectOmnibox(loc)}
+                              className="px-4 py-2.5 cursor-pointer hover:bg-primary-50 transition-colors"
+                            >
+                              <p className="text-sm font-black text-secondary-800">
+                                📍 {loc.nombre}
+                              </p>
+                              <p className="text-[11px] font-medium text-secondary-500">
+                                {loc.departamento?.nombre} — {loc.departamento?.provincia?.nombre}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {(qLocalidad || "").trim().length > 0 &&
+                        localidadesSearch.length === 0 &&
+                        !buscandoLocalidades && (
+                          <p className="px-4 py-3 text-[11px] italic text-secondary-400">
+                            Sin coincidencias. Probá con otro término o usá la cascada clásica.
+                          </p>
+                        )}
+                    </div>
+
+                    {/* Alternancia omnibox <-> cascada clásica */}
+                    <div className="text-right mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setModoUbicacion((m) =>
+                            m === "omnibox" ? "cascada" : "omnibox",
+                          )
+                        }
+                        className="text-[11px] font-black text-primary-600 hover:text-primary-700 underline"
+                      >
+                        {modoUbicacion === "omnibox"
+                          ? "¿No encontrás tu localidad? Usá la cascada clásica →"
+                          : "← Volver al buscador rápido"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Breadcrumb: resumen visual de la ubicación */}
+                  <div className="md:col-span-2">
+                    <BreadcrumbUbicacion />
+                  </div>
+
+                  {/* Fallback clásico (cascada con SearchableSelect) */}
+                  {modoUbicacion === "cascada" && (
+                    <div className="md:col-span-2 rounded-2xl border border-secondary-200 bg-secondary-50 p-4 space-y-4">
+                      <SearchableSelect
+                        label="Provincia"
+                        options={provincias}
+                        value={domicilio.provincia_id}
+                        placeholder="Seleccionar provincia"
+                        disabled={domicilioDesconocido}
+                        onChange={(e) => onProvinciaChange(e.target.value)}
+                      />
+                      <SearchableSelect
+                        label="Departamento"
+                        options={departamentos}
+                        value={domicilio.departamento_id}
+                        placeholder="Seleccionar departamento"
+                        disabled={!domicilio.provincia_id || domicilioDesconocido}
+                        onChange={(e) => onDepartamentoChange(e.target.value)}
+                      />
+                      <SearchableSelect
+                        label="Localidad"
+                        options={localidades}
+                        value={domicilio.localidad_id}
+                        placeholder="Seleccionar localidad"
+                        disabled={!domicilio.departamento_id || domicilioDesconocido}
+                        onChange={(e) => onLocalidadChange(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
             </section>
           )}
           {step === 2 && (
@@ -735,6 +948,12 @@ export default function PersonaDomicilioModal({
                     ? "Domicilio Desconocido: este paso queda deshabilitado."
                     : "Domicilio en el extranjero: no se registran calles ni vivienda."}
                 </p>
+              )}
+
+              {!domicilioDesconocido && (esArgentina || esExtranjero) && (
+                <div className="flex flex-wrap">
+                  <BreadcrumbUbicacion />
+                </div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -917,7 +1136,7 @@ export default function PersonaDomicilioModal({
                     valor={
                       provincias.find(
                         (p) => String(p.id) === String(domicilio.provincia_id),
-                      )?.nombre
+                      )?.nombre || ubicacionSeleccion.provincia || ""
                     }
                   />
                   <ResumenItem
@@ -926,7 +1145,7 @@ export default function PersonaDomicilioModal({
                       departamentos.find(
                         (d) =>
                           String(d.id) === String(domicilio.departamento_id),
-                      )?.nombre
+                      )?.nombre || ubicacionSeleccion.departamento || ""
                     }
                   />
                   <ResumenItem
@@ -934,7 +1153,7 @@ export default function PersonaDomicilioModal({
                     valor={
                       localidades.find(
                         (l) => String(l.id) === String(domicilio.localidad_id),
-                      )?.nombre
+                      )?.nombre || ubicacionSeleccion.localidad || ""
                     }
                   />
                   <ResumenItem label="Calle" valor={q} />
