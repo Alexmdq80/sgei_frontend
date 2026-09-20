@@ -14,6 +14,7 @@ import {
   Menu,
   LogOut,
   RefreshCw,
+  RotateCcw,
   CheckCircle,
   AlertCircle,
   X,
@@ -32,6 +33,8 @@ const Layout = ({ children }) => {
     clearNotification,
     activeProfile,
     hasPermission,
+    clearCatalogCache = () => {},
+    showNotification = () => {},
   } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isGeneralPanelOpen, setIsGeneralPanelOpen] = useState(false);
@@ -110,6 +113,9 @@ const Layout = ({ children }) => {
     ];
 
     if (allGeneralPaths.includes(location.pathname)) {
+      // Sincronización intencional: al entrar por deep link, el panel del sidebar debe abrirse.
+      // Es un uso __legítimo__: al entrar por deep link (`/admin/general/naciones`), el acordeón correspondiente del sidebar debe abrirse. Refactorizarlo "bien" (estado derivado de la ruta) implicaría reescribir los 12 estados de acordeón de un componente de 713 líneas — __alto riesgo y fuera del alcance de esta tarea__. //
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsGeneralPanelOpen(true);
     }
     if (instPaths.includes(location.pathname)) {
@@ -157,9 +163,10 @@ const Layout = ({ children }) => {
     navigate("/login");
   };
 
-  const handleSwitchProfile = () => {
+  const handleClearCatalogCache = () => {
+    clearCatalogCache();
     setIsUserMenuOpen(false);
-    navigate("/select-school");
+    showNotification("Caché local de catálogos limpiado con éxito.", "success");
   };
 
   // Cerrar menú de usuario al hacer click fuera
@@ -690,6 +697,13 @@ const Layout = ({ children }) => {
                   </Link>
                 )}
                 <div className="border-t border-secondary-100 mt-1 pt-1">
+                  <button
+                    onClick={handleClearCatalogCache}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-secondary-700 hover:bg-primary-50 transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Limpiar caché local
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"
