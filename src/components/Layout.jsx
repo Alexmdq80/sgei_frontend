@@ -22,6 +22,105 @@ import {
 import defaultAvatar from "../assets/default_avatar.jpg";
 
 /**
+ * Rutas que abren automáticamente cada panel/grupo del sidebar (deep links).
+ * Viven en el módulo para no recrearse en cada render.
+ */
+const SIDEBAR_GROUP_PATHS = {
+  inst: [
+    "/admin/general/escuelas",
+    "/admin/general/escuela-tipos",
+    "/admin/general/dependencias",
+    "/admin/general/ambitos",
+    "/admin/general/escuela-ubicaciones",
+  ],
+  offer: [
+    "/admin/general/niveles",
+    "/admin/general/modalidades",
+    "/admin/general/jornadas",
+    "/admin/general/turnos",
+    "/admin/general/modalidad-niveles",
+    "/admin/general/ofertas",
+  ],
+  doc: [
+    "/admin/general/documento-situacions",
+    "/admin/general/documento-tipos",
+  ],
+  identity: ["/admin/general/generos", "/admin/general/sexos"],
+  geo: [
+    "/admin/general/continentes",
+    "/admin/general/naciones",
+    "/admin/general/provincias",
+    "/admin/general/regiones",
+    "/admin/general/municipios",
+    "/admin/general/departamentos",
+    "/admin/general/localidades",
+    "/admin/general/localidad-censals",
+    "/admin/general/calles",
+  ],
+  georef: [
+    "/admin/general/georef-fuentes",
+    "/admin/general/georef-categorias",
+    "/admin/general/georef-funcions",
+  ],
+  ops: [
+    "/admin/general/cargos",
+    "/admin/general/ciclos",
+    "/admin/general/condiciones",
+    "/admin/general/vinculo-tipos",
+    "/admin/general/vinculos",
+    "/admin/general/cierre-causas",
+    "/admin/general/escalafones",
+    "/admin/general/puesto-tipos",
+  ],
+};
+
+/** Todas las rutas del "Panel General" (habilita el panel padre). */
+const GENERAL_PANEL_PATHS = Object.values(SIDEBAR_GROUP_PATHS).flat();
+
+const CURRICULAR_PANEL_PATHS = [
+  "/admin/curricular/anios",
+  "/admin/curricular/planes",
+];
+
+const DISTRICT_PANEL_PATHS = ["/admin/cupofs", "/admin/comunidad"];
+
+/** Set vacío reutilizable (evita instanciar uno nuevo en cada render). */
+const NO_PANELS = new Set();
+
+/**
+ * Paneles que la ruta actual debe mostrar abiertos por defecto,
+ * incluyendo los grupos padre de la jerarquía del menú.
+ */
+const getAutoOpenPanels = (pathname) => {
+  const open = new Set();
+  const inPaths = (paths) => paths.includes(pathname);
+
+  if (GENERAL_PANEL_PATHS.includes(pathname)) open.add("general");
+  if (inPaths(SIDEBAR_GROUP_PATHS.inst)) open.add("inst");
+  if (inPaths(SIDEBAR_GROUP_PATHS.offer)) open.add("offer");
+
+  if (
+    inPaths(SIDEBAR_GROUP_PATHS.doc) ||
+    inPaths(SIDEBAR_GROUP_PATHS.identity)
+  ) {
+    open.add("people");
+    if (inPaths(SIDEBAR_GROUP_PATHS.doc)) open.add("doc");
+    if (inPaths(SIDEBAR_GROUP_PATHS.identity)) open.add("identity");
+  }
+
+  if (inPaths(SIDEBAR_GROUP_PATHS.geo) || inPaths(SIDEBAR_GROUP_PATHS.georef)) {
+    open.add("geo");
+    if (inPaths(SIDEBAR_GROUP_PATHS.georef)) open.add("georef");
+  }
+
+  if (inPaths(SIDEBAR_GROUP_PATHS.ops)) open.add("ops");
+  if (inPaths(CURRICULAR_PANEL_PATHS)) open.add("curricular");
+  if (inPaths(DISTRICT_PANEL_PATHS)) open.add("district");
+
+  return open;
+};
+
+/**
  * Layout principal que envuelve las páginas protegidas.
  * Incluye un Sidebar para navegación y un Navbar superior con menú de usuario.
  */
@@ -37,125 +136,62 @@ const Layout = ({ children }) => {
     showNotification = () => {},
   } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isGeneralPanelOpen, setIsGeneralPanelOpen] = useState(false);
-  const [isInstGroupOpen, setIsInstGroupOpen] = useState(false);
-  const [isOfferGroupOpen, setIsOfferGroupOpen] = useState(false);
-  const [isPeopleGroupOpen, setIsPeopleGroupOpen] = useState(false);
-  const [isDocGroupOpen, setIsDocGroupOpen] = useState(false);
-  const [isIdentityGroupOpen, setIsIdentityGroupOpen] = useState(false);
-  const [isGeoGroupOpen, setIsGeoGroupOpen] = useState(false);
-  const [isGeorefGroupOpen, setIsGeorefGroupOpen] = useState(false);
-  const [isOpsGroupOpen, setIsOpsGroupOpen] = useState(false);
-  const [isCurricularPanelOpen, setIsCurricularPanelOpen] = useState(false);
-  const [isDistrictPanelOpen, setIsDistrictPanelOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+  /**
+   * Apertura de los paneles del sidebar.
+   * El valor por defecto se DERIVA de la ruta (deep links) y sólo se persisten los
+   * toggles manuales: `abiertos` se acumula en la sesión y `cerrados` rige únicamente
+   * para la ruta donde se cerró (al navegar se descarta y vuelve a mandar la ruta).
+   */
+  const [panelState, setPanelState] = useState({
+    abiertos: NO_PANELS,
+    cerradosPath: null,
+    cerrados: NO_PANELS,
+  });
+
   const userMenuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Abrir automáticamente los paneles si la ruta actual es una de sus subrutas
-  useEffect(() => {
-    const instPaths = [
-      "/admin/general/escuelas",
-      "/admin/general/escuela-tipos",
-      "/admin/general/dependencias",
-      "/admin/general/ambitos",
-      "/admin/general/escuela-ubicaciones",
-    ];
-    const offerPaths = [
-      "/admin/general/niveles",
-      "/admin/general/modalidades",
-      "/admin/general/jornadas",
-      "/admin/general/turnos",
-      "/admin/general/modalidad-niveles",
-      "/admin/general/ofertas",
-    ];
-    const docPaths = [
-      "/admin/general/documento-situacions",
-      "/admin/general/documento-tipos",
-    ];
-    const identityPaths = ["/admin/general/generos", "/admin/general/sexos"];
-    const geoPaths = [
-      "/admin/general/continentes",
-      "/admin/general/naciones",
-      "/admin/general/provincias",
-      "/admin/general/regiones",
-      "/admin/general/municipios",
-      "/admin/general/departamentos",
-      "/admin/general/localidades",
-      "/admin/general/localidad-censals",
-      "/admin/general/calles",
-    ];
-    const georefPaths = [
-      "/admin/general/georef-fuentes",
-      "/admin/general/georef-categorias",
-      "/admin/general/georef-funcions",
-    ];
-    const opsPaths = [
-      "/admin/general/cargos",
-      "/admin/general/ciclos",
-      "/admin/general/condiciones",
-      "/admin/general/vinculo-tipos",
-      "/admin/general/vinculos",
-      "/admin/general/cierre-causas",
-      "/admin/general/escalafones",
-      "/admin/general/puesto-tipos",
-    ];
+  const autoOpenPanels = getAutoOpenPanels(location.pathname);
+  const closedPanels =
+    panelState.cerradosPath === location.pathname
+      ? panelState.cerrados
+      : NO_PANELS;
 
-    const allGeneralPaths = [
-      ...instPaths,
-      ...offerPaths,
-      ...docPaths,
-      ...identityPaths,
-      ...geoPaths,
-      ...georefPaths,
-      ...opsPaths,
-    ];
+  const isPanelOpen = (id) =>
+    !closedPanels.has(id) &&
+    (autoOpenPanels.has(id) || panelState.abiertos.has(id));
 
-    if (allGeneralPaths.includes(location.pathname)) {
-      // Sincronización intencional: al entrar por deep link, el panel del sidebar debe abrirse.
-      // Es un uso __legítimo__: al entrar por deep link (`/admin/general/naciones`), el acordeón correspondiente del sidebar debe abrirse. Refactorizarlo "bien" (estado derivado de la ruta) implicaría reescribir los 12 estados de acordeón de un componente de 713 líneas — __alto riesgo y fuera del alcance de esta tarea__. //
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsGeneralPanelOpen(true);
-    }
-    if (instPaths.includes(location.pathname)) {
-      setIsInstGroupOpen(true);
-    }
-    if (offerPaths.includes(location.pathname)) {
-      setIsOfferGroupOpen(true);
-    }
-    if (
-      docPaths.includes(location.pathname) ||
-      identityPaths.includes(location.pathname)
-    ) {
-      setIsPeopleGroupOpen(true);
-      if (docPaths.includes(location.pathname)) setIsDocGroupOpen(true);
-      if (identityPaths.includes(location.pathname))
-        setIsIdentityGroupOpen(true);
-    }
-    if (
-      geoPaths.includes(location.pathname) ||
-      georefPaths.includes(location.pathname)
-    ) {
-      setIsGeoGroupOpen(true);
-      if (georefPaths.includes(location.pathname)) setIsGeorefGroupOpen(true);
-    }
-    if (opsPaths.includes(location.pathname)) {
-      setIsOpsGroupOpen(true);
-    }
+  const setPanelOpen = (id, value) => {
+    const next = typeof value === "function" ? value(isPanelOpen(id)) : value;
 
-    if (
-      ["/admin/curricular/anios", "/admin/curricular/planes"].includes(
-        location.pathname,
-      )
-    ) {
-      setIsCurricularPanelOpen(true);
-    }
+    setPanelState((prev) => {
+      const abiertos = new Set(prev.abiertos);
+      const cerrados = new Set(
+        prev.cerradosPath === location.pathname ? prev.cerrados : [],
+      );
 
-    if (["/admin/cupofs", "/admin/comunidad"].includes(location.pathname)) {
-      setIsDistrictPanelOpen(true);
-    }
-  }, [location.pathname]);
+      if (next) {
+        abiertos.add(id);
+        cerrados.delete(id);
+      } else {
+        abiertos.delete(id);
+        cerrados.add(id);
+      }
+
+      return { abiertos, cerradosPath: location.pathname, cerrados };
+    });
+  };
+
+  /**
+   * Props { isOpen, setIsOpen } que consume el render genérico del sidebar.
+   */
+  const panelProps = (id) => ({
+    isOpen: isPanelOpen(id),
+    setIsOpen: (value) => setPanelOpen(id, value),
+  });
 
   const handleLogout = async () => {
     setIsUserMenuOpen(false);
@@ -217,8 +253,7 @@ const Layout = ({ children }) => {
       name: "Escuelas",
       icon: <School className="w-6 h-6" />,
       isDropdown: true,
-      isOpen: isDistrictPanelOpen,
-      setIsOpen: setIsDistrictPanelOpen,
+      ...panelProps("district"),
       subItems: [
         ...(canAccessCupof
           ? [{ name: "Gestión CUPOF", path: "/admin/cupofs" }]
@@ -243,14 +278,12 @@ const Layout = ({ children }) => {
       name: "Panel General",
       icon: <LayoutDashboard className="w-6 h-6" />,
       isDropdown: true,
-      isOpen: isGeneralPanelOpen,
-      setIsOpen: setIsGeneralPanelOpen,
+      ...panelProps("general"),
       subItems: [
         {
           name: "Instituciones",
           isSubgroup: true,
-          isOpen: isInstGroupOpen,
-          setIsOpen: setIsInstGroupOpen,
+          ...panelProps("inst"),
           items: [
             { name: "Escuelas", path: "/admin/general/escuelas" },
             { name: "Tipos de Escuela", path: "/admin/general/escuela-tipos" },
@@ -262,8 +295,7 @@ const Layout = ({ children }) => {
         {
           name: "Geografía",
           isSubgroup: true,
-          isOpen: isGeoGroupOpen,
-          setIsOpen: setIsGeoGroupOpen,
+          ...panelProps("geo"),
           items: [
             { name: "Continentes", path: "/admin/general/continentes" },
             { name: "Naciones", path: "/admin/general/naciones" },
@@ -280,8 +312,7 @@ const Layout = ({ children }) => {
             {
               name: "Metadatos Georef",
               isSubgroup: true,
-              isOpen: isGeorefGroupOpen,
-              setIsOpen: setIsGeorefGroupOpen,
+              ...panelProps("georef"),
               items: [
                 { name: "Fuentes", path: "/admin/general/georef-fuentes" },
                 {
@@ -296,8 +327,7 @@ const Layout = ({ children }) => {
         {
           name: "Oferta Educativa",
           isSubgroup: true,
-          isOpen: isOfferGroupOpen,
-          setIsOpen: setIsOfferGroupOpen,
+          ...panelProps("offer"),
           items: [
             { name: "Niveles", path: "/admin/general/niveles" },
             { name: "Modalidades", path: "/admin/general/modalidades" },
@@ -313,14 +343,12 @@ const Layout = ({ children }) => {
         {
           name: "Personas",
           isSubgroup: true,
-          isOpen: isPeopleGroupOpen,
-          setIsOpen: setIsPeopleGroupOpen,
+          ...panelProps("people"),
           items: [
             {
               name: "Documentación",
               isSubgroup: true,
-              isOpen: isDocGroupOpen,
-              setIsOpen: setIsDocGroupOpen,
+              ...panelProps("doc"),
               items: [
                 {
                   name: "Situaciones",
@@ -335,8 +363,7 @@ const Layout = ({ children }) => {
             {
               name: "Identidad",
               isSubgroup: true,
-              isOpen: isIdentityGroupOpen,
-              setIsOpen: setIsIdentityGroupOpen,
+              ...panelProps("identity"),
               items: [
                 { name: "Géneros", path: "/admin/general/generos" },
                 { name: "Sexos", path: "/admin/general/sexos" },
@@ -347,8 +374,7 @@ const Layout = ({ children }) => {
         {
           name: "Operativos",
           isSubgroup: true,
-          isOpen: isOpsGroupOpen,
-          setIsOpen: setIsOpsGroupOpen,
+          ...panelProps("ops"),
           items: [
             { name: "Cargos", path: "/admin/general/cargos" },
             { name: "Ciclos Lectivos", path: "/admin/general/ciclos" },
@@ -375,8 +401,7 @@ const Layout = ({ children }) => {
       name: "Panel Curricular",
       icon: <BookOpen className="w-6 h-6" />,
       isDropdown: true,
-      isOpen: isCurricularPanelOpen,
-      setIsOpen: setIsCurricularPanelOpen,
+      ...panelProps("curricular"),
       subItems: [
         { name: "Planes de Estudio", path: "/admin/curricular/planes" },
         { name: "Años", path: "/admin/curricular/anios" },

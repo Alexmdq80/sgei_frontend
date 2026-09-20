@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import Layout from "../Layout";
 import { useAuth } from "../../context/AuthContext";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, MemoryRouter } from "react-router-dom";
 
 // Mock de useAuth
 vi.mock("../../context/AuthContext", () => ({
@@ -25,6 +25,22 @@ describe("Layout Component", () => {
     nombre: "Alex",
     email: "alex@example.com",
     avatar_url: null,
+  };
+  const renderLayoutAt = (path) =>
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <Layout>Hijo</Layout>
+      </MemoryRouter>,
+    );
+
+  const mockSuperUser = () => {
+    useAuth.mockReturnValue({
+      user: { ...mockUser, es_administrador: true },
+      logout: mockLogout,
+      notification: null,
+      clearNotification: mockClearNotification,
+      hasPermission: vi.fn().mockReturnValue(false),
+    });
   };
 
   beforeEach(() => {
@@ -169,5 +185,40 @@ describe("Layout Component", () => {
       .find((btn) => btn.innerHTML.includes("svg"));
     fireEvent.click(closeBtn);
     expect(mockClearNotification).toHaveBeenCalled();
+  });
+
+  it("abre automáticamente los grupos del menú correspondientes a la ruta (deep link)", () => {
+    mockSuperUser();
+    renderLayoutAt("/admin/general/naciones");
+
+    // Panel General > Geografía abiertos por la ruta
+    expect(screen.getByText("Naciones")).toBeInTheDocument();
+    // Un grupo ajeno permanece cerrado
+    expect(screen.queryByText("Dependencias")).not.toBeInTheDocument();
+  });
+
+  it("permite abrir y cerrar manualmente los grupos del menú", () => {
+    mockSuperUser();
+    renderLayoutAt("/admin/general/naciones");
+
+    // "Instituciones" arranca cerrado: abrimos
+    fireEvent.click(screen.getByText("Instituciones"));
+    expect(screen.getByText("Dependencias")).toBeInTheDocument();
+
+    // "Geografía" arranca abierta por la ruta: cerramos
+    fireEvent.click(screen.getByText("Geografía"));
+    expect(screen.queryByText("Naciones")).not.toBeInTheDocument();
+  });
+
+  it("mantiene abierto un grupo abierto manualmente al navegar a otra ruta", () => {
+    mockSuperUser();
+    renderLayoutAt("/admin/general/naciones");
+
+    fireEvent.click(screen.getByText("Operativos")); // abrimos manualmente
+    expect(screen.getByText("Cargos")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Provincias")); // navegamos dentro de Geografía
+    expect(screen.getByText("Cargos")).toBeInTheDocument(); // sigue abierto (acumulación)
+    expect(screen.getByText("Naciones")).toBeInTheDocument();
   });
 });
