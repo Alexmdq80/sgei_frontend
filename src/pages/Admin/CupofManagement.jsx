@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { parseError } from "../../utils/errorParser";
 import cupofService from "../../services/cupofService";
@@ -1182,74 +1182,70 @@ const CupofManagement = () => {
                         /* ── Selector geográfico secuencial ── */
                         <div className="space-y-2 animate-fadeIn">
                           {/* Región (Solo no Jefe Distrital) */}
-                          {true && (
-                            <div>
-                              <label
-                                htmlFor="modal_region_id"
-                                className="block text-[9px] font-black text-secondary-400 uppercase mb-1"
-                              >
-                                Región Educativa
-                              </label>
-                              <select
-                                id="modal_region_id"
-                                name="region_id"
-                                className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all"
-                                value={modalFiltro.region_id}
-                                onChange={(e) =>
-                                  setModalFiltro((prev) => ({
-                                    ...prev,
-                                    region_id: e.target.value,
-                                    localidad_id: "",
-                                  }))
-                                }
-                              >
-                                <option value="">Todas las Regiones</option>
-                                {modalRegiones.map((r) => (
-                                  <option key={r.id} value={r.id}>
-                                    Región {r.numero ?? r.id}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
+                          <div>
+                            <label
+                              htmlFor="modal_region_id"
+                              className="block text-[9px] font-black text-secondary-400 uppercase mb-1"
+                            >
+                              Región Educativa
+                            </label>
+                            <select
+                              id="modal_region_id"
+                              name="region_id"
+                              className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all"
+                              value={modalFiltro.region_id}
+                              onChange={(e) =>
+                                setModalFiltro((prev) => ({
+                                  ...prev,
+                                  region_id: e.target.value,
+                                  localidad_id: "",
+                                }))
+                              }
+                            >
+                              <option value="">Todas las Regiones</option>
+                              {modalRegiones.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  Región {r.numero ?? r.id}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
                           {/* Departamento (Solo no Jefe Distrital) */}
-                          {true && (
-                            <div>
-                              <label
-                                htmlFor="modal_departamento_id"
-                                className="block text-[9px] font-black text-secondary-400 uppercase mb-1"
-                              >
-                                Departamento
-                              </label>
-                              <select
-                                id="modal_departamento_id"
-                                name="departamento_id"
-                                className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all disabled:opacity-50"
-                                value={modalFiltro.departamento_id}
-                                onChange={(e) =>
-                                  setModalFiltro((prev) => ({
-                                    ...prev,
-                                    departamento_id: e.target.value,
-                                    localidad_id: "",
-                                  }))
-                                }
-                                disabled={
-                                  !modalFiltro.region_id &&
-                                  modalDepartamentos.length === 0
-                                }
-                              >
-                                <option value="">
-                                  Todos los Departamentos
+                          <div>
+                            <label
+                              htmlFor="modal_departamento_id"
+                              className="block text-[9px] font-black text-secondary-400 uppercase mb-1"
+                            >
+                              Departamento
+                            </label>
+                            <select
+                              id="modal_departamento_id"
+                              name="departamento_id"
+                              className="w-full px-3 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs font-bold text-secondary-700 outline-none focus:ring-2 focus:ring-primary-400 transition-all disabled:opacity-50"
+                              value={modalFiltro.departamento_id}
+                              onChange={(e) =>
+                                setModalFiltro((prev) => ({
+                                  ...prev,
+                                  departamento_id: e.target.value,
+                                  localidad_id: "",
+                                }))
+                              }
+                              disabled={
+                                !modalFiltro.region_id &&
+                                modalDepartamentos.length === 0
+                              }
+                            >
+                              <option value="">
+                                Todos los Departamentos
+                              </option>
+                              {modalDepartamentos.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                  {d.nombre}
                                 </option>
-                                {modalDepartamentos.map((d) => (
-                                  <option key={d.id} value={d.id}>
-                                    {d.nombre}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
+                              ))}
+                            </select>
+                          </div>
 
                           {/* Localidad */}
                           <div>

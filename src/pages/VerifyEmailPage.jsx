@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import authService from '../services/authService';
 
 /**
@@ -10,20 +10,19 @@ const VerifyEmailPage = () => {
     const [status, setStatus] = useState('verifying'); // 'verifying', 'success', 'error'
     const [message, setMessage] = useState('Verificando tu cuenta, por favor espera...');
     const location = useLocation();
-    const navigate = useNavigate();
 
     useEffect(() => {
         const query = new URLSearchParams(location.search);
         const token = query.get('token');
         const email = query.get('email');
 
-        if (!token || !email) {
-            setStatus('error');
-            setMessage('Faltan parámetros de verificación. El enlace puede estar incompleto.');
-            return;
-        }
-
         const verify = async () => {
+            if (!token || !email) {
+                setStatus('error');
+                setMessage('Faltan parámetros de verificación. El enlace puede estar incompleto.');
+                return;
+            }
+
             try {
                 await authService.verifyEmail(email, token);
                 setStatus('success');

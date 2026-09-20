@@ -134,7 +134,6 @@ const LocalidadCensalManagement = () => {
             fetchItems();
             handleCloseModal();
         } catch (error) {
-            const msg = error.response?.data?.error || 'Error al guardar.';
             showNotification(parseError(error), 'error');
         } finally {
             setIsSaving(false);

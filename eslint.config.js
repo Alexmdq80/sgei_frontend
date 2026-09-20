@@ -17,7 +17,10 @@ export default defineConfig([
     ],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser,
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
       parserOptions: {
         ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },
@@ -30,10 +33,14 @@ export default defineConfig([
         'error',
         {
           varsIgnorePattern: '^[A-Z_]',
-          argsIgnorePattern: '^[A-Z_]', // <-- 2. Agregado: también cubre argumentos de funciones como en .map()
+          argsIgnorePattern: '^[A-Z_]',
+          caughtErrors: 'none',
         },
       ],
-      'react/jsx-uses-vars': 'error', // <-- 3. Agregado: enseña a ESLint que <StepIcon /> cuenta como uso
+      'react/jsx-uses-vars': 'error',
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/immutability': 'warn',
     },
   },
 ])

@@ -14,7 +14,7 @@ import userService from "../../services/userService";
 
 // 1. Mock de react-easy-crop que dispara onCropComplete con coordenadas válidas
 vi.mock("react-easy-crop", () => ({
-  default: ({ onCropComplete }) => {
+  default: function MockEasyCrop({ onCropComplete }) {
     useEffect(() => {
       onCropComplete?.(
         { x: 0, y: 0, width: 100, height: 100 },

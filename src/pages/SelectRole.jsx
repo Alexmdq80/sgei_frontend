@@ -14,6 +14,26 @@ const SelectRole = () => {
     const navigate = useNavigate();
     const [roles, setRoles] = useState([]);
 
+    const handleSelect = (roleOption) => {
+        if (roleOption.type === 'admin') {
+            selectProfile({
+                type: 'admin',
+                role: roleOption.rawRole,
+                context: roleOption.context
+            });
+        } else {
+            selectProfile({
+                type: 'school',
+                role: roleOption.rawLink.role,
+                escuela: roleOption.rawLink.escuela,
+                escuela_id: roleOption.rawLink.escuela_id,
+                role_id: roleOption.rawLink.role_id,
+                context: roleOption.context
+            });
+        }
+        navigate('/');
+    };
+
     useEffect(() => {
         if (!user) {
             navigate('/login');
@@ -66,27 +86,7 @@ const SelectRole = () => {
         if (availableRoles.length === 1) {
             handleSelect(availableRoles[0]);
         }
-    }, [user, navigate]);
-
-    const handleSelect = (roleOption) => {
-        if (roleOption.type === 'admin') {
-            selectProfile({
-                type: 'admin',
-                role: roleOption.rawRole,
-                context: roleOption.context
-            });
-        } else {
-            selectProfile({
-                type: 'school',
-                role: roleOption.rawLink.role,
-                escuela: roleOption.rawLink.escuela,
-                escuela_id: roleOption.rawLink.escuela_id,
-                role_id: roleOption.rawLink.role_id,
-                context: roleOption.context
-            });
-        }
-        navigate('/');
-    };
+    }, [user, navigate, handleSelect]);
 
     return (
         <div className="min-h-screen bg-secondary-100 flex items-center justify-center p-4">

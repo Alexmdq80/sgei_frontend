@@ -93,7 +93,7 @@ const Profile = () => {
     success: false,
     message: "",
   });
-  const [error, setError] = useState(null);
+  const [_error, setError] = useState(null);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
