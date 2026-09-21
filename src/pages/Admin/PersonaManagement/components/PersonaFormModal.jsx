@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  UserPlus,
   X,
   User,
   Trash2,
@@ -12,7 +11,6 @@ import {
   ChevronRight,
   UploadCloud,
   RefreshCw,
-  Image as ImageIcon,
 } from "lucide-react";
 import { DOC_TIPO_DNI, DOC_TIPO_INDOCUMENTADO } from "../utils/constants";
 import { calcularEdad } from "../utils/edad"; // ajusta la ruta relativa según corresponda
@@ -101,10 +99,10 @@ export default function PersonaFormModal({
     String(formData.documento_tipo_id) === DOC_TIPO_INDOCUMENTADO;
   const tipoOptions = noPoseeSituacion
     ? docTipos.filter(
-      (t) =>
-        String(t.id) !== DOC_TIPO_DNI ||
-        String(formData.documento_tipo_id) === DOC_TIPO_DNI,
-    )
+        (t) =>
+          String(t.id) !== DOC_TIPO_DNI ||
+          String(formData.documento_tipo_id) === DOC_TIPO_DNI,
+      )
     : docTipos;
   const tipoDoc = docTipos.find(
     (t) => String(t.id) === String(formData.documento_tipo_id),
@@ -131,10 +129,10 @@ export default function PersonaFormModal({
   ];
   const etapasVisibles = esFallecida
     ? [
-      { n: 1, label: "Identidad", Icon: User },
-      { n: 2, label: "Documento", Icon: IdCard },
-      { n: 3, label: "Resumen", Icon: CheckCircle2 },
-    ]
+        { n: 1, label: "Identidad", Icon: User },
+        { n: 2, label: "Documento", Icon: IdCard },
+        { n: 3, label: "Resumen", Icon: CheckCircle2 },
+      ]
     : todasLasEtapas;
 
   // Estado de arrastre para el dropzone de foto
@@ -239,12 +237,13 @@ export default function PersonaFormModal({
               <div key={n} className="flex items-center flex-1 last:flex-none">
                 <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
                   <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${currentStep === n
-                      ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
-                      : currentStep > n
-                        ? "bg-green-500 border-green-500 text-white"
-                        : "bg-white border-secondary-300 text-secondary-400"
-                      }`}
+                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${
+                      currentStep === n
+                        ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
+                        : currentStep > n
+                          ? "bg-green-500 border-green-500 text-white"
+                          : "bg-white border-secondary-300 text-secondary-400"
+                    }`}
                   >
                     {currentStep > n ? (
                       <CheckCircle2 className="w-5 h-5" />
@@ -253,18 +252,20 @@ export default function PersonaFormModal({
                     )}
                   </div>
                   <span
-                    className={`text-[10px] font-black uppercase tracking-wider ${currentStep === n
-                      ? "text-primary-700"
-                      : "text-secondary-400"
-                      }`}
+                    className={`text-[10px] font-black uppercase tracking-wider ${
+                      currentStep === n
+                        ? "text-primary-700"
+                        : "text-secondary-400"
+                    }`}
                   >
                     {label}
                   </span>
                 </div>
                 {idx < etapasVisibles.length - 1 && (
                   <div
-                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${currentStep > n ? "bg-green-500" : "bg-secondary-200"
-                      }`}
+                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
+                      currentStep > n ? "bg-green-500" : "bg-secondary-200"
+                    }`}
                   />
                 )}
               </div>
@@ -424,10 +425,11 @@ export default function PersonaFormModal({
                     placeholder="Notas administrativas sobre documentación, trámites civiles, partidas, etc."
                     className="w-full px-4 py-2 bg-white border border-secondary-300 rounded-xl text-xs font-medium text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all resize-none"
                     value={formData.observaciones || ""}
-                    onChange={(e) => onFieldChange("observaciones", e.target.value)}
+                    onChange={(e) =>
+                      onFieldChange("observaciones", e.target.value)
+                    }
                   />
                 </div>
-
               </section>
             )}
 
@@ -462,12 +464,13 @@ export default function PersonaFormModal({
                     </label>
                     <select
                       disabled={isEmailLocked || poseeDni}
-                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${errors.documento_tipo_id
-                        ? "bg-red-50/60 border-red-300 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
-                        : isEmailLocked || poseeDni
-                          ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                          : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                        }`}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${
+                        errors.documento_tipo_id
+                          ? "bg-red-50/60 border-red-300 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                          : isEmailLocked || poseeDni
+                            ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                            : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                      }`}
                       value={formData.documento_tipo_id}
                       onChange={onTipoDocumentoChange}
                     >
@@ -519,20 +522,21 @@ export default function PersonaFormModal({
                               ? "Ej: 35123456"
                               : "Ingrese número de pasaporte / documento"
                           }
-                          className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${errors.documento_numero
-                            ? "bg-red-50/60 border-red-300 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
-                            : isEmailLocked
-                              ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                              : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                            }`}
+                          className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${
+                            errors.documento_numero
+                              ? "bg-red-50/60 border-red-300 text-secondary-900 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                              : isEmailLocked
+                                ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                                : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                          }`}
                           value={formData.documento_numero}
                           onChange={(e) => {
                             const cleanValue = esDni
                               ? e.target.value.replace(/\D/g, "").slice(0, 8)
                               : e.target.value
-                                .replace(/[^a-zA-Z0-9-]/g, "")
-                                .toUpperCase()
-                                .slice(0, 20);
+                                  .replace(/[^a-zA-Z0-9-]/g, "")
+                                  .toUpperCase()
+                                  .slice(0, 20);
                             onFieldChange("documento_numero", cleanValue);
                           }}
                           name="documento_numero"
@@ -559,10 +563,11 @@ export default function PersonaFormModal({
                                 inputMode="numeric"
                                 pattern="[0-9]*"
                                 placeholder="11 dígitos (frente/dorso del DNI)"
-                                className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${isEmailLocked
-                                  ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
-                                  : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
-                                  }`}
+                                className={`w-full px-4 py-2.5 border rounded-xl text-sm font-bold outline-none ${
+                                  isEmailLocked
+                                    ? "bg-secondary-100 border-secondary-200 text-secondary-400 cursor-not-allowed"
+                                    : "bg-white border-secondary-300 text-secondary-900 focus:ring-2 focus:ring-primary-500"
+                                }`}
                                 value={formData.tramite}
                                 onChange={(e) => {
                                   const cleanValue = e.target.value
@@ -765,7 +770,9 @@ export default function PersonaFormModal({
                   <Camera className="w-4 h-4" /> Fotografía de Perfil
                 </h3>
                 <p className="text-xs text-secondary-500 font-medium mb-4">
-                  Sube una fotografía de la persona o captúrala con la cámara web. Este paso es opcional: puedes continuar y cargarla en otro momento si no la tienes a mano.
+                  Sube una fotografía de la persona o captúrala con la cámara
+                  web. Este paso es opcional: puedes continuar y cargarla en
+                  otro momento si no la tienes a mano.
                 </p>
 
                 {/* Input de archivo oculto: dispara el seleccionador nativo */}
@@ -791,10 +798,11 @@ export default function PersonaFormModal({
                         fotoInputRef.current?.click();
                       }
                     }}
-                    className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer ${isDragging
-                      ? "border-primary-500 bg-primary-50/60 scale-[1.01]"
-                      : "border-secondary-300 hover:border-primary-400 bg-secondary-50/50 hover:bg-white"
-                      }`}
+                    className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer ${
+                      isDragging
+                        ? "border-primary-500 bg-primary-50/60 scale-[1.01]"
+                        : "border-secondary-300 hover:border-primary-400 bg-secondary-50/50 hover:bg-white"
+                    }`}
                   >
                     <UploadCloud className="w-12 h-12 text-primary-500 mb-3" />
                     <p className="font-bold text-secondary-800">
@@ -858,7 +866,8 @@ export default function PersonaFormModal({
             {(currentStep === 5 || (esFallecida && currentStep === 3)) && (
               <section className="space-y-4 animate-fadeIn">
                 <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-2 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" /> Ficha de Resumen y Confirmación
+                  <CheckCircle2 className="w-4 h-4" /> Ficha de Resumen y
+                  Confirmación
                 </h3>
 
                 <div className="bg-secondary-50 border border-secondary-200 rounded-2xl p-5 space-y-4 shadow-sm">
@@ -881,7 +890,9 @@ export default function PersonaFormModal({
                         {formData.apellido} {formData.nombre}
                       </h4>
                       <p className="text-xs font-bold text-secondary-500 uppercase">
-                        {formData.documento_numero ? `${etiquetaNumeroDocumento}: ${formData.documento_numero}` : "Sin Documento Registrado"}
+                        {formData.documento_numero
+                          ? `${etiquetaNumeroDocumento}: ${formData.documento_numero}`
+                          : "Sin Documento Registrado"}
                       </p>
                     </div>
                   </div>
@@ -903,8 +914,13 @@ export default function PersonaFormModal({
                         Sexo / Género
                       </p>
                       <p className="font-bold text-secondary-900 uppercase">
-                        {sexos.find((s) => String(s.id) === String(formData.sexo_id))?.nombre || "—"}{" / "}
-                        {generos.find((g) => String(g.id) === String(formData.genero_id))?.nombre || "—"}
+                        {sexos.find(
+                          (s) => String(s.id) === String(formData.sexo_id),
+                        )?.nombre || "—"}
+                        {" / "}
+                        {generos.find(
+                          (g) => String(g.id) === String(formData.genero_id),
+                        )?.nombre || "—"}
                       </p>
                     </div>
                     <div className="space-y-0.5">
@@ -922,9 +938,13 @@ export default function PersonaFormModal({
                         Lugar de Nacimiento
                       </p>
                       <p className="font-bold text-secondary-900 uppercase">
-                        {nacions.find((n) => String(n.id) === String(formData.nacion_id))?.nombre || "—"}
+                        {nacions.find(
+                          (n) => String(n.id) === String(formData.nacion_id),
+                        )?.nombre || "—"}
                         {formData.localidad_id && " · "}
-                        {localidades.find((l) => String(l.id) === String(formData.localidad_id))?.nombre || ""}
+                        {localidades.find(
+                          (l) => String(l.id) === String(formData.localidad_id),
+                        )?.nombre || ""}
                       </p>
                     </div>
                     {Boolean(formData.email) && (

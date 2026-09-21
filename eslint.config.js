@@ -1,46 +1,60 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import react from 'eslint-plugin-react'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import js from "@eslint/js";
+import globals from "globals";
+import react from "eslint-plugin-react";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(["dist"]),
   {
-    files: ['**/*.{js,jsx}'],
+    files: ["**/*.{js,jsx}"],
     extends: [
       js.configs.recommended,
-      react.configs.flat['jsx-runtime'], // <-- 1. Agregado: activa el soporte de React y JSX
+      react.configs.flat["jsx-runtime"],
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
     languageOptions: {
-      ecmaVersion: 2020,
+      ecmaVersion: "latest",
       globals: {
-        ...globals.browser,
-        ...globals.node,
+        ...globals.browser, // Solo variables del navegador
       },
       parserOptions: {
-        ecmaVersion: 'latest',
+        ecmaVersion: "latest",
         ecmaFeatures: { jsx: true },
-        sourceType: 'module',
+        sourceType: "module",
+      },
+    },
+    settings: {
+      react: {
+        version: "detect", // Detecta la versión de React instalada automáticamente
       },
     },
     rules: {
-      // Ignora variables o argumentos no usados si empiezan con mayúscula o guión bajo
-      'no-unused-vars': [
-        'error',
+      // Solo ignora variables/argumentos si explícitamente empiezan con '_' (ej: (_, index) => ...)
+      "no-unused-vars": [
+        "error",
         {
-          varsIgnorePattern: '^[A-Z_]',
-          argsIgnorePattern: '^[A-Z_]',
-          caughtErrors: 'none',
+          varsIgnorePattern: "^_",
+          argsIgnorePattern: "^_",
+          caughtErrors: "none", // Permite catch (err) {} sin usar err, o catch {}
         },
       ],
-      'react/jsx-uses-vars': 'error',
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/immutability': 'warn',
+      "react/jsx-uses-vars": "error",
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
     },
   },
-])
+  // Opcional: Si tienes archivos de configuración raíz en Node (ej: vite.config.js)
+  {
+    files: ["*.config.{js,mjs,cjs}"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+]);

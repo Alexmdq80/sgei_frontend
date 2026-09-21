@@ -80,7 +80,7 @@ export default function PersonaDomicilioModal({
   const [modoUbicacion, setModoUbicacion] = useState("omnibox");
   const [saving, setSaving] = useState(false);
 
-  // Control de carga reactivo: evita el pantallazo inicial en el frame 0
+  // Control estricto del ciclo de carga: elimina el pantallazo al abrir
   const [lastLoadedId, setLastLoadedId] = useState(null);
   const estaCargando = !isOpen || lastLoadedId !== personaId;
 
@@ -171,7 +171,7 @@ export default function PersonaDomicilioModal({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Carga inicial del domicilio: SOLO se ejecuta al abrir el modal o cambiar de personaId
+  // Carga inicial del domicilio: SOLO se dispara al abrir el modal o cambiar de persona
   useEffect(() => {
     if (!isOpen || !personaId) {
       setLastLoadedId(null);
@@ -200,7 +200,9 @@ export default function PersonaDomicilioModal({
             localidad: "",
           });
           setQLocalidad("");
-          resetCalles();
+          setQ("");
+          setQEntre1("");
+          setQEntre2("");
 
           if (arId) handleNacionChange(arId);
           return;
@@ -630,7 +632,7 @@ export default function PersonaDomicilioModal({
         {/* Cuerpo scrolleable */}
         <div className="overflow-y-auto flex-1 min-h-0 p-6 space-y-6">
           {estaCargando ? (
-            /* Loader centrado inicial */
+            /* Loader centrado que erradica el pantallazo inicial */
             <div className="h-full min-h-[340px] flex flex-col items-center justify-center gap-3">
               <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
               <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest">
@@ -638,8 +640,7 @@ export default function PersonaDomicilioModal({
               </p>
             </div>
           ) : (
-            /* Contenedor con transición fadeIn que SOLO se dispara al cambiar de 'step' */
-            <div key={step} className="animate-fadeIn">
+            <>
               {/* PASO 1 */}
               {step === 1 && (
                 <section className="space-y-4">
@@ -1106,7 +1107,7 @@ export default function PersonaDomicilioModal({
                   </div>
                 </section>
               )}
-            </div>
+            </>
           )}
         </div>
 
