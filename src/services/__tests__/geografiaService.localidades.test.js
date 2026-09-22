@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("../api", () => ({ default: { get: vi.fn() } }));
 vi.mock("../callesCacheService", () => ({
-  default: { getLocalidades: vi.fn(), saveLocalidades: vi.fn() },
+  default: {
+    getLocalidades: vi.fn(),
+    saveLocalidades: vi.fn(),
+    purge: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 import api from "../api";

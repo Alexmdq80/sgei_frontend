@@ -4,6 +4,14 @@ vi.mock("../api", () => ({
   default: { get: vi.fn() },
 }));
 
+vi.mock("../callesCacheService", () => ({
+  default: {
+    checkGlobalVersion: vi.fn(),
+    checkLocalidadesVersion: vi.fn(),
+    purge: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 import api from "../api";
 import catalogCache from "../catalogCacheService";
 

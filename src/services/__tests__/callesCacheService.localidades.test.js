@@ -54,4 +54,22 @@ describe("callesCacheService - localidades por departamento", () => {
     await callesCacheService.checkLocalidadesVersion(null);
     expect(clearSpy).toHaveBeenCalledTimes(2);
   });
+  it("purge limpia ambos almacenes y reinicia las versiones", async () => {
+    const callesSpy = vi
+      .spyOn(callesCacheService, "clearAllCalles")
+      .mockResolvedValue();
+    const locsSpy = vi
+      .spyOn(callesCacheService, "clearAllLocalidades")
+      .mockResolvedValue();
+
+    localStorage.setItem("sgei_calles_version", "v1");
+    localStorage.setItem("sgei_localidades_version", "v2");
+
+    await callesCacheService.purge();
+
+    expect(callesSpy).toHaveBeenCalledTimes(1);
+    expect(locsSpy).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("sgei_calles_version")).toBeNull();
+    expect(localStorage.getItem("sgei_localidades_version")).toBeNull();
+  });
 });

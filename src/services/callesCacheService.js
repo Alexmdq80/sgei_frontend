@@ -1,5 +1,5 @@
 const DB_NAME = "sgei_calles_db";
-const DB_VERSION = 2; // <-- v2: agrega el almacén de localidades por departamento
+const DB_VERSION = 2;
 const STORE_CALLES = "localidades_calles";
 const STORE_LOCALIDADES = "departamentos_localidades";
 
@@ -127,6 +127,8 @@ class CallesCacheService {
 
   /** Purga el almacén de calles cuando la versión del catálogo de calles cambia */
   async clearAllCalles() {
+    // Sin IndexedDB no hay nada que purgar (evita warnings ruidosos en jsdom).
+    if (!window.indexedDB) return;
     try {
       const db = await this.openDb();
       await new Promise((resolve) => {
@@ -227,6 +229,8 @@ class CallesCacheService {
 
   /** Purga TODO el almacén de localidades (no toca las calles) */
   async clearAllLocalidades() {
+    // Sin IndexedDB no hay nada que purgar (evita warnings ruidosos en jsdom).
+    if (!window.indexedDB) return;
     try {
       const db = await this.openDb();
       await new Promise((resolve) => {
@@ -262,6 +266,43 @@ class CallesCacheService {
     } catch (e) {
       console.warn("Error al verificar versión global de localidades:", e);
     }
+  }
+
+  /**
+   * Purga AMBOS almacenes de IndexedDB (calles y localidades).
+   * Punto único de entrada para invalidar la caché geográfica completa.
+   */
+  async clearAllStores() {
+    await this.clearAllCalles();
+    await this.clearAllLocalidades();
+  }
+
+  /**
+   * Olvida las versiones sincronizadas desde el manifiesto.
+   * Deja los almacenes en estado "por revalidar": el próximo syncWithManifest
+   * vuelve a purgar (reintento si la purga anterior falló por bloqueo) y
+   * guarda de nuevo la versión.
+   */
+  resetVersions() {
+    try {
+      localStorage.removeItem(CALLES_VERSION_KEY);
+      localStorage.removeItem(LOCALIDADES_VERSION_KEY);
+    } catch (e) {
+      console.warn(
+        "No se pudieron reiniciar las versiones de caché geográfica:",
+        e,
+      );
+    }
+  }
+
+  /**
+   * Purga los almacenes de IndexedDB y olvida las versiones.
+   * Se invoca cuando cambia la estructura interna del caché (CACHE_VERSION)
+   * o cuando el usuario pide limpiar la caché local.
+   */
+  async purge() {
+    await this.clearAllStores();
+    this.resetVersions();
   }
 }
 

@@ -148,7 +148,8 @@ class CatalogCacheService {
   }
 
   /**
-   * Limpieza de emergencia.
+   * Limpieza de emergencia: purga las claves de localStorage y los almacenes
+   * de IndexedDB (calles y localidades), que comparten el mismo ciclo de vida.
    */
   clearAll() {
     try {
@@ -157,6 +158,18 @@ class CatalogCacheService {
         .forEach((k) => localStorage.removeItem(k));
     } catch (e) {
       void e;
+    }
+    // Fire-and-forget: el import del módulo SÍ está inicializado en este punto,
+    // a diferencia del singleton `catalogCache`, que se asigna al final del archivo
+    // (referenciarlo acá daría ReferenceError por TDZ).
+    // La purga nunca debe impedir el registro de la versión ni propagar rechazos.
+    try {
+      callesCacheService.purge().catch((error) => {
+        console.warn("No se pudo purgar la caché geográfica:", error);
+      });
+    } catch (error) {
+      // `purge` podría no existir (mocks incompletos) o fallar de forma sincrónica.
+      console.warn("No se pudo purgar la caché geográfica:", error);
     }
   }
 }
