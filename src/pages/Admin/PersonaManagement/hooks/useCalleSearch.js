@@ -1,20 +1,77 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import personaService from "../../../../services/personaService";
+import callesCacheService from "../../../../services/callesCacheService";
 
 export function useCalleSearch(localidadId, query, calleId) {
-  const [data, setData] = useState({ localidadId: null, calles: [] });
+  // Pool de todas las calles de la localidad actual (si están cacheadas en IndexedDB)
+  const [localPool, setLocalPool] = useState(null);
+  const [calles, setCalles] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const term = (query || "").trim();
-  // Determinamos durante el render si corresponde o no buscar
-  const shouldSearch = Boolean(localidadId && term.length >= 3 && !calleId);
+  const shouldSearch = Boolean(localidadId && term.length >= 2 && !calleId);
+  const fetchingRef = useRef(false);
 
+  // 1. Cargar / Acumular calles de la localidad en IndexedDB
   useEffect(() => {
-    // Si no corresponde buscar, salimos sin alterar estado sincrónicamente
-    if (!shouldSearch) {
+    if (!localidadId) {
+      setLocalPool(null);
+      setCalles([]);
       return;
     }
 
+    let active = true;
+
+    async function loadLocalidad() {
+      // Paso A: Buscar en IndexedDB
+      const cached = await callesCacheService.getLocalidad(localidadId);
+      if (cached && Array.isArray(cached.calles)) {
+        if (active) setLocalPool(cached.calles);
+        return;
+      }
+
+      // Paso B: Si no está en IndexedDB, descargar lista compacta y persistir
+      if (!fetchingRef.current) {
+        fetchingRef.current = true;
+        try {
+          const freshCalles = await personaService.getCallesCompact(localidadId);
+          await callesCacheService.saveLocalidad(localidadId, freshCalles);
+          if (active) setLocalPool(freshCalles);
+        } catch (err) {
+          console.warn("Fallo al precargar calles de localidad:", err);
+        } finally {
+          fetchingRef.current = false;
+        }
+      }
+    }
+
+    loadLocalidad();
+
+    return () => {
+      active = false;
+    };
+  }, [localidadId]);
+
+  // 2. Búsqueda: Si está en IndexedDB (localPool) es INSTANTÁNEA (0 ms).
+  // Si no terminó de cargar, usa el fallback con debounce de 300 ms contra la API.
+  useEffect(() => {
+    if (!shouldSearch) {
+      setCalles([]);
+      return;
+    }
+
+    // CASO INSTANTÁNEO (IndexedDB disponible)
+    if (localPool && localPool.length > 0) {
+      const qUpper = term.toUpperCase();
+      const filtered = localPool
+        .filter((c) => c.nombre && c.nombre.toUpperCase().includes(qUpper))
+        .slice(0, 15);
+      setCalles(filtered);
+      setLoading(false);
+      return;
+    }
+
+    // CASO FALLBACK (Aún descargando de la API)
     const abortCtrl = new AbortController();
     const timer = setTimeout(() => {
       setLoading(true);
@@ -24,32 +81,24 @@ export function useCalleSearch(localidadId, query, calleId) {
           { signal: abortCtrl.signal },
         )
         .then((r) => {
-          setData({
-            localidadId,
-            calles: r?.data?.data || r?.data || r || [],
-          });
+          setCalles(r?.data?.data || r?.data || r || []);
         })
         .catch((err) => {
           if (err.name !== "CanceledError" && err.name !== "AbortError") {
-            setData({ localidadId, calles: [] });
+            setCalles([]);
           }
         })
         .finally(() => setLoading(false));
-    }, 350);
+    }, 300);
 
     return () => {
       clearTimeout(timer);
       abortCtrl.abort();
     };
-  }, [localidadId, term, shouldSearch]);
+  }, [localidadId, term, shouldSearch, localPool]);
 
-  // Si no se debe buscar o los datos corresponden a otra localidad, la lista siempre es []
-  const calles =
-    shouldSearch && data.localidadId === localidadId ? data.calles : [];
-
-  // Función estable para vaciar manualmente desde manejadores de eventos si fuera necesario
   const clearCalles = useCallback(() => {
-    setData({ localidadId: null, calles: [] });
+    setCalles([]);
   }, []);
 
   return { calles, loading, setCalles: clearCalles };

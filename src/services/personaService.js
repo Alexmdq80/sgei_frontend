@@ -200,6 +200,13 @@ const personaService = {
     const response = await api.get("/admin/calles", { params: cleanParams });
     return response.data;
   },
+  /** Obtiene listado compacto (id y nombre) de todas las calles de una localidad */
+  async getCallesCompact(localidadId) {
+    const response = await api.get("/admin/calles", {
+      params: { localidad_id: localidadId, compact: true },
+    });
+    return response.data;
+  },
 };
 
 export default personaService;

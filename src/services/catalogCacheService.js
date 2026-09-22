@@ -1,4 +1,5 @@
 import api from "./api";
+import callesCacheService from "./callesCacheService";
 
 const CACHE_VERSION = "v1.0.0"; // Incrementar si cambia la estructura interna de los objetos
 const PREFIX = "sgei_cat_";
@@ -110,7 +111,10 @@ class CatalogCacheService {
     try {
       const response = await api.get("/catalogos/manifest");
       const manifest = response.data;
-
+      // Sincronizar catálogo de calles en IndexedDB si vino en el manifiesto
+      if (manifest.calles) {
+        await callesCacheService.checkGlobalVersion(manifest.calles);
+      }
       for (const [key, remoteHash] of Object.entries(manifest)) {
         const cached = this.get(key);
 
