@@ -55,8 +55,11 @@ const INITIAL_DOMICILIO = {
   departamento_id: "",
   localidad_id: "",
   calle_id: "",
+  calle_nombre: "",
   calle_entre_1_id: "",
+  calle_entre_1_nombre: "",
   calle_entre_2_id: "",
+  calle_entre_2_nombre: "",
   numero: "",
   piso: "",
   unidad: "",
@@ -335,8 +338,11 @@ export default function PersonaDomicilioModal({
       departamento_id: "",
       localidad_id: "",
       calle_id: "",
+      calle_nombre: "",
       calle_entre_1_id: "",
+      calle_entre_1_nombre: "",
       calle_entre_2_id: "",
+      calle_entre_2_nombre: "",
     }));
     setQLocalidad("");
     resetCalles();
@@ -354,8 +360,11 @@ export default function PersonaDomicilioModal({
       departamento_id: value,
       localidad_id: "",
       calle_id: "",
+      calle_nombre: "",
       calle_entre_1_id: "",
+      calle_entre_1_nombre: "",
       calle_entre_2_id: "",
+      calle_entre_2_nombre: "",
     }));
     setQLocalidad("");
     resetCalles();
@@ -373,8 +382,11 @@ export default function PersonaDomicilioModal({
       ...p,
       localidad_id: value,
       calle_id: "",
+      calle_nombre: "",
       calle_entre_1_id: "",
+      calle_entre_1_nombre: "",
       calle_entre_2_id: "",
+      calle_entre_2_nombre: "",
     }));
     setQLocalidad(locNombre);
     resetCalles();
@@ -402,8 +414,11 @@ export default function PersonaDomicilioModal({
       departamento_id: deptoId,
       localidad_id: item.id,
       calle_id: "",
+      calle_nombre: "",
       calle_entre_1_id: "",
+      calle_entre_1_nombre: "",
       calle_entre_2_id: "",
+      calle_entre_2_nombre: "",
     }));
 
     setUbicacionSeleccion({
@@ -881,16 +896,35 @@ export default function PersonaDomicilioModal({
                       placeholder="Ej: Av. Rivadavia, San Martín..."
                       onSearchChange={(val) => {
                         setQ(val);
-                        if (domicilio.calle_id)
-                          setDomicilio((p) => ({ ...p, calle_id: "" }));
+                        setDomicilio((p) => ({
+                          ...p,
+                          calle_id: "",
+                          calle_nombre: val,
+                        }));
                       }}
                       onSelectCalle={(calle) => {
                         setQ(calle.nombre);
-                        setDomicilio((p) => ({ ...p, calle_id: calle.id }));
+                        setDomicilio((p) => ({
+                          ...p,
+                          calle_id: calle.id,
+                          calle_nombre: calle.nombre,
+                        }));
+                      }}
+                      onSelectCustom={(nombreLibre) => {
+                        setQ(nombreLibre);
+                        setDomicilio((p) => ({
+                          ...p,
+                          calle_id: "",
+                          calle_nombre: nombreLibre,
+                        }));
                       }}
                       onClearCalle={() => {
                         setQ("");
-                        setDomicilio((p) => ({ ...p, calle_id: "" }));
+                        setDomicilio((p) => ({
+                          ...p,
+                          calle_id: "",
+                          calle_nombre: "",
+                        }));
                       }}
                     />
 
@@ -904,17 +938,26 @@ export default function PersonaDomicilioModal({
                       placeholder="Ej: Mitre..."
                       onSearchChange={(val) => {
                         setQEntre1(val);
-                        if (domicilio.calle_entre_1_id)
-                          setDomicilio((p) => ({
-                            ...p,
-                            calle_entre_1_id: "",
-                          }));
+                        setDomicilio((p) => ({
+                          ...p,
+                          calle_entre_1_id: "",
+                          calle_entre_1_nombre: val,
+                        }));
                       }}
                       onSelectCalle={(calle) => {
                         setQEntre1(calle.nombre);
                         setDomicilio((p) => ({
                           ...p,
                           calle_entre_1_id: calle.id,
+                          calle_entre_1_nombre: calle.nombre,
+                        }));
+                      }}
+                      onSelectCustom={(nombreLibre) => {
+                        setQEntre1(nombreLibre);
+                        setDomicilio((p) => ({
+                          ...p,
+                          calle_entre_1_id: "",
+                          calle_entre_1_nombre: nombreLibre,
                         }));
                       }}
                       onClearCalle={() => {
@@ -922,6 +965,7 @@ export default function PersonaDomicilioModal({
                         setDomicilio((p) => ({
                           ...p,
                           calle_entre_1_id: "",
+                          calle_entre_1_nombre: "",
                         }));
                       }}
                     />
@@ -936,17 +980,26 @@ export default function PersonaDomicilioModal({
                       placeholder="Ej: Belgrano..."
                       onSearchChange={(val) => {
                         setQEntre2(val);
-                        if (domicilio.calle_entre_2_id)
-                          setDomicilio((p) => ({
-                            ...p,
-                            calle_entre_2_id: "",
-                          }));
+                        setDomicilio((p) => ({
+                          ...p,
+                          calle_entre_2_id: "",
+                          calle_entre_2_nombre: val,
+                        }));
                       }}
                       onSelectCalle={(calle) => {
                         setQEntre2(calle.nombre);
                         setDomicilio((p) => ({
                           ...p,
                           calle_entre_2_id: calle.id,
+                          calle_entre_2_nombre: calle.nombre,
+                        }));
+                      }}
+                      onSelectCustom={(nombreLibre) => {
+                        setQEntre2(nombreLibre);
+                        setDomicilio((p) => ({
+                          ...p,
+                          calle_entre_2_id: "",
+                          calle_entre_2_nombre: nombreLibre,
                         }));
                       }}
                       onClearCalle={() => {
@@ -954,6 +1007,7 @@ export default function PersonaDomicilioModal({
                         setDomicilio((p) => ({
                           ...p,
                           calle_entre_2_id: "",
+                          calle_entre_2_nombre: "",
                         }));
                       }}
                     />
@@ -1063,7 +1117,27 @@ export default function PersonaDomicilioModal({
                           ubicacionSeleccion.localidad
                         }
                       />
-                      <ResumenFila label="Calle" valor={q} />
+                      <ResumenFila
+                        label="Calle"
+                        valor={
+                          domicilio.calle_nombre || q ? (
+                            <div className="flex items-center gap-2">
+                              <span>{domicilio.calle_nombre || q}</span>
+                              {domicilio.calle_id ? (
+                                <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                                  OFICIAL ✓
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                                  TEXTO LIBRE 📝
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            "—"
+                          )
+                        }
+                      />
                       <ResumenFila label="Número" valor={domicilio.numero} />
                       <ResumenFila
                         label="Piso / Dpto / Torre"
