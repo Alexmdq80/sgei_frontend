@@ -32,8 +32,7 @@
 - **Estilos:** Priorizar utilidades de Tailwind CSS. No usar estilos en línea (`style={{...}}`).
 - **Seguridad (XSS):** Prohibido `dangerouslySetInnerHTML` a menos que esté sanitizado y justificado.
 - **Seguridad (Storage):** Prohibido guardar JWTs o información sensible en `localStorage`. Usar cookies HttpOnly o memoria.
-- **IndexedDB rules:** Siempre incluir timeout, `onblocked`, `onversionchange = () => db.close()`, y cerrar conexiones al terminar la transacción.
-- **Singleton rules:** En servicios exportados como singleton, nunca referenciar la instancia exportada dentro de su propia clase o constructor; usar siempre `this` para evitar ReferenceError por TDZ.
+- **Reglas del frontend (canónicas):** viven en `../be/.ai/rules/` (convención de Boost; **solo lectura**, no editar). Antes de planificar o editar, leé `../be/.ai/rules/index.md` y cada archivo de regla cuyos globs cubran el path objetivo; para caché/IndexedDB y tests aplica `frontend-cache.md`.
 - **Manejo de Errores API:** Asumir que el backend responde con formato `{ "error": "mensaje", "code": 400 }` y degradar elegantemente ante caídas de red o caché.
 
 ## Flujo de Trabajo y Buenas Prácticas
