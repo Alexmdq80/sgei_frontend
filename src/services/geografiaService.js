@@ -1,5 +1,6 @@
 import api from "./api";
 import catalogCache from "./catalogCacheService";
+import callesCacheService from "./callesCacheService";
 
 /**
  * Servicio para obtener datos geográficos con soporte de caché blindado y fallback a red.
@@ -74,7 +75,8 @@ const geografiaService = {
   },
 
   /**
-   * Obtiene las localidades de un departamento específico.
+   * Obtiene las localidades de un departamento usando IndexedDB como primer nivel
+   * de caché (0 ms en revisitas) y la API como fallback seguro.
    */
   async getLocalidades(departamentoId, params = {}) {
     if (!departamentoId) return [];
@@ -84,15 +86,36 @@ const geografiaService = {
     );
 
     if (!hasCustomParams) {
-      return catalogCache.getOrFetch(
-        `localidades_dep_${departamentoId}`,
-        async () => {
-          const response = await api.get("/localidades", {
-            params: { departamento_id: departamentoId },
-          });
-          return response.data;
-        },
-      );
+      // Normalizamos la clave: IndexedDB distingue 64 (número) de "64" (string).
+      const numericId = Number(departamentoId);
+      const depId = Number.isFinite(numericId) ? numericId : null;
+
+      if (depId !== null) {
+        try {
+          const cached = await callesCacheService.getLocalidades(depId);
+          if (Array.isArray(cached) && cached.length > 0) {
+            return cached;
+          }
+        } catch (e) {
+          // Degradación segura: si IndexedDB falla, seguimos por red.
+          console.warn("Lectura de localidades en IndexedDB falló:", e);
+        }
+      }
+
+      const response = await api.get("/localidades", {
+        params: { departamento_id: depId ?? departamentoId },
+      });
+
+      // Persistimos en segundo plano: no debe demorar ni bloquear el render.
+      if (
+        depId !== null &&
+        Array.isArray(response.data) &&
+        response.data.length > 0
+      ) {
+        void callesCacheService.saveLocalidades(depId, response.data);
+      }
+
+      return response.data;
     }
 
     const response = await api.get("/localidades", {

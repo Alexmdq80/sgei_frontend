@@ -11,6 +11,9 @@ const PREFIX = "sgei_cat_";
 class CatalogCacheService {
   constructor() {
     this.checkVersion();
+    // Higiene: las localidades ya no viven en localStorage.
+    // Compone el prefijo sgei_cat_ + localidades_dep_ => borra sgei_cat_localidades_dep_*
+    this.invalidate("localidades_dep_");
   }
 
   /**
@@ -115,6 +118,11 @@ class CatalogCacheService {
       if (manifest.calles) {
         await callesCacheService.checkGlobalVersion(manifest.calles);
       }
+      // Sincronizar catálogo de localidades en IndexedDB (NUEVO)
+      if (manifest.localidades) {
+        await callesCacheService.checkLocalidadesVersion(manifest.localidades);
+      }
+
       for (const [key, remoteHash] of Object.entries(manifest)) {
         const cached = this.get(key);
 
