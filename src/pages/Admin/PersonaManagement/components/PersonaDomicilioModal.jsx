@@ -594,9 +594,18 @@ export default function PersonaDomicilioModal({
             <X className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white">
-              <Home className="w-6 h-6" />
-            </div>
+            {persona?.foto_url ? (
+              <img
+                src={persona.foto_url}
+                crossOrigin="use-credentials"
+                alt="Foto de perfil"
+                className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white">
+                <Home className="w-6 h-6" />
+              </div>
+            )}
             <div>
               <h2 className="text-xl font-black text-white truncate max-w-[620px]">
                 {personaNombre ? `Domicilio · ${personaNombre}` : "Domicilio"}
