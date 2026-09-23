@@ -11,7 +11,6 @@ import {
   ClipboardCheck,
   ChevronLeft,
   ChevronRight,
-  CheckCircle2,
   Eraser,
   AlertTriangle,
 } from "lucide-react";
@@ -21,6 +20,7 @@ import SearchableSelect from "../../../../components/SearchableSelect";
 import useGeografiaCascade from "../hooks/useGeografiaCascade";
 import { esNacionArgentina } from "../utils/nacionUtils";
 import CalleCombo from "../components/CalleCombo";
+import Stepper from "./Stepper";
 import { useCalleSearch } from "../hooks/useCalleSearch";
 
 // Componente auxiliar para el resumen final
@@ -154,6 +154,31 @@ export default function PersonaDomicilioModal({
   const esExtranjero = Boolean(domicilio.nacion_id) && !esArgentina;
   const esGeoParcial = esArgentina && !domicilio.localidad_id;
 
+  // Paso 2 (Calles y Vivienda) sólo tiene sentido con una localidad elegida
+  const paso2Alcanzable = useMemo(
+    () =>
+      !domicilioDesconocido &&
+      !esExtranjero &&
+      !esGeoParcial &&
+      Boolean(domicilio.localidad_id),
+    [domicilioDesconocido, esExtranjero, esGeoParcial, domicilio.localidad_id],
+  );
+
+  const esPasoAlcanzable = (n) =>
+    n === 1 || n === 3 || (n === 2 && paso2Alcanzable);
+
+  const irAPaso = (n) => {
+    if (!esPasoAlcanzable(n)) return;
+    setStep((s) => (s === n ? s : n));
+  };
+
+  // Reproducen EXACTAMENTE el comportamiento vigente de los botones del footer
+  const irSiguiente = () =>
+    setStep(step === 1 && !paso2Alcanzable ? 3 : Math.min(3, step + 1));
+
+  const irAnterior = () =>
+    setStep(step === 3 && !paso2Alcanzable ? 1 : Math.max(1, step - 1));
+
   const nomPorId = (lista, id) =>
     lista.find((i) => String(i.id) === String(id))?.nombre || "";
 
@@ -253,7 +278,7 @@ export default function PersonaDomicilioModal({
   // Precarga el catálogo completo de localidades en memoria al abrir el modal
   useEffect(() => {
     if (isOpen) {
-      geografiaService.getCatalogoLocalidades().catch(() => { });
+      geografiaService.getCatalogoLocalidades().catch(() => {});
     }
   }, [isOpen]);
 
@@ -574,8 +599,8 @@ export default function PersonaDomicilioModal({
   const personaNombre =
     persona?.apellido || persona?.nombre
       ? `${persona.apellido ?? ""}, ${persona.nombre ?? ""}`
-        .replace(/^,\s*|,\s*$/, "")
-        .trim()
+          .replace(/^,\s*|,\s*$/, "")
+          .trim()
       : null;
 
   return (
@@ -594,19 +619,20 @@ export default function PersonaDomicilioModal({
             <X className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-4">
-            {persona?.foto_url ? (
+            {/* Ícono alusivo al domicilio: siempre visible como identidad del modal */}
+            <div className="w-12 h-12 shrink-0 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white">
+              <Home className="w-6 h-6" />
+            </div>
+            {/* Foto de la persona: se muestra además del ícono, solo si existe */}
+            {persona?.foto_url && (
               <img
                 src={persona.foto_url}
                 crossOrigin="use-credentials"
                 alt="Foto de perfil"
-                className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
+                className="w-12 h-12 shrink-0 rounded-full object-cover border-2 border-white shadow-md"
               />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white">
-                <Home className="w-6 h-6" />
-              </div>
             )}
-            <div>
+            <div className="min-w-0">
               <h2 className="text-xl font-black text-white truncate max-w-[620px]">
                 {personaNombre ? `Domicilio · ${personaNombre}` : "Domicilio"}
               </h2>
@@ -618,43 +644,13 @@ export default function PersonaDomicilioModal({
         </div>
 
         {/* Stepper */}
-        <div className="px-8 py-4 border-b border-secondary-100 bg-secondary-50/50">
-          <div className="flex items-center">
-            {ETAPAS.map(({ n, label, Icon: StepIcon }, idx) => (
-              <div key={n} className="flex items-center flex-1 last:flex-none">
-                <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-                  <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${step === n
-                        ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
-                        : step > n
-                          ? "bg-green-500 border-green-500 text-white"
-                          : "bg-white border-secondary-300 text-secondary-400"
-                      }`}
-                  >
-                    {step > n ? (
-                      <CheckCircle2 className="w-5 h-5" />
-                    ) : (
-                      <StepIcon className="w-5 h-5" />
-                    )}
-                  </div>
-                  <span
-                    className={`text-[10px] font-black uppercase tracking-wider ${step === n ? "text-primary-700" : "text-secondary-400"
-                      }`}
-                  >
-                    {label}
-                  </span>
-                </div>
-                {idx < ETAPAS.length - 1 && (
-                  <div
-                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${step > n ? "bg-green-500" : "bg-secondary-200"
-                      }`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
+        <Stepper
+          etapas={ETAPAS}
+          step={step}
+          esAlcanzable={esPasoAlcanzable}
+          onSelect={irAPaso}
+          mensajeBloqueado="Elegí una localidad para completar Calles y Vivienda"
+        />
         {/* Cuerpo scrolleable */}
         <div className="overflow-y-auto flex-1 min-h-0 p-6 space-y-6">
           {estaCargando ? (
@@ -706,10 +702,11 @@ export default function PersonaDomicilioModal({
                         type="button"
                         disabled={domicilioDesconocido}
                         onClick={() => onPaisTipoChange("argentina")}
-                        className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${paisTipo === "argentina"
+                        className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${
+                          paisTipo === "argentina"
                             ? "bg-primary-600 border-primary-600 text-white shadow"
                             : "bg-white border-secondary-200 text-secondary-500 hover:border-primary-300"
-                          }`}
+                        }`}
                       >
                         🇦🇷 Argentina
                       </button>
@@ -717,10 +714,11 @@ export default function PersonaDomicilioModal({
                         type="button"
                         disabled={domicilioDesconocido}
                         onClick={() => onPaisTipoChange("extranjero")}
-                        className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${paisTipo === "extranjero"
+                        className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${
+                          paisTipo === "extranjero"
                             ? "bg-indigo-600 border-indigo-600 text-white shadow"
                             : "bg-white border-secondary-200 text-secondary-500 hover:border-primary-300"
-                          }`}
+                        }`}
                       >
                         🌐 Extranjero
                       </button>
@@ -1215,14 +1213,7 @@ export default function PersonaDomicilioModal({
           {step > 1 && (
             <button
               type="button"
-              onClick={() =>
-                setStep((s) =>
-                  s === 3 &&
-                    (domicilioDesconocido || esExtranjero || esGeoParcial)
-                    ? 1
-                    : s - 1,
-                )
-              }
+              onClick={irAnterior}
               className="px-5 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest"
             >
               <ChevronLeft className="w-4 h-4 inline mr-1" /> Anterior
@@ -1231,16 +1222,7 @@ export default function PersonaDomicilioModal({
           {step < 3 ? (
             <button
               type="button"
-              onClick={() =>
-                setStep((s) =>
-                  s === 1 &&
-                    (domicilioDesconocido ||
-                      esExtranjero ||
-                      !domicilio.localidad_id)
-                    ? 3
-                    : s + 1,
-                )
-              }
+              onClick={irSiguiente}
               className="px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg"
             >
               Siguiente <ChevronRight className="w-4 h-4 inline ml-1" />

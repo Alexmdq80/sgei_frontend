@@ -15,6 +15,7 @@ import {
 import { DOC_TIPO_DNI, DOC_TIPO_INDOCUMENTADO } from "../utils/constants";
 import { calcularEdad } from "../utils/edad"; // ajusta la ruta relativa según corresponda
 import { esNacionArgentina } from "../utils/nacionUtils";
+import Stepper from "./Stepper";
 
 /**
  * Patrón admitido para apellido/nombre/nombre_alternativo (accesibilidad):
@@ -77,6 +78,7 @@ export default function PersonaFormModal({
   onSubmit,
   onNextStep,
   onPrevStep,
+  onGoToStep,
 }) {
   // Estado de vida
   const esFallecida = Number(formData.vive_si) === 0;
@@ -231,47 +233,12 @@ export default function PersonaFormModal({
         </div>
 
         {/* Stepper */}
-        <div className="px-8 py-4 border-b border-secondary-100 bg-secondary-50/50">
-          <div className="flex items-center">
-            {etapasVisibles.map(({ n, label, Icon: StepIcon }, idx) => (
-              <div key={n} className="flex items-center flex-1 last:flex-none">
-                <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-                  <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${
-                      currentStep === n
-                        ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
-                        : currentStep > n
-                          ? "bg-green-500 border-green-500 text-white"
-                          : "bg-white border-secondary-300 text-secondary-400"
-                    }`}
-                  >
-                    {currentStep > n ? (
-                      <CheckCircle2 className="w-5 h-5" />
-                    ) : (
-                      <StepIcon className="w-5 h-5" />
-                    )}
-                  </div>
-                  <span
-                    className={`text-[10px] font-black uppercase tracking-wider ${
-                      currentStep === n
-                        ? "text-primary-700"
-                        : "text-secondary-400"
-                    }`}
-                  >
-                    {label}
-                  </span>
-                </div>
-                {idx < etapasVisibles.length - 1 && (
-                  <div
-                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
-                      currentStep > n ? "bg-green-500" : "bg-secondary-200"
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <Stepper
+          etapas={etapasVisibles}
+          step={currentStep}
+          onSelect={onGoToStep}
+          mensajeBloqueado="Completá los pasos anteriores para acceder"
+        />
 
         <form
           onSubmit={onSubmit}

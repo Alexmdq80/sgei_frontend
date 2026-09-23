@@ -79,7 +79,7 @@ export default function PersonaManagement() {
     confirmText: "Confirmar",
     cancelText: "Cancelar",
     variant: "primary",
-    onConfirm: () => { },
+    onConfirm: () => {},
     showInput: false,
     inputPlaceholder: "",
     isLoading: false,
@@ -688,6 +688,21 @@ export default function PersonaManagement() {
 
   const handlePrevStep = () => setCurrentStep((s) => Math.max(s - 1, 1));
 
+  // Navegación directa desde el Stepper: retroceder es libre;
+  // avanzar exige validar los pasos intermedios en orden.
+  const handleGoToStep = (target) => {
+    const destino = Math.min(Math.max(Number(target) || 1, 1), maxStep);
+    if (destino === currentStep) return;
+    if (destino < currentStep) {
+      setCurrentStep(destino);
+      return;
+    }
+    for (let s = currentStep; s < destino; s += 1) {
+      if (!validateStep(s)) return;
+    }
+    setCurrentStep(destino);
+  };
+
   const handleViveChange = (checked) => {
     setFormValue("vive_si", checked ? 1 : 0);
     if (!checked && currentStep > MAX_STEP_FALLECIDA) {
@@ -1168,6 +1183,7 @@ export default function PersonaManagement() {
           onSubmit={handleSubmitPersona}
           onNextStep={handleNextStep}
           onPrevStep={handlePrevStep}
+          onGoToStep={handleGoToStep}
         />
       )}
 
