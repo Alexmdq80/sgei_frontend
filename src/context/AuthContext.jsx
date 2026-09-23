@@ -142,6 +142,7 @@ export const AuthProvider = ({ children }) => {
           normalize(await documentoSituacionService.getAll()),
         sexos: async () => normalize(await sexoService.getAll()),
         generos: async () => normalize(await generoService.getAll()),
+        localidades: () => geografiaService.syncCatalogoLocalidadesCompleto(),
       };
 
       // Compara hashes contra GET /catalogos/manifest y descarga solo lo que cambió

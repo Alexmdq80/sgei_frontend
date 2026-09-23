@@ -1,7 +1,8 @@
 const DB_NAME = "sgei_calles_db";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_CALLES = "localidades_calles";
 const STORE_LOCALIDADES = "departamentos_localidades";
+const STORE_CATALOGO_LOCALIDADES = "catalogo_localidades_completo";
 
 const CALLES_VERSION_KEY = "sgei_calles_version";
 const LOCALIDADES_VERSION_KEY = "sgei_localidades_version";
@@ -53,7 +54,12 @@ class CallesCacheService {
             keyPath: "departamento_id",
           });
         }
+        // Almacén 3: catálogo completo de localidades (nuevo en v3)
+        if (!db.objectStoreNames.contains(STORE_CATALOGO_LOCALIDADES)) {
+          db.createObjectStore(STORE_CATALOGO_LOCALIDADES, { keyPath: "id" });
+        }
       };
+
       req.onsuccess = () =>
         finish(() => {
           const db = req.result;
@@ -254,6 +260,88 @@ class CallesCacheService {
     }
   }
 
+  /* ========================================================
+ * MÉTODOS DEL CATÁLOGO COMPLETO DE LOCALIDADES (nuevos en v3)
+ * ======================================================== */
+
+  /** Guarda en bloque las 14.431 localidades en IndexedDB */
+  async saveCatalogoLocalidades(localidades) {
+    if (!Array.isArray(localidades) || localidades.length === 0) return;
+    try {
+      const db = await this.openDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_CATALOGO_LOCALIDADES, "readwrite");
+        const store = tx.objectStore(STORE_CATALOGO_LOCALIDADES);
+        store.clear(); // Reemplazo total: el catálogo es una fotografía completa
+        for (const loc of localidades) {
+          store.put(loc);
+        }
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error);
+        };
+        tx.onabort = () => {
+          db.close();
+          reject(new Error("Transacción abortada"));
+        };
+      });
+    } catch (e) {
+      console.warn("No se pudo guardar el catálogo de localidades en IndexedDB:", e);
+    }
+  }
+
+  /** Obtiene todas las localidades guardadas en IndexedDB (array o null) */
+  async getCatalogoLocalidades() {
+    try {
+      const db = await this.openDb();
+      return await new Promise((resolve) => {
+        const tx = db.transaction(STORE_CATALOGO_LOCALIDADES, "readonly");
+        const req = tx.objectStore(STORE_CATALOGO_LOCALIDADES).getAll();
+        req.onsuccess = () => {
+          db.close();
+          resolve(req.result && req.result.length > 0 ? req.result : null);
+        };
+        req.onerror = () => {
+          db.close();
+          resolve(null);
+        };
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  /** Purga el almacén de catálogo completo de localidades */
+  async clearCatalogoLocalidades() {
+    if (!window.indexedDB) return; // sin IndexedDB no hay nada que purgar
+    try {
+      const db = await this.openDb();
+      await new Promise((resolve) => {
+        const tx = db.transaction(STORE_CATALOGO_LOCALIDADES, "readwrite");
+        tx.objectStore(STORE_CATALOGO_LOCALIDADES).clear();
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => {
+          db.close();
+          resolve();
+        };
+        tx.onabort = () => {
+          db.close();
+          resolve();
+        };
+      });
+    } catch (e) {
+      console.warn("Error al limpiar catálogo completo de localidades:", e);
+    }
+  }
+
+
   /** Compara la versión del catálogo de localidades del manifiesto y purga si cambió */
   async checkLocalidadesVersion(remoteVersion) {
     if (!remoteVersion) return;
@@ -261,6 +349,7 @@ class CallesCacheService {
       const currentVersion = localStorage.getItem(LOCALIDADES_VERSION_KEY);
       if (currentVersion !== remoteVersion) {
         await this.clearAllLocalidades();
+        await this.clearCatalogoLocalidades();
         localStorage.setItem(LOCALIDADES_VERSION_KEY, remoteVersion);
       }
     } catch (e) {
@@ -275,6 +364,7 @@ class CallesCacheService {
   async clearAllStores() {
     await this.clearAllCalles();
     await this.clearAllLocalidades();
+    await this.clearCatalogoLocalidades();
   }
 
   /**

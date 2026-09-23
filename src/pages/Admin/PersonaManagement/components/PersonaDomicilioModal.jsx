@@ -250,6 +250,13 @@ export default function PersonaDomicilioModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, personaId]);
 
+  // Precarga el catálogo completo de localidades en memoria al abrir el modal
+  useEffect(() => {
+    if (isOpen) {
+      geografiaService.getCatalogoLocalidades().catch(() => { });
+    }
+  }, [isOpen]);
+
   // Omnibox de localidades: búsqueda con debounce
   useEffect(() => {
     if (skipSearchRef.current) {
@@ -285,7 +292,7 @@ export default function PersonaDomicilioModal({
         .finally(() => {
           if (active) setBuscandoLocalidades(false);
         });
-    }, 250);
+    }, 50);
 
     return () => {
       active = false;
@@ -567,8 +574,8 @@ export default function PersonaDomicilioModal({
   const personaNombre =
     persona?.apellido || persona?.nombre
       ? `${persona.apellido ?? ""}, ${persona.nombre ?? ""}`
-          .replace(/^,\s*|,\s*$/, "")
-          .trim()
+        .replace(/^,\s*|,\s*$/, "")
+        .trim()
       : null;
 
   return (
@@ -608,13 +615,12 @@ export default function PersonaDomicilioModal({
               <div key={n} className="flex items-center flex-1 last:flex-none">
                 <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
                   <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${
-                      step === n
+                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${step === n
                         ? "bg-primary-600 border-primary-600 text-white shadow-lg scale-110"
                         : step > n
                           ? "bg-green-500 border-green-500 text-white"
                           : "bg-white border-secondary-300 text-secondary-400"
-                    }`}
+                      }`}
                   >
                     {step > n ? (
                       <CheckCircle2 className="w-5 h-5" />
@@ -623,18 +629,16 @@ export default function PersonaDomicilioModal({
                     )}
                   </div>
                   <span
-                    className={`text-[10px] font-black uppercase tracking-wider ${
-                      step === n ? "text-primary-700" : "text-secondary-400"
-                    }`}
+                    className={`text-[10px] font-black uppercase tracking-wider ${step === n ? "text-primary-700" : "text-secondary-400"
+                      }`}
                   >
                     {label}
                   </span>
                 </div>
                 {idx < ETAPAS.length - 1 && (
                   <div
-                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${
-                      step > n ? "bg-green-500" : "bg-secondary-200"
-                    }`}
+                    className={`flex-1 h-0.5 mx-2 rounded-full transition-colors ${step > n ? "bg-green-500" : "bg-secondary-200"
+                      }`}
                   />
                 )}
               </div>
@@ -693,11 +697,10 @@ export default function PersonaDomicilioModal({
                         type="button"
                         disabled={domicilioDesconocido}
                         onClick={() => onPaisTipoChange("argentina")}
-                        className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${
-                          paisTipo === "argentina"
+                        className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${paisTipo === "argentina"
                             ? "bg-primary-600 border-primary-600 text-white shadow"
                             : "bg-white border-secondary-200 text-secondary-500 hover:border-primary-300"
-                        }`}
+                          }`}
                       >
                         🇦🇷 Argentina
                       </button>
@@ -705,11 +708,10 @@ export default function PersonaDomicilioModal({
                         type="button"
                         disabled={domicilioDesconocido}
                         onClick={() => onPaisTipoChange("extranjero")}
-                        className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${
-                          paisTipo === "extranjero"
+                        className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${paisTipo === "extranjero"
                             ? "bg-indigo-600 border-indigo-600 text-white shadow"
                             : "bg-white border-secondary-200 text-secondary-500 hover:border-primary-300"
-                        }`}
+                          }`}
                       >
                         🌐 Extranjero
                       </button>
@@ -1207,7 +1209,7 @@ export default function PersonaDomicilioModal({
               onClick={() =>
                 setStep((s) =>
                   s === 3 &&
-                  (domicilioDesconocido || esExtranjero || esGeoParcial)
+                    (domicilioDesconocido || esExtranjero || esGeoParcial)
                     ? 1
                     : s - 1,
                 )
@@ -1223,9 +1225,9 @@ export default function PersonaDomicilioModal({
               onClick={() =>
                 setStep((s) =>
                   s === 1 &&
-                  (domicilioDesconocido ||
-                    esExtranjero ||
-                    !domicilio.localidad_id)
+                    (domicilioDesconocido ||
+                      esExtranjero ||
+                      !domicilio.localidad_id)
                     ? 3
                     : s + 1,
                 )

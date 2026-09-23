@@ -2,6 +2,28 @@ import api from "./api";
 import catalogCache from "./catalogCacheService";
 import callesCacheService from "./callesCacheService";
 
+let memoriaLocalidades = null;
+let cargandoCatalogoPromise = null;
+
+/** Normaliza texto descartando acentos, tildes y mayúsculas */
+export function normalizeSearch(text) {
+  return (text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function preindexarLocalidades(lista) {
+  return lista.map((loc) => ({
+    ...loc,
+    _nombreKey: normalizeSearch(loc.nombre),   // <-- NUEVO
+    _searchKey: normalizeSearch(
+      `${loc.nombre} ${loc.departamento?.nombre || ""} ${loc.departamento?.provincia?.nombre || ""}`,
+    ),
+  }));
+}
+
 /**
  * Servicio para obtener datos geográficos con soporte de caché blindado y fallback a red.
  */
@@ -24,7 +46,6 @@ const geografiaService = {
     const response = await api.get("/provincias", { params });
     return response.data;
   },
-
   /**
    * Obtiene las regiones educativas (opcionalmente filtradas por provincia).
    * Acepta tanto un provinciaId directamente como un objeto de parámetros { provincia_id }.
@@ -131,12 +152,86 @@ const geografiaService = {
     const response = await api.get("/localidades", { params });
     return response.data;
   },
+  /**
+   * Descarga el catálogo completo, lo persiste en IndexedDB y lo precarga en RAM.
+   */
+  async syncCatalogoLocalidadesCompleto() {
+    try {
+      const response = await api.get("/localidades/catalogo-completo");
+      const data = response.data;
+      if (Array.isArray(data) && data.length > 0) {
+        memoriaLocalidades = preindexarLocalidades(data);
+        void callesCacheService.saveCatalogoLocalidades(data);
+      }
+      return data;
+    } catch (error) {
+      console.warn("Fallo al descargar catálogo completo de localidades:", error);
+      throw error;
+    }
+  },
 
   /**
-   * Búsqueda omnibox de localidades con la jerarquía completa
-   * (devuelve un array: { id, nombre, departamento_id, departamento: { provincia: { nacion } } }).
+   * Obtiene el catálogo completo (Memoria RAM -> IndexedDB -> API).
    */
+  async getCatalogoLocalidades() {
+    if (memoriaLocalidades && memoriaLocalidades.length > 0) {
+      return memoriaLocalidades;
+    }
+
+    if (cargandoCatalogoPromise) {
+      return cargandoCatalogoPromise; // deduplicación: una sola descarga concurrente
+    }
+    cargandoCatalogoPromise = (async () => {
+      try {
+        const cached = await callesCacheService.getCatalogoLocalidades();
+        if (Array.isArray(cached) && cached.length > 0) {
+          memoriaLocalidades = preindexarLocalidades(cached);
+          return memoriaLocalidades;
+        }
+      } catch (e) {
+        console.warn("Lectura de IndexedDB falló:", e);
+      }
+      return await this.syncCatalogoLocalidadesCompleto();
+    })();
+
+    try {
+      return await cargandoCatalogoPromise;
+    } finally {
+      cargandoCatalogoPromise = null;
+    }
+  },
+  /**
+  * Búsqueda omnibox de localidades:
+  * 1. Busca en la memoria local sin tildes en < 2ms (0 llamadas a la API).
+  * 2. Si no estuviera lista la memoria, recurre transparentemente a la red.
+  */
   async searchLocalidades(search, perPage = 15) {
+    const term = normalizeSearch(search);
+    if (!term) return [];
+
+    try {
+      const catalogo = await this.getCatalogoLocalidades();
+      if (Array.isArray(catalogo) && catalogo.length > 0) {
+        const matches = catalogo.filter((loc) => loc._searchKey.includes(term));
+        if (matches.length > 0) {
+          const prioridad = (loc) => {
+            if (loc._nombreKey.startsWith(term)) return 0; // nombre empieza con el término
+            if (loc._nombreKey.includes(term)) return 1;   // el nombre contiene el término
+            return 2;                                       // solo matchea por depto/provincia
+          };
+          return matches
+            .sort(
+              (a, b) =>
+                prioridad(a) - prioridad(b) ||
+                a._searchKey.localeCompare(b._searchKey, "es"),
+            )
+            .slice(0, perPage);
+        }
+      }
+    } catch {
+      // Fallback a red si la memoria local falla
+    }
+
     const response = await api.get("/localidades", {
       params: { search, per_page: perPage },
     });

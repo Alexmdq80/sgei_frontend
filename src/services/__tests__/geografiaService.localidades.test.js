@@ -5,9 +5,13 @@ vi.mock("../callesCacheService", () => ({
   default: {
     getLocalidades: vi.fn(),
     saveLocalidades: vi.fn(),
+    getCatalogoLocalidades: vi.fn(),
+    saveCatalogoLocalidades: vi.fn(),
+    clearCatalogoLocalidades: vi.fn(),
     purge: vi.fn().mockResolvedValue(undefined),
   },
 }));
+
 
 import api from "../api";
 import callesCacheService from "../callesCacheService";
