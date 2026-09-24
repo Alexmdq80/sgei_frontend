@@ -16,10 +16,10 @@ describe('SearchableSelect Component', () => {
 
     it('debe renderizar con el label y placeholder correctos', () => {
         render(
-            <SearchableSelect 
-                label="Mi Select" 
-                placeholder="Escribe algo..." 
-                options={mockOptions} 
+            <SearchableSelect
+                label="Mi Select"
+                placeholder="Escribe algo..."
+                options={mockOptions}
                 onChange={mockOnChange}
             />
         );
@@ -30,8 +30,8 @@ describe('SearchableSelect Component', () => {
 
     it('debe filtrar opciones al escribir', () => {
         render(
-            <SearchableSelect 
-                options={mockOptions} 
+            <SearchableSelect
+                options={mockOptions}
                 onChange={mockOnChange}
             />
         );
@@ -42,7 +42,7 @@ describe('SearchableSelect Component', () => {
         // Buscamos todas las ocurrencias ya que puede estar en el ghost text y en la lista
         const optionsA = screen.getAllByText('Opción A');
         expect(optionsA.length).toBeGreaterThan(0);
-        
+
         const optionsB = screen.getAllByText('Opción B');
         expect(optionsB.length).toBeGreaterThan(0);
 
@@ -51,8 +51,8 @@ describe('SearchableSelect Component', () => {
 
     it('debe llamar a onChange al seleccionar una opción', () => {
         render(
-            <SearchableSelect 
-                options={mockOptions} 
+            <SearchableSelect
+                options={mockOptions}
                 onChange={mockOnChange}
                 name="mi-select"
             />
@@ -60,7 +60,7 @@ describe('SearchableSelect Component', () => {
 
         const input = screen.getByRole('textbox');
         fireEvent.focus(input);
-        
+
         const option = screen.getByText('Opción A');
         fireEvent.click(option);
 
@@ -72,8 +72,8 @@ describe('SearchableSelect Component', () => {
 
     it('debe navegar por las opciones con el teclado', () => {
         render(
-            <SearchableSelect 
-                options={mockOptions} 
+            <SearchableSelect
+                options={mockOptions}
                 onChange={mockOnChange}
             />
         );
@@ -95,8 +95,8 @@ describe('SearchableSelect Component', () => {
 
     it('debe aceptar sugerencias con la tecla Tab', () => {
         render(
-            <SearchableSelect 
-                options={mockOptions} 
+            <SearchableSelect
+                options={mockOptions}
                 onChange={mockOnChange}
             />
         );
@@ -104,7 +104,7 @@ describe('SearchableSelect Component', () => {
         const input = screen.getByRole('textbox');
         // Escribimos "Op" y debería sugerir "Opción A" (la primera que empieza con Op)
         fireEvent.change(input, { target: { value: 'Op' } });
-        
+
         fireEvent.keyDown(input, { key: 'Tab' });
 
         expect(mockOnChange).toHaveBeenCalledWith({
@@ -114,8 +114,8 @@ describe('SearchableSelect Component', () => {
 
     it('debe deshabilitarse correctamente', () => {
         render(
-            <SearchableSelect 
-                options={mockOptions} 
+            <SearchableSelect
+                options={mockOptions}
                 onChange={mockOnChange}
                 disabled={true}
             />
@@ -123,8 +123,34 @@ describe('SearchableSelect Component', () => {
 
         const input = screen.getByRole('textbox');
         expect(input).toBeDisabled();
-        
+
         fireEvent.focus(input);
         expect(screen.queryByText('Opción A')).not.toBeInTheDocument();
     });
+    it('debe sincronizar el texto cuando el value cambia externamente', () => {
+        const { rerender } = render(
+            <SearchableSelect options={mockOptions} value={1} onChange={mockOnChange} />
+        );
+        const input = screen.getByRole('textbox');
+        expect(input).toHaveValue('Opción A');
+
+        rerender(
+            <SearchableSelect options={mockOptions} value={2} onChange={mockOnChange} />
+        );
+        expect(input).toHaveValue('Opción B');
+    });
+
+    it('debe preservar el tipeo del usuario aunque el value cambie (overlay)', () => {
+        const { rerender } = render(
+            <SearchableSelect options={mockOptions} value={1} onChange={mockOnChange} />
+        );
+        const input = screen.getByRole('textbox');
+        fireEvent.change(input, { target: { value: 'Op' } });
+
+        rerender(
+            <SearchableSelect options={mockOptions} value={2} onChange={mockOnChange} />
+        );
+        expect(input).toHaveValue('Op'); // el texto tipeado no se pisa
+    });
+
 });

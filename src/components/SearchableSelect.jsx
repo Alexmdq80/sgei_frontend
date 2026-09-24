@@ -5,63 +5,35 @@ import { useState, useEffect, useRef } from 'react';
  */
 const SearchableSelect = ({ options, value, onChange, name, placeholder = "Seleccionar...", disabled = false, label }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filteredOptions, setFilteredOptions] = useState([]);
-    const [suggestion, setSuggestion] = useState('');
+    // null = espejo del `value` del padre; string = texto tipeado por el usuario.
+    // El texto visible se deriva en cada render (evita setState sincrónico en efectos).
+    const [editedTerm, setEditedTerm] = useState(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const containerRef = useRef(null);
     const inputRef = useRef(null);
 
-    // Sincronizar el término de búsqueda con la opción seleccionada externamente
-    useEffect(() => {
-        if (value && options.length > 0) {
-            const selected = options.find(opt => String(opt.id) === String(value));
-            if (selected) {
-                setSearchTerm(selected.nombre);
-                setSuggestion('');
-            }
-        } else if (!value) {
-            setSearchTerm('');
-            setSuggestion('');
-        }
-    }, [value, options]);
+    // --- Derivados (reemplazan los useEffect de sync/filtrado/sugerencia) ---
+    const selectedOption = options.find(opt => String(opt.id) === String(value));
+    const searchTerm = editedTerm ?? (selectedOption ? selectedOption.nombre : '');
 
-    // Filtrar opciones y generar sugerencia de autocompletado
-    useEffect(() => {
-        if (searchTerm.trim() === '') {
-            setFilteredOptions(options);
-            setSuggestion('');
-            setActiveIndex(0);
-            return;
-        }
+    const ts = searchTerm.trim();
+    const tsLower = ts.toLowerCase();
+    const filteredOptions = ts === ''
+        ? options
+        : options.filter(opt => opt.nombre.toLowerCase().includes(tsLower));
 
-        const filtered = options.filter(opt => 
-            opt.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        setFilteredOptions(filtered);
-        setActiveIndex(0);
-
-        // Lógica de sugerencia (solo si el término coincide con el inicio de alguna opción)
-        const bestMatch = options.find(opt => 
-            opt.nombre.toLowerCase().startsWith(searchTerm.toLowerCase())
-        );
-
-        if (bestMatch && searchTerm.length > 0 && bestMatch.nombre.toLowerCase() !== searchTerm.toLowerCase()) {
-            // Mantener el casing original del usuario pero mostrar el resto de la sugerencia
-            setSuggestion(searchTerm + bestMatch.nombre.slice(searchTerm.length));
-        } else {
-            setSuggestion('');
-        }
-    }, [searchTerm, options]);
+    const bestMatch = options.find(opt => opt.nombre.toLowerCase().startsWith(tsLower));
+    const suggestion = (bestMatch && ts.length > 0 && bestMatch.nombre.toLowerCase() !== tsLower)
+        ? searchTerm + bestMatch.nombre.slice(searchTerm.length)
+        : '';
 
     // Cerrar al hacer click afuera
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (containerRef.current && !containerRef.current.contains(event.target)) {
                 setIsOpen(false);
-                const selected = options.find(opt => String(opt.id) === String(value));
-                setSearchTerm(selected ? selected.nombre : '');
-                setSuggestion('');
+                setEditedTerm(null); // re-espeja el value (antes lo hacía el efecto #1)
+                setActiveIndex(0);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -69,8 +41,7 @@ const SearchableSelect = ({ options, value, onChange, name, placeholder = "Selec
     }, [value, options]);
 
     const handleSelect = (option) => {
-        setSearchTerm(option.nombre);
-        setSuggestion('');
+        setEditedTerm(option.nombre); // display optimista hasta que el padre confirme
         setIsOpen(false);
         onChange({ target: { name, value: option.id } });
     };
@@ -114,12 +85,14 @@ const SearchableSelect = ({ options, value, onChange, name, placeholder = "Selec
 
     const handleInputChange = (e) => {
         const val = e.target.value;
-        setSearchTerm(val);
+        setEditedTerm(val);
+        setActiveIndex(0); // antes lo hacía el efecto #2
         if (!isOpen) setIsOpen(true);
         if (val === '') {
             onChange({ target: { name, value: '' } });
         }
     };
+
 
     return (
         <div className="relative" ref={containerRef}>
@@ -128,7 +101,7 @@ const SearchableSelect = ({ options, value, onChange, name, placeholder = "Selec
                     {label}
                 </label>
             )}
-            
+
             <div className="relative flex items-center">
                 {/* Sugerencia (Ghost Text) */}
                 {!disabled && suggestion && (
@@ -136,7 +109,7 @@ const SearchableSelect = ({ options, value, onChange, name, placeholder = "Selec
                         {suggestion}
                     </div>
                 )}
-                
+
                 <input
                     ref={inputRef}
                     type="text"
@@ -149,7 +122,7 @@ const SearchableSelect = ({ options, value, onChange, name, placeholder = "Selec
                     disabled={disabled}
                     autoComplete="off"
                 />
-                
+
                 <div className="absolute inset-y-0 right-0 flex items-center pr-2 z-20">
                     {value && !disabled && (
                         <button
