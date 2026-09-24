@@ -1,5 +1,6 @@
 import api from "./api";
 import callesCacheService from "./callesCacheService";
+import { limpiarCacheCalles } from "../utils/calleSearchCache";
 
 const CACHE_VERSION = "v1.0.0"; // Incrementar si cambia la estructura interna de los objetos
 const PREFIX = "sgei_cat_";
@@ -167,6 +168,9 @@ class CatalogCacheService {
       callesCacheService.purge().catch((error) => {
         console.warn("No se pudo purgar la caché geográfica:", error);
       });
+      // Los índices MiniSearch viven en memoria: se descartan junto con la caché
+      // persistida para no seguir sugiriendo datos ya purgados.
+      limpiarCacheCalles();
     } catch (error) {
       // `purge` podría no existir (mocks incompletos) o fallar de forma sincrónica.
       console.warn("No se pudo purgar la caché geográfica:", error);

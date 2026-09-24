@@ -1,29 +1,32 @@
 import api from "./api";
 import catalogCache from "./catalogCacheService";
 import callesCacheService from "./callesCacheService";
+import { normalizeSearch } from "../utils/searchText";
+import {
+  crearBuscadorAsync,
+  BUSCADOR_LOCALIDADES,
+  MAX_RESULTADOS,
+  MIN_CARACTERES,
+  enIdle,
+} from "../utils/catalogSearchIndex";
+
+// Re-export: mantiene el contrato histórico (tests y consumidores que importan
+// `normalizeSearch` desde este servicio) sin duplicar el algoritmo, que ahora
+// vive en `utils/searchText.js`.
+export { normalizeSearch };
 
 let memoriaLocalidades = null;
 let cargandoCatalogoPromise = null;
 
-/** Normaliza texto descartando acentos, tildes y mayúsculas */
-export function normalizeSearch(text) {
-  return (text || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
-function preindexarLocalidades(lista) {
-  return lista.map((loc) => ({
-    ...loc,
-    _nombreKey: normalizeSearch(loc.nombre),   // <-- NUEVO
-    _searchKey: normalizeSearch(
-      `${loc.nombre} ${loc.departamento?.nombre || ""} ${loc.departamento?.provincia?.nombre || ""}`,
-    ),
-  }));
-}
-
+// Índice MiniSearch de localidades. Reemplaza a preindexarLocalidades/_searchKey:
+// la normalización se hace UNA vez dentro de la librería, en vez de recalcular
+// dos claves por registro en cada hidratación desde IndexedDB.
+let buscadorLocalidades = null;
+let construyendoBuscador = null;
+// Token de generación: permite descartar un build que quedó obsoleto porque el
+// catálogo se re-sincronizó MIENTRAS se estaba construyendo (addAllAsync cede
+// el control durante cientos de ms, así que la ventana es real).
+let generacionBuscador = 0;
 /**
  * Servicio para obtener datos geográficos con soporte de caché blindado y fallback a red.
  */
@@ -160,12 +163,16 @@ const geografiaService = {
       const response = await api.get("/localidades/catalogo-completo");
       const data = response.data;
       if (Array.isArray(data) && data.length > 0) {
-        memoriaLocalidades = preindexarLocalidades(data);
+        memoriaLocalidades = data;
+        this.invalidarBuscadorLocalidades(); // el catálogo cambió: el índice quedó obsoleto
         void callesCacheService.saveCatalogoLocalidades(data);
       }
       return data;
     } catch (error) {
-      console.warn("Fallo al descargar catálogo completo de localidades:", error);
+      console.warn(
+        "Fallo al descargar catálogo completo de localidades:",
+        error,
+      );
       throw error;
     }
   },
@@ -185,7 +192,7 @@ const geografiaService = {
       try {
         const cached = await callesCacheService.getCatalogoLocalidades();
         if (Array.isArray(cached) && cached.length > 0) {
-          memoriaLocalidades = preindexarLocalidades(cached);
+          memoriaLocalidades = cached; // ya no se agregan _nombreKey/_searchKey
           return memoriaLocalidades;
         }
       } catch (e) {
@@ -201,39 +208,84 @@ const geografiaService = {
     }
   },
   /**
-  * Búsqueda omnibox de localidades:
-  * 1. Busca en la memoria local sin tildes en < 2ms (0 llamadas a la API).
-  * 2. Si no estuviera lista la memoria, recurre transparentemente a la red.
-  */
-  async searchLocalidades(search, perPage = 15) {
-    const term = normalizeSearch(search);
-    if (!term) return [];
+   * Índice de búsqueda listo para consultar (RAM → IndexedDB → red).
+   * Se construye UNA vez por sesión con `addAllAsync` (cede el control entre
+   * lotes): nunca bloquea el hilo principal. La promesa se memoiza para que
+   * varias pulsaciones concurrentes compartan la misma construcción.
+   */
+  async getLocalidadesBuscador() {
+    if (buscadorLocalidades) return buscadorLocalidades;
+    if (construyendoBuscador) return construyendoBuscador;
+
+    construyendoBuscador = (async () => {
+      const gen = ++generacionBuscador;
+      const catalogo = await this.getCatalogoLocalidades();
+      if (!Array.isArray(catalogo) || catalogo.length === 0) return null;
+
+      // Chequeo 1: el catálogo pudo invalidarse durante la lectura/descarga.
+      if (gen !== generacionBuscador) return null;
+
+      const construido = await crearBuscadorAsync(
+        catalogo,
+        BUSCADOR_LOCALIDADES,
+      );
+
+      // Chequeo 2: pudo invalidarse durante los ~cientos de ms del indexado.
+      // Se construye en una variable local y recién se "commitea" si sigue vigente.
+      if (gen !== generacionBuscador) return null;
+
+      buscadorLocalidades = construido;
+      return construido;
+    })();
 
     try {
-      const catalogo = await this.getCatalogoLocalidades();
-      if (Array.isArray(catalogo) && catalogo.length > 0) {
-        const matches = catalogo.filter((loc) => loc._searchKey.includes(term));
-        if (matches.length > 0) {
-          const prioridad = (loc) => {
-            if (loc._nombreKey.startsWith(term)) return 0; // nombre empieza con el término
-            if (loc._nombreKey.includes(term)) return 1;   // el nombre contiene el término
-            return 2;                                       // solo matchea por depto/provincia
-          };
-          return matches
-            .sort(
-              (a, b) =>
-                prioridad(a) - prioridad(b) ||
-                a._searchKey.localeCompare(b._searchKey, "es"),
-            )
-            .slice(0, perPage);
-        }
-      }
-    } catch {
-      // Fallback a red si la memoria local falla
+      return await construyendoBuscador;
+    } finally {
+      construyendoBuscador = null;
+    }
+  },
+
+  /**
+   * Precalienta el índice en tiempo ocioso, para que la PRIMERA tecla sea
+   * instantánea. Fire-and-forget: nunca propaga rechazos.
+   */
+  prefetchLocalidadesBuscador() {
+    if (buscadorLocalidades || construyendoBuscador) return;
+    enIdle(() => {
+      this.getLocalidadesBuscador().catch(() => {});
+    });
+  },
+
+  /** Invalida el índice cuando el catálogo se re-sincroniza. */
+  invalidarBuscadorLocalidades() {
+    buscadorLocalidades = null;
+    construyendoBuscador = null; // un build en vuelo ya no se considera vigente
+    generacionBuscador += 1; // ⚠️ sin esto, el build en vuelo NO se descarta
+  },
+
+  /**
+   * Búsqueda omnibox de localidades sobre el índice en memoria.
+   *
+   * El catálogo local (`/localidades/catalogo-completo`) es la fotografía
+   * COMPLETA del país, así que cuando el índice está construido es AUTORITATIVO:
+   * 0 coincidencias locales = 0 resultados, sin golpear la API (evita un request
+   * por cada tecla sin resultados). La frescura la garantiza el manifiesto
+   * (`manifest.localidades` → checkLocalidadesVersion → purge).
+   * La red queda SOLO como degradación cuando no hay índice disponible.
+   */
+  async searchLocalidades(search, perPage = MAX_RESULTADOS) {
+    const term = (search || "").trim();
+    if (term.length < MIN_CARACTERES) return [];
+
+    try {
+      const buscador = await this.getLocalidadesBuscador();
+      if (buscador) return buscador.search(term, perPage);
+    } catch (e) {
+      console.warn("Búsqueda local de localidades falló, se degrada a red:", e);
     }
 
     const response = await api.get("/localidades", {
-      params: { search, per_page: perPage },
+      params: { search: term, per_page: perPage },
     });
     return response.data;
   },
