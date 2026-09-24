@@ -22,6 +22,10 @@ import { esNacionArgentina } from "../utils/nacionUtils";
 import CalleCombo from "../components/CalleCombo";
 import Stepper from "./Stepper";
 import { useCalleSearch } from "../hooks/useCalleSearch";
+import {
+  MAX_RESULTADOS,
+  MIN_CARACTERES,
+} from "../../../../utils/catalogSearchIndex";
 
 // Componente auxiliar para el resumen final
 const ResumenFila = ({ label, valor }) => (
@@ -274,12 +278,9 @@ export default function PersonaDomicilioModal({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, personaId]);
-
-  // Precarga el catálogo completo de localidades en memoria al abrir el modal
+  // Precalienta el índice de búsqueda en tiempo ocioso: la 1ª tecla es instantánea
   useEffect(() => {
-    if (isOpen) {
-      geografiaService.getCatalogoLocalidades().catch(() => {});
-    }
+    if (isOpen) geografiaService.prefetchLocalidadesBuscador();
   }, [isOpen]);
 
   // Omnibox de localidades: búsqueda con debounce
@@ -294,7 +295,7 @@ export default function PersonaDomicilioModal({
       paisTipo !== "argentina" ||
       domicilioDesconocido ||
       modoUbicacion !== "omnibox" ||
-      term.length < 2
+      term.length < MIN_CARACTERES
     ) {
       setLocalidadesSearch([]);
       return;
@@ -304,7 +305,7 @@ export default function PersonaDomicilioModal({
     const timer = setTimeout(() => {
       setBuscandoLocalidades(true);
       geografiaService
-        .searchLocalidades(term, 15)
+        .searchLocalidades(term, MAX_RESULTADOS)
         .then((r) => {
           if (active) {
             setLocalidadesSearch(Array.isArray(r) ? r : r?.data || []);

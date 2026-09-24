@@ -19,6 +19,8 @@ vi.mock("../../../services/geografiaService", () => ({
     getDepartamentos: vi.fn().mockResolvedValue([]),
     getLocalidades: vi.fn().mockResolvedValue([]),
     // Precarga del catálogo completo al abrir el modal
+    // Precalentado del índice MiniSearch (Fase 6)
+    prefetchLocalidadesBuscador: vi.fn(),
     getCatalogoLocalidades: vi.fn().mockResolvedValue([]),
     searchLocalidades: vi.fn().mockResolvedValue([]),
     searchCalles: vi.fn().mockResolvedValue([]),
