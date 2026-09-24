@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Eraser,
   AlertTriangle,
+  Pencil,
+  Eye,
 } from "lucide-react";
 import personaService from "../../../../services/personaService";
 import geografiaService from "../../../../services/geografiaService";
@@ -27,15 +29,18 @@ import {
   MIN_CARACTERES,
 } from "../../../../utils/catalogSearchIndex";
 
-// Componente auxiliar para el resumen final
+// Componente auxiliar para el resumen final.
+// El valor se renderiza en un <div> (no en un <p>) porque la fila "Calle"
+// recibe JSX con un <div> para los badges OFICIAL/TEXTO LIBRE: un <div>
+// dentro de un <p> es HTML inválido y React lo reporta como warning.
 const ResumenFila = ({ label, valor }) => (
   <div className="flex justify-between gap-4">
     <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest pt-0.5">
       {label}
     </p>
-    <p className="text-sm font-bold text-secondary-900 text-right">
+    <div className="text-sm font-bold text-secondary-900 text-right">
       {valor || "—"}
-    </p>
+    </div>
   </div>
 );
 
@@ -72,6 +77,21 @@ const INITIAL_DOMICILIO = {
   observaciones: "",
 };
 
+// Modo de ubicación inicial del Paso 1: con jerarquía cargada (provincia /
+// departamento / localidad) conviene la cascada para corregir nivel a nivel;
+// con el domicilio vacío, la búsqueda rápida por nombre (omnibox) es más ágil.
+const modoUbicacionPara = (d = {}, desconocido = false) =>
+  !desconocido && Boolean(d.provincia_id || d.departamento_id || d.localidad_id)
+    ? "cascada"
+    : "omnibox";
+
+// Garantiza que un SearchableSelect muestre el nombre actual aunque el catálogo
+// todavía no haya cargado (sólo muestra label si el id está dentro de `options`).
+const conActual = (lista, id, nombre) =>
+  id && nombre && !lista.some((o) => String(o.id) === String(id))
+    ? [{ id, nombre }, ...lista]
+    : lista;
+
 export default function PersonaDomicilioModal({
   persona,
   personaId,
@@ -98,6 +118,13 @@ export default function PersonaDomicilioModal({
     departamento: "",
     localidad: "",
   });
+
+  // Modo Lectura vs Modo Edición
+  const [isEditing, setIsEditing] = useState(true);
+  const [hasExistingDomicilio, setHasExistingDomicilio] = useState(false);
+
+  // Snapshot para restaurar datos si el usuario cancela la edición
+  const originalDataRef = useRef(null);
 
   // Textos de búsqueda
   const [qLocalidad, setQLocalidad] = useState("");
@@ -218,8 +245,12 @@ export default function PersonaDomicilioModal({
         if (!active) return;
         const d = r?.data || r || null;
 
-        // Caso 1: Persona nueva sin domicilio previo
+        // Caso 1: Persona nueva sin domicilio previo (Registro Vacío)
         if (!d || (!d.nacion_id && !d.observaciones)) {
+          setHasExistingDomicilio(false);
+          setIsEditing(true); // Abre DIRECTO en edición
+          originalDataRef.current = null;
+          setModoUbicacion("omnibox");
           setStep(1);
           setDomicilioDesconocido(false);
           setPaisTipo("argentina");
@@ -246,14 +277,17 @@ export default function PersonaDomicilioModal({
           Boolean(d.observaciones);
 
         setDomicilioDesconocido(esDesconocido);
+        setHasExistingDomicilio(true);
+        setIsEditing(false); // Abre en LECTURA
+        setModoUbicacion(modoUbicacionPara(d, esDesconocido));
         setStep(esDesconocido ? 3 : 1);
 
+        // Hidratación del estado (la guía la omite): sin esto la ficha de
+        // lectura sale vacía y al editar se pisaría el domicilio con blancos.
         setDomicilio({ ...INITIAL_DOMICILIO, ...d });
         setQ(d.calle_nombre || "");
         setQEntre1(d.calle_entre_1_nombre || "");
         setQEntre2(d.calle_entre_2_nombre || "");
-
-        // Sincronizar nombres para que el breadcrumb cargue inmediatamente
         setUbicacionSeleccion({
           provincia: d.provincia_nombre || d.provincia?.nombre || "",
           departamento: d.departamento_nombre || d.departamento?.nombre || "",
@@ -262,11 +296,51 @@ export default function PersonaDomicilioModal({
         setQLocalidad(d.localidad_nombre || d.localidad?.nombre || "");
 
         const esAR = esNacionArgentina(nacions, d.nacion_id);
-        setPaisTipo(esAR ? "argentina" : "extranjero");
+        setPaisTipo(
+          esDesconocido ? "argentina" : esAR ? "argentina" : "extranjero",
+        );
 
+        // Reponer la cascada para que los selects tengan opciones al editar
         if (d.nacion_id) handleNacionChange(d.nacion_id);
         if (d.provincia_id) loadDepartamentos(d.provincia_id);
         if (d.departamento_id) loadLocalidades(d.departamento_id);
+
+        // Snapshot original completo para poder cancelar la edición
+        originalDataRef.current = {
+          domicilio: {
+            nacion_id: d.nacion_id || "",
+            provincia_id: d.provincia_id || "",
+            departamento_id: d.departamento_id || "",
+            localidad_id: d.localidad_id || "",
+            calle_id: d.calle_id || "",
+            calle_nombre: d.calle_nombre || "",
+            calle_entre_1_id: d.calle_entre_1_id || "",
+            calle_entre_1_nombre: d.calle_entre_1_nombre || "",
+            calle_entre_2_id: d.calle_entre_2_id || "",
+            calle_entre_2_nombre: d.calle_entre_2_nombre || "",
+            numero: d.numero || "",
+            piso: d.piso || "",
+            unidad: d.unidad || "",
+            torre: d.torre || "",
+            codigo_postal: d.codigo_postal || "",
+            observaciones: d.observaciones || "",
+          },
+          domicilioDesconocido: esDesconocido,
+          paisTipo: esDesconocido
+            ? "argentina"
+            : esAR
+              ? "argentina"
+              : "extranjero",
+          ubicacionSeleccion: {
+            provincia: d.provincia_nombre || d.provincia?.nombre || "",
+            departamento: d.departamento_nombre || d.departamento?.nombre || "",
+            localidad: d.localidad_nombre || d.localidad?.nombre || "",
+          },
+          qLocalidad: d.localidad_nombre || d.localidad?.nombre || "",
+          q: d.calle_nombre || "",
+          qEntre1: d.calle_entre_1_nombre || "",
+          qEntre2: d.calle_entre_2_nombre || "",
+        };
       })
       .catch((err) => console.error("Error al cargar domicilio:", err))
       .finally(() => {
@@ -486,6 +560,42 @@ export default function PersonaDomicilioModal({
     }
   };
 
+  // Cancela la edición y restaura los datos originales del snapshot
+  const handleCancelEdit = () => {
+    const snap = originalDataRef.current;
+    if (snap) {
+      setDomicilio({ ...snap.domicilio });
+      setDomicilioDesconocido(snap.domicilioDesconocido);
+      setPaisTipo(snap.paisTipo);
+      setUbicacionSeleccion({ ...snap.ubicacionSeleccion });
+      setQLocalidad(snap.qLocalidad);
+      setQ(snap.q);
+      setQEntre1(snap.qEntre1);
+      setQEntre2(snap.qEntre2);
+
+      // Si el usuario había cambiado el país a extranjero, la cascada quedó
+      // vacía: la recargamos desde el snapshot para que los selects tengan datos.
+      if (snap.domicilio.nacion_id)
+        handleNacionChange(snap.domicilio.nacion_id);
+      if (snap.domicilio.provincia_id)
+        loadDepartamentos(snap.domicilio.provincia_id);
+      if (snap.domicilio.departamento_id)
+        loadLocalidades(snap.domicilio.departamento_id);
+    }
+    setModoUbicacion(
+      modoUbicacionPara(snap?.domicilio, snap?.domicilioDesconocido),
+    );
+    setStep(domicilioDesconocido ? 3 : 1);
+    setIsEditing(false);
+  };
+
+  // Pasa a modo edición con el paso y el modo de ubicación que corresponden
+  const entrarModoEdicion = () => {
+    setIsEditing(true);
+    setModoUbicacion(modoUbicacionPara(domicilio, domicilioDesconocido));
+    setStep(domicilioDesconocido ? 3 : 1);
+  };
+
   const handleSave = async () => {
     if (!personaId) return;
     setSaving(true);
@@ -610,15 +720,53 @@ export default function PersonaDomicilioModal({
       role="dialog"
       aria-modal="true"
     >
-      <div className="h-[85vh] max-h-[760px] min-h-[580px] w-full max-w-4xl overflow-hidden flex flex-col bg-white rounded-3xl shadow-2xl border border-secondary-100 animate-scaleIn">
+      <div className="h-[90vh] max-h-[min(900px,calc(100dvh_-_2rem))] min-h-[min(560px,calc(100dvh_-_2rem))] w-full max-w-4xl overflow-hidden flex flex-col bg-white rounded-3xl shadow-2xl border border-secondary-100 animate-scaleIn">
         {/* Header */}
         <div className="relative bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500 px-8 py-5">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* Acciones de la derecha: toggle Lectura/Edición + cerrar */}
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            {hasExistingDomicilio && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isEditing) {
+                    handleCancelEdit();
+                  } else {
+                    entrarModoEdicion();
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm ${
+                  isEditing
+                    ? "bg-amber-400/20 hover:bg-amber-400/30 text-amber-100 border border-amber-300/40"
+                    : "bg-white/20 hover:bg-white/30 text-white border border-white/30"
+                }`}
+                title={
+                  isEditing
+                    ? "Volver al modo lectura descartando cambios"
+                    : "Modificar los datos del domicilio"
+                }
+              >
+                {isEditing ? (
+                  <>
+                    <Eye className="w-3.5 h-3.5" /> Modo Lectura
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="w-3.5 h-3.5" /> Editar Domicilio
+                  </>
+                )}
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              aria-label="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
           <div className="flex items-center gap-4">
             {/* Ícono alusivo al domicilio: siempre visible como identidad del modal */}
             <div className="w-12 h-12 shrink-0 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white">
@@ -634,24 +782,42 @@ export default function PersonaDomicilioModal({
               />
             )}
             <div className="min-w-0">
-              <h2 className="text-xl font-black text-white truncate max-w-[620px]">
-                {personaNombre ? `Domicilio · ${personaNombre}` : "Domicilio"}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black text-white truncate max-w-[620px]">
+                  {personaNombre ? `Domicilio · ${personaNombre}` : "Domicilio"}
+                </h2>
+                {hasExistingDomicilio && (
+                  <span
+                    className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border shrink-0 ${
+                      isEditing
+                        ? "bg-amber-500/30 text-amber-200 border-amber-400/40"
+                        : "bg-emerald-500/30 text-emerald-200 border-emerald-400/40"
+                    }`}
+                  >
+                    {isEditing ? "Editando" : "Solo Lectura"}
+                  </span>
+                )}
+              </div>
               <p className="text-white/80 text-sm font-medium">
-                Ubicación · Vivienda · Observaciones
+                {isEditing
+                  ? "Completá los pasos para actualizar los datos"
+                  : "Ficha de residencia y localización"}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Stepper */}
-        <Stepper
-          etapas={ETAPAS}
-          step={step}
-          esAlcanzable={esPasoAlcanzable}
-          onSelect={irAPaso}
-          mensajeBloqueado="Elegí una localidad para completar Calles y Vivienda"
-        />
+        {/* Stepper: solo visible mientras se edita */}
+        {isEditing && (
+          <Stepper
+            etapas={ETAPAS}
+            step={step}
+            esAlcanzable={esPasoAlcanzable}
+            onSelect={irAPaso}
+            mensajeBloqueado="Elegí una localidad para completar Calles y Vivienda"
+          />
+        )}
+
         {/* Cuerpo scrolleable */}
         <div className="overflow-y-auto flex-1 min-h-0 p-6 space-y-6">
           {estaCargando ? (
@@ -662,7 +828,147 @@ export default function PersonaDomicilioModal({
                 Cargando datos del domicilio…
               </p>
             </div>
+          ) : !isEditing ? (
+            /* ========================================================
+             * VISTA EN MODO LECTURA (Ficha consolidada, sin inputs)
+             * ======================================================== */
+            <div className="space-y-5 animate-fadeIn">
+              <div className="flex items-center justify-between border-b border-secondary-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <ClipboardCheck className="w-5 h-5 text-primary-600" />
+                  <h3 className="text-sm font-black text-secondary-800 uppercase tracking-wider">
+                    Datos del Domicilio Registrado
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={entrarModoEdicion}
+                  className="px-3.5 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors border border-primary-200"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> Modificar Datos
+                </button>
+              </div>
+
+              {domicilioDesconocido ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
+                  <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0" />
+                  <div>
+                    <p className="font-black text-amber-800 uppercase text-sm">
+                      Domicilio Desconocido
+                    </p>
+                    <p className="text-xs text-amber-700 font-medium">
+                      El domicilio geográfico se encuentra declarado como
+                      desconocido.
+                    </p>
+                  </div>
+                </div>
+              ) : esExtranjero ? (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex items-start gap-3">
+                  <AlertTriangle className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+                  <div>
+                    <p className="font-black text-indigo-800 uppercase text-sm">
+                      Domicilio en el extranjero
+                    </p>
+                    <p className="text-xs text-indigo-700 font-medium">
+                      País:{" "}
+                      {nacions.find(
+                        (n) => String(n.id) === String(domicilio.nacion_id),
+                      )?.nombre || "—"}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-secondary-50/70 border border-secondary-200 rounded-2xl p-6 space-y-3 shadow-sm">
+                  <ResumenFila
+                    label="País"
+                    valor={
+                      nacions.find(
+                        (n) => String(n.id) === String(domicilio.nacion_id),
+                      )?.nombre
+                    }
+                  />
+                  <ResumenFila
+                    label="Provincia"
+                    valor={
+                      nomPorId(provincias, domicilio.provincia_id) ||
+                      ubicacionSeleccion.provincia
+                    }
+                  />
+                  <ResumenFila
+                    label="Departamento"
+                    valor={
+                      nomPorId(departamentos, domicilio.departamento_id) ||
+                      ubicacionSeleccion.departamento
+                    }
+                  />
+                  <ResumenFila
+                    label="Localidad"
+                    valor={
+                      nomPorId(localidades, domicilio.localidad_id) ||
+                      ubicacionSeleccion.localidad
+                    }
+                  />
+                  <ResumenFila
+                    label="Calle"
+                    valor={
+                      domicilio.calle_nombre || q ? (
+                        <div className="flex items-center gap-2">
+                          <span>{domicilio.calle_nombre || q}</span>
+                          {domicilio.calle_id ? (
+                            <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                              OFICIAL ✓
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                              TEXTO LIBRE 📝
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        "—"
+                      )
+                    }
+                  />
+                  <ResumenFila label="Número" valor={domicilio.numero} />
+                  <ResumenFila
+                    label="Piso / Dpto / Torre"
+                    valor={[domicilio.piso, domicilio.unidad, domicilio.torre]
+                      .filter(Boolean)
+                      .join(" / ")}
+                  />
+                  <ResumenFila
+                    label="Entrecalles"
+                    valor={[
+                      domicilio.calle_entre_1_nombre || qEntre1,
+                      domicilio.calle_entre_2_nombre || qEntre2,
+                    ]
+                      .filter(Boolean)
+                      .join(" y ")}
+                  />
+                  <ResumenFila
+                    label="Código Postal"
+                    valor={domicilio.codigo_postal}
+                  />
+                </div>
+              )}
+
+              {/* Observaciones */}
+              <div className="bg-white border border-secondary-200 rounded-2xl p-5">
+                <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1.5">
+                  Observaciones del Domicilio
+                </p>
+                <p className="text-xs font-semibold text-secondary-700 whitespace-pre-wrap">
+                  {domicilio.observaciones || (
+                    <span className="italic text-secondary-400">
+                      Sin observaciones registradas.
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
           ) : (
+            /* ========================================================
+             * VISTA EN MODO EDICIÓN
             /* Contenedor con transición fadeIn que SOLO se dispara al cambiar de 'step' */
             <div key={step} className="animate-fadeIn">
               {/* PASO 1 */}
@@ -840,7 +1146,11 @@ export default function PersonaDomicilioModal({
                           <div className="mt-2 rounded-2xl border border-secondary-200 bg-secondary-50 p-4 space-y-4">
                             <SearchableSelect
                               label="Provincia"
-                              options={provincias}
+                              options={conActual(
+                                provincias,
+                                domicilio.provincia_id,
+                                ubicacionSeleccion.provincia,
+                              )}
                               value={domicilio.provincia_id}
                               placeholder="Seleccionar provincia"
                               disabled={domicilioDesconocido}
@@ -850,7 +1160,11 @@ export default function PersonaDomicilioModal({
                             />
                             <SearchableSelect
                               label="Departamento"
-                              options={departamentos}
+                              options={conActual(
+                                departamentos,
+                                domicilio.departamento_id,
+                                ubicacionSeleccion.departamento,
+                              )}
                               value={domicilio.departamento_id}
                               placeholder="Seleccionar departamento"
                               disabled={
@@ -862,7 +1176,11 @@ export default function PersonaDomicilioModal({
                             />
                             <SearchableSelect
                               label="Localidad"
-                              options={localidades}
+                              options={conActual(
+                                localidades,
+                                domicilio.localidad_id,
+                                ubicacionSeleccion.localidad,
+                              )}
                               value={domicilio.localidad_id}
                               placeholder="Seleccionar localidad"
                               disabled={
@@ -1195,50 +1513,80 @@ export default function PersonaDomicilioModal({
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-4 border-t border-secondary-100 bg-white flex items-center gap-3 mt-auto shrink-0">
-          <button
-            type="button"
-            onClick={onOmit}
-            className="px-5 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200"
-          >
-            <SkipForward className="w-4 h-4 inline mr-1" /> Omitir
-          </button>
-          <button
-            type="button"
-            onClick={clearForm}
-            className="px-5 py-3 border border-red-200 text-red-600 rounded-2xl font-black uppercase tracking-widest hover:bg-red-50"
-          >
-            <Eraser className="w-4 h-4 inline mr-1" /> Limpiar
-          </button>
-          <div className="flex-1" />
-          {step > 1 && (
+        {!isEditing ? (
+          /* Footer en Modo Lectura */
+          <div className="px-8 py-4 border-t border-secondary-100 bg-white flex items-center justify-between mt-auto shrink-0">
             <button
               type="button"
-              onClick={irAnterior}
-              className="px-5 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest"
+              onClick={onClose}
+              className="px-5 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200"
             >
-              <ChevronLeft className="w-4 h-4 inline mr-1" /> Anterior
+              Cerrar
             </button>
-          )}
-          {step < 3 ? (
             <button
               type="button"
-              onClick={irSiguiente}
-              className="px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg"
+              onClick={entrarModoEdicion}
+              className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg active:scale-[0.98]"
             >
-              Siguiente <ChevronRight className="w-4 h-4 inline ml-1" />
+              <Pencil className="w-4 h-4" /> Modificar Domicilio
             </button>
-          ) : (
+          </div>
+        ) : (
+          /* Footer en Modo Edición (el habitual del Stepper) */
+          <div className="px-8 py-4 border-t border-secondary-100 bg-white flex items-center gap-3 mt-auto shrink-0">
+            {hasExistingDomicilio && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="px-5 py-3 border border-secondary-200 text-secondary-600 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-50"
+              >
+                Cancelar Edición
+              </button>
+            )}
             <button
               type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 shadow-lg disabled:opacity-50"
+              onClick={onOmit}
+              className="px-5 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest hover:bg-secondary-200"
             >
-              <Save className="w-4 h-4 inline mr-1" /> Guardar Domicilio
+              <SkipForward className="w-4 h-4 inline mr-1" /> Omitir
             </button>
-          )}
-        </div>
+            <button
+              type="button"
+              onClick={clearForm}
+              className="px-5 py-3 border border-red-200 text-red-600 rounded-2xl font-black uppercase tracking-widest hover:bg-red-50"
+            >
+              <Eraser className="w-4 h-4 inline mr-1" /> Limpiar
+            </button>
+            <div className="flex-1" />
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={irAnterior}
+                className="px-5 py-3 bg-secondary-100 text-secondary-700 rounded-2xl font-black uppercase tracking-widest"
+              >
+                <ChevronLeft className="w-4 h-4 inline mr-1" /> Anterior
+              </button>
+            )}
+            {step < 3 ? (
+              <button
+                type="button"
+                onClick={irSiguiente}
+                className="px-6 py-3 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg"
+              >
+                Siguiente <ChevronRight className="w-4 h-4 inline ml-1" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="px-6 py-3 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-green-700 shadow-lg disabled:opacity-50"
+              >
+                <Save className="w-4 h-4 inline mr-1" /> Guardar Domicilio
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

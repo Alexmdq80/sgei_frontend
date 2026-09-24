@@ -176,7 +176,7 @@ export default function PersonaFormModal({
         isEditMode ? "Modificar registro de persona" : "Registrar persona"
       }
     >
-      <div className="h-[85vh] max-h-[760px] min-h-[580px] w-full max-w-4xl overflow-hidden flex flex-col bg-white rounded-3xl shadow-2xl border border-secondary-100 animate-scaleIn">
+      <div className="h-[90vh] max-h-[min(900px,calc(100dvh_-_2rem))] min-h-[min(560px,calc(100dvh_-_2rem))] w-full max-w-4xl overflow-hidden flex flex-col bg-white rounded-3xl shadow-2xl border border-secondary-100 animate-scaleIn">
         <div className="relative bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500 px-8 py-5">
           <button
             onClick={onClose}
