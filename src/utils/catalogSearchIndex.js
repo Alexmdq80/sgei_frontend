@@ -184,8 +184,19 @@ const envolver = (index, documents, maxResultados) => {
 
       const posicion = crearRanker(term, clavesPorId);
       return resultados
-        .map((r, i) => ({ r, i, p: posicion(r.id) }))
-        .sort((a, b) => a.p - b.p || b.r.score - a.r.score || a.i - b.i)
+        .map((r, i) => ({
+          r,
+          i,
+          p: posicion(r.id),
+          k: clavesPorId.get(String(r.id)) || "",
+        }))
+        .sort(
+          (a, b) =>
+            a.p - b.p || // 1) cercanía al inicio del NOMBRE
+            (a.k < b.k ? -1 : a.k > b.k ? 1 : 0) || // 2) alfabético por NOMBRE
+            b.r.score - a.r.score || // 3) nombres idénticos: desempata el contexto
+            a.i - b.i, // 4) orden de inserción (estable)
+        )
         .slice(0, limite)
         .map(({ r }) => porId.get(String(r.id)))
         .filter(Boolean);
