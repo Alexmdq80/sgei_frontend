@@ -1,5 +1,5 @@
 import MiniSearch from "minisearch";
-import { normalizeToken } from "./searchText";
+import { normalizeSearch, normalizeToken } from "./searchText";
 
 /** Cantidad máxima de resultados que se entregan a la UI. */
 export const MAX_RESULTADOS = 10;
@@ -94,6 +94,65 @@ export const BUSCADOR_CALLES = {
 };
 
 /* ========================================================
+ * Saneo: MiniSearch aborta el build COMPLETO si un documento
+ * no tiene id ("document does not have ID field") o lo repite
+ * ("duplicate ID"), así que se filtran antes de indexar.
+ * ======================================================== */
+const sanear = (documents) => {
+  const vistos = new Set();
+  const limpios = [];
+  for (const d of documents) {
+    if (d?.id == null) continue;
+    const key = String(d.id);
+    if (vistos.has(key)) continue;
+    vistos.add(key);
+    limpios.push(d);
+  }
+  const descartados = documents.length - limpios.length;
+  if (descartados > 0) {
+    console.warn(
+      `catalogSearchIndex: ${descartados} documentos descartados (id ausente o duplicado)`,
+    );
+  }
+  return limpios;
+};
+
+/* ========================================================
+ * Ranking por cercanía al inicio del nombre.
+ *
+ * BM25 (MiniSearch) ignora la POSICIÓN de la coincidencia y el orden de las
+ * palabras: "mar del plata" y "villa del mar" pueden empatar exactamente, y el
+ * campo `contexto` (depto/provincia) puede empujar arriba a una localidad cuyo
+ * NOMBRE no coincide con lo tipeado. Para un autocompletado hay que premiar
+ * "el nombre empieza con lo que escribí" y usar el score sólo como desempate.
+ * ======================================================== */
+const EXACTO = 0;
+const INICIO_FRASE = 1;
+const INICIO_PRIMER_TERMINO = 2;
+const CONTIENE_FRASE = 3;
+const RESTO = 4;
+
+/** Clave comparable: sin acentos, sin mayúsculas y sin puntuación ("AV. X" ~ "av x"). */
+const clave = (s) =>
+  normalizeSearch(s)
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const crearRanker = (consulta, clavesPorId) => {
+  const q = clave(consulta);
+  const primero = q.split(" ")[0];
+  return (id) => {
+    const n = clavesPorId.get(String(id)) || "";
+    if (n === q) return EXACTO;
+    if (n.startsWith(q)) return INICIO_FRASE;
+    if (n.startsWith(primero)) return INICIO_PRIMER_TERMINO;
+    if (n.includes(q)) return CONTIENE_FRASE;
+    return RESTO; // matchea sólo por `contexto` (depto/provincia)
+  };
+};
+
+/* ========================================================
  * Factory
  * ======================================================== */
 
@@ -104,6 +163,10 @@ export const BUSCADOR_CALLES = {
  */
 const envolver = (index, documents, maxResultados) => {
   const porId = new Map(documents.map((d) => [String(d.id), d]));
+  // Claves normalizadas UNA sola vez (en el build del índice, no en cada tecla).
+  const clavesPorId = new Map(
+    documents.map((d) => [String(d.id), clave(d.nombre || "")]),
+  );
 
   return {
     size: documents.length,
@@ -111,10 +174,20 @@ const envolver = (index, documents, maxResultados) => {
       const term = (consulta || "").trim();
       if (term.length < MIN_CARACTERES) return [];
 
-      return index
-        .search(term)
+      const resultados = index.search(term);
+      if (resultados.length <= 1) {
+        return resultados
+          .slice(0, limite)
+          .map((r) => porId.get(String(r.id)))
+          .filter(Boolean);
+      }
+
+      const posicion = crearRanker(term, clavesPorId);
+      return resultados
+        .map((r, i) => ({ r, i, p: posicion(r.id) }))
+        .sort((a, b) => a.p - b.p || b.r.score - a.r.score || a.i - b.i)
         .slice(0, limite)
-        .map((resultado) => porId.get(String(resultado.id)))
+        .map(({ r }) => porId.get(String(r.id)))
         .filter(Boolean);
     },
   };
@@ -132,9 +205,10 @@ export function crearBuscador(
   documents,
   { opciones, toIndexDoc, maxResultados = MAX_RESULTADOS },
 ) {
+  const docs = sanear(documents);
   const index = new MiniSearch(opciones);
-  index.addAll(documents.map(toIndexDoc));
-  return envolver(index, documents, maxResultados);
+  index.addAll(docs.map(toIndexDoc));
+  return envolver(index, docs, maxResultados);
 }
 
 /**
@@ -145,9 +219,10 @@ export async function crearBuscadorAsync(
   documents,
   { opciones, toIndexDoc, maxResultados = MAX_RESULTADOS, batchSize = 500 },
 ) {
+  const docs = sanear(documents);
   const index = new MiniSearch(opciones);
-  await index.addAllAsync(documents.map(toIndexDoc), { batchSize });
-  return envolver(index, documents, maxResultados);
+  await index.addAllAsync(docs.map(toIndexDoc), { batchSize });
+  return envolver(index, docs, maxResultados);
 }
 
 /**
