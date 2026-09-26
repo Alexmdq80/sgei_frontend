@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  Search,
   Loader2,
   X,
   Home,
@@ -18,79 +17,36 @@ import {
 } from "lucide-react";
 import personaService from "../../../../services/personaService";
 import geografiaService from "../../../../services/geografiaService";
-import SearchableSelect from "../../../../components/SearchableSelect";
 import useGeografiaCascade from "../hooks/useGeografiaCascade";
 import { esNacionArgentina } from "../utils/nacionUtils";
-import CalleCombo from "../components/CalleCombo";
-import Stepper from "./Stepper";
 import { useCalleSearch } from "../hooks/useCalleSearch";
+import { parseError } from "../../../../utils/errorParser";
 import {
   MAX_RESULTADOS,
   MIN_CARACTERES,
 } from "../../../../utils/catalogSearchIndex";
+import Stepper from "./Stepper";
+import DomicilioBreadcrumbUbicacion from "./domicilio/DomicilioBreadcrumbUbicacion";
+import {
+  INITIAL_DOMICILIO,
+  modoUbicacionPara,
+  nomPorId,
+} from "./domicilio/domicilioUtils";
+import DomicilioLecturaView from "./domicilio/DomicilioLecturaView";
+import DomicilioPasoUbicacion from "./domicilio/DomicilioPasoUbicacion";
+import DomicilioPasoCalles from "./domicilio/DomicilioPasoCalles";
+import DomicilioPasoResumen from "./domicilio/DomicilioPasoResumen";
 
 // Componente auxiliar para el resumen final.
 // El valor se renderiza en un <div> (no en un <p>) porque la fila "Calle"
 // recibe JSX con un <div> para los badges OFICIAL/TEXTO LIBRE: un <div>
 // dentro de un <p> es HTML inválido y React lo reporta como warning.
-const ResumenFila = ({ label, valor }) => (
-  <div className="flex justify-between gap-4">
-    <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest pt-0.5">
-      {label}
-    </p>
-    <div className="text-sm font-bold text-secondary-900 text-right">
-      {valor || "—"}
-    </div>
-  </div>
-);
-
-const CAMPOS_VIVIENDA = [
-  { key: "numero", label: "Número", numeric: true, max: 20 },
-  { key: "piso", label: "Piso", numeric: true, max: 10 },
-  { key: "unidad", label: "Departamento (unidad)", max: 10 },
-  { key: "torre", label: "Torre", max: 10 },
-  { key: "codigo_postal", label: "Código Postal", numeric: true, max: 10 },
-];
 
 const ETAPAS = [
   { n: 1, label: "Ubicación", Icon: MapPin },
   { n: 2, label: "Calles y Vivienda", Icon: Building2 },
   { n: 3, label: "Resumen y Observaciones", Icon: ClipboardCheck },
 ];
-
-const INITIAL_DOMICILIO = {
-  nacion_id: "",
-  provincia_id: "",
-  departamento_id: "",
-  localidad_id: "",
-  calle_id: "",
-  calle_nombre: "",
-  calle_entre_1_id: "",
-  calle_entre_1_nombre: "",
-  calle_entre_2_id: "",
-  calle_entre_2_nombre: "",
-  numero: "",
-  piso: "",
-  unidad: "",
-  torre: "",
-  codigo_postal: "",
-  observaciones: "",
-};
-
-// Modo de ubicación inicial del Paso 1: con jerarquía cargada (provincia /
-// departamento / localidad) conviene la cascada para corregir nivel a nivel;
-// con el domicilio vacío, la búsqueda rápida por nombre (omnibox) es más ágil.
-const modoUbicacionPara = (d = {}, desconocido = false) =>
-  !desconocido && Boolean(d.provincia_id || d.departamento_id || d.localidad_id)
-    ? "cascada"
-    : "omnibox";
-
-// Garantiza que un SearchableSelect muestre el nombre actual aunque el catálogo
-// todavía no haya cargado (sólo muestra label si el id está dentro de `options`).
-const conActual = (lista, id, nombre) =>
-  id && nombre && !lista.some((o) => String(o.id) === String(id))
-    ? [{ id, nombre }, ...lista]
-    : lista;
 
 export default function PersonaDomicilioModal({
   persona,
@@ -125,6 +81,20 @@ export default function PersonaDomicilioModal({
 
   // Snapshot para restaurar datos si el usuario cancela la edición
   const originalDataRef = useRef(null);
+
+  // Referencia al diálogo: la usan el guard de Escape y aria-labelledby
+  const dialogRef = useRef(null);
+
+  // Error con CLAVE (persona) para no hacer setState dentro de efectos:
+  // al cambiar de persona, el mensaje viejo se descarta solo en el render.
+  const [errorCarga, setErrorCarga] = useState({
+    personaId: null,
+    mensaje: "",
+  });
+  const [errorGuardado, setErrorGuardado] = useState("");
+  const errorVisible =
+    errorGuardado ||
+    (errorCarga.personaId === personaId ? errorCarga.mensaje : "");
 
   // Textos de búsqueda
   const [qLocalidad, setQLocalidad] = useState("");
@@ -209,9 +179,6 @@ export default function PersonaDomicilioModal({
 
   const irAnterior = () =>
     setStep(step === 3 && !paso2Alcanzable ? 1 : Math.max(1, step - 1));
-
-  const nomPorId = (lista, id) =>
-    lista.find((i) => String(i.id) === String(id))?.nombre || "";
 
   const resetCalles = useCallback(() => {
     setQ("");
@@ -342,7 +309,18 @@ export default function PersonaDomicilioModal({
           qEntre2: d.calle_entre_2_nombre || "",
         };
       })
-      .catch((err) => console.error("Error al cargar domicilio:", err))
+      .catch((err) => {
+        console.error("Error al cargar domicilio:", err);
+        if (active) {
+          setErrorCarga({
+            personaId,
+            mensaje: parseError(
+              err,
+              "No se pudieron cargar los datos del domicilio. Cerrá y volvé a abrir el modal.",
+            ),
+          });
+        }
+      })
       .finally(() => {
         if (active) setLastLoadedId(personaId);
       });
@@ -399,6 +377,31 @@ export default function PersonaDomicilioModal({
       clearTimeout(timer);
     };
   }, [paisTipo, domicilioDesconocido, modoUbicacion, qLocalidad]);
+
+  // A11y: Escape cierra el modal (con cleanup). Primero intenta cerrar el
+  // dropdown del omnibox; si hay otro diálogo encima (p.ej. ConfirmationModal,
+  // z-[100]), ese maneja su propio Escape.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key !== "Escape") return;
+      if (dropdownAbierto) {
+        setDropdownAbierto(false);
+        return;
+      }
+      const abiertos = document.querySelectorAll(
+        '[role="dialog"][aria-modal="true"]',
+      );
+      if (
+        abiertos.length &&
+        abiertos[abiertos.length - 1] !== dialogRef.current
+      )
+        return;
+      onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose, dropdownAbierto]);
 
   // Manejadores de geografía
   const onNacionChange = (value) => {
@@ -541,6 +544,95 @@ export default function PersonaDomicilioModal({
     if (deptoId) loadLocalidades(deptoId);
     setModoUbicacion("omnibox");
   };
+  // El usuario tipea en el omnibox: si había localidad elegida, la invalidamos
+  const handleQLocalidadChange = (value) => {
+    setQLocalidad(value);
+    setDropdownAbierto(true);
+    if (domicilio.localidad_id) {
+      setDomicilio((p) => ({
+        ...p,
+        localidad_id: "",
+        provincia_id: "",
+        departamento_id: "",
+      }));
+      setUbicacionSeleccion({ provincia: "", departamento: "", localidad: "" });
+    }
+  };
+
+  const handleDomicilioDesconocidoChange = (checked) => {
+    setDomicilioDesconocido(checked);
+    if (checked) setStep(3);
+  };
+
+  // "Cambiar" del breadcrumb (antes onClick inline):
+  // FIX: también limpia *_nombre. Antes quedaban con el valor de la localidad
+  // anterior y el Paso 3 podía guardar esa calle sin localidad.
+  const handleCambiarUbicacion = () => {
+    setUbicacionSeleccion({ provincia: "", departamento: "", localidad: "" });
+    setQLocalidad("");
+    setLocalidadesSearch([]);
+    setDropdownAbierto(false);
+    setModoUbicacion("omnibox");
+    setDomicilio((p) => ({
+      ...p,
+      provincia_id: "",
+      departamento_id: "",
+      localidad_id: "",
+      calle_id: "",
+      calle_nombre: "", // FIX
+      calle_entre_1_id: "",
+      calle_entre_1_nombre: "", // FIX
+      calle_entre_2_id: "",
+      calle_entre_2_nombre: "", // FIX
+      numero: "",
+      piso: "",
+      unidad: "",
+      torre: "",
+      codigo_postal: "",
+    }));
+    resetCalles();
+    setStep(1);
+  };
+
+  // Un solo par de setters por campo de calle (calle | calle_entre_1 | calle_entre_2)
+  const setTextoDeCalle = {
+    calle: setQ,
+    calle_entre_1: setQEntre1,
+    calle_entre_2: setQEntre2,
+  };
+
+  const handleCalleTextoChange = (campo, valor) => {
+    setTextoDeCalle[campo](valor);
+    setDomicilio((p) => ({
+      ...p,
+      [`${campo}_id`]: "",
+      [`${campo}_nombre`]: valor,
+    }));
+  };
+
+  const handleCalleSelect = (campo, calle) => {
+    setTextoDeCalle[campo](calle.nombre);
+    setDomicilio((p) => ({
+      ...p,
+      [`${campo}_id`]: calle.id,
+      [`${campo}_nombre`]: calle.nombre,
+    }));
+  };
+
+  const handleCalleClear = (campo) => {
+    setTextoDeCalle[campo]("");
+    setDomicilio((p) => ({
+      ...p,
+      [`${campo}_id`]: "",
+      [`${campo}_nombre`]: "",
+    }));
+  };
+
+  const handleFieldChange = (key, valor) =>
+    setDomicilio((p) => ({ ...p, [key]: valor }));
+
+  const handleObservacionesChange = (valor) =>
+    setDomicilio((p) => ({ ...p, observaciones: valor }));
 
   const clearForm = () => {
     setStep(1);
@@ -598,6 +690,7 @@ export default function PersonaDomicilioModal({
 
   const handleSave = async () => {
     if (!personaId) return;
+    setErrorGuardado("");
     setSaving(true);
     try {
       await personaService.saveDomicilio(
@@ -609,101 +702,29 @@ export default function PersonaDomicilioModal({
       onSaved();
     } catch (err) {
       console.error("Error al guardar domicilio:", err);
+      setErrorGuardado(
+        parseError(
+          err,
+          "No se pudo guardar el domicilio. Reintentá en unos segundos.",
+        ),
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  // Render del Breadcrumb (utilizado en Paso 1 y Paso 2)
-  const renderBreadcrumbUbicacion = () => {
-    if (domicilioDesconocido) {
-      return (
-        <div className="inline-flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs font-black text-amber-700">
-          ⚠️ Ubicación: [ Domicilio Desconocido / Sin Acreditar ]
-        </div>
-      );
-    }
-    if (esExtranjero) {
-      const nombrePais = nacions.find(
-        (n) => String(n.id) === String(domicilio.nacion_id),
-      )?.nombre;
-      return (
-        <div className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-black text-indigo-700">
-          🌐 Ubicación: [ {nombrePais || "País extranjero"} ]
-        </div>
-      );
-    }
-    if (paisTipo === "argentina") {
-      return (
-        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-xs font-black text-primary-700">
-          📍 Ubicación:
-          <span className="rounded-full border border-primary-200 bg-white px-2.5 py-0.5">
-            🇦🇷 Argentina
-          </span>
-          {ubicacionSeleccion.provincia && (
-            <>
-              <span>›</span>
-              <span className="rounded-full border border-primary-200 bg-white px-2.5 py-0.5">
-                {ubicacionSeleccion.provincia}
-              </span>
-            </>
-          )}
-          {ubicacionSeleccion.departamento && (
-            <>
-              <span>›</span>
-              <span className="rounded-full border border-primary-200 bg-white px-2.5 py-0.5">
-                {ubicacionSeleccion.departamento}
-              </span>
-            </>
-          )}
-          {ubicacionSeleccion.localidad && (
-            <>
-              <span>›</span>
-              <span className="rounded-full border border-primary-200 bg-white px-2.5 py-0.5">
-                {ubicacionSeleccion.localidad}
-              </span>
-            </>
-          )}
-          {(domicilio.localidad_id || ubicacionSeleccion.localidad) && (
-            <button
-              type="button"
-              onClick={() => {
-                setUbicacionSeleccion({
-                  provincia: "",
-                  departamento: "",
-                  localidad: "",
-                });
-                setQLocalidad("");
-                setLocalidadesSearch([]);
-                setDropdownAbierto(false);
-                setModoUbicacion("omnibox");
-                setDomicilio((p) => ({
-                  ...p,
-                  provincia_id: "",
-                  departamento_id: "",
-                  localidad_id: "",
-                  calle_id: "",
-                  calle_entre_1_id: "",
-                  calle_entre_2_id: "",
-                  numero: "",
-                  piso: "",
-                  unidad: "",
-                  torre: "",
-                  codigo_postal: "",
-                }));
-                resetCalles();
-                setStep(1);
-              }}
-              className="ml-2 text-[10px] font-black underline hover:text-primary-900"
-            >
-              Cambiar
-            </button>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
+  // Breadcrumb compartido por el Paso 1 y el Paso 2
+  const renderBreadcrumbUbicacion = () => (
+    <DomicilioBreadcrumbUbicacion
+      domicilio={domicilio}
+      domicilioDesconocido={domicilioDesconocido}
+      esExtranjero={esExtranjero}
+      paisTipo={paisTipo}
+      nacions={nacions}
+      ubicacionSeleccion={ubicacionSeleccion}
+      onCambiarUbicacion={handleCambiarUbicacion}
+    />
+  );
 
   if (!isOpen || !personaId) return null;
 
@@ -716,9 +737,11 @@ export default function PersonaDomicilioModal({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-secondary-900/60 transition-opacity"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="domicilio-modal-title"
     >
       <div className="h-[90vh] max-h-[min(900px,calc(100dvh_-_2rem))] min-h-[min(560px,calc(100dvh_-_2rem))] w-full max-w-4xl overflow-hidden flex flex-col bg-white rounded-3xl shadow-2xl border border-secondary-100 animate-scaleIn">
         {/* Header */}
@@ -783,7 +806,10 @@ export default function PersonaDomicilioModal({
             )}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black text-white truncate max-w-[620px]">
+                <h2
+                  id="domicilio-modal-title"
+                  className="text-xl font-black text-white truncate max-w-[620px]"
+                >
                   {personaNombre ? `Domicilio · ${personaNombre}` : "Domicilio"}
                 </h2>
                 {hasExistingDomicilio && (
@@ -819,7 +845,31 @@ export default function PersonaDomicilioModal({
         )}
 
         {/* Cuerpo scrolleable */}
+
         <div className="overflow-y-auto flex-1 min-h-0 p-6 space-y-6">
+          {errorVisible && (
+            <div
+              role="alert"
+              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-bold animate-fadeIn"
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                <span>{errorVisible}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorGuardado("");
+                  setErrorCarga({ personaId, mensaje: "" });
+                }}
+                aria-label="Descartar error"
+                className="text-red-400 hover:text-red-600 p-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {estaCargando ? (
             /* Loader centrado inicial */
             <div className="h-full min-h-[340px] flex flex-col items-center justify-center gap-3">
@@ -829,684 +879,88 @@ export default function PersonaDomicilioModal({
               </p>
             </div>
           ) : !isEditing ? (
-            /* ========================================================
-             * VISTA EN MODO LECTURA (Ficha consolidada, sin inputs)
-             * ======================================================== */
-            <div className="space-y-5 animate-fadeIn">
-              <div className="flex items-center justify-between border-b border-secondary-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <ClipboardCheck className="w-5 h-5 text-primary-600" />
-                  <h3 className="text-sm font-black text-secondary-800 uppercase tracking-wider">
-                    Datos del Domicilio Registrado
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={entrarModoEdicion}
-                  className="px-3.5 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors border border-primary-200"
-                >
-                  <Pencil className="w-3.5 h-3.5" /> Modificar Datos
-                </button>
-              </div>
-
-              {domicilioDesconocido ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
-                  <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0" />
-                  <div>
-                    <p className="font-black text-amber-800 uppercase text-sm">
-                      Domicilio Desconocido
-                    </p>
-                    <p className="text-xs text-amber-700 font-medium">
-                      El domicilio geográfico se encuentra declarado como
-                      desconocido.
-                    </p>
-                  </div>
-                </div>
-              ) : esExtranjero ? (
-                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex items-start gap-3">
-                  <AlertTriangle className="w-6 h-6 text-indigo-600 flex-shrink-0" />
-                  <div>
-                    <p className="font-black text-indigo-800 uppercase text-sm">
-                      Domicilio en el extranjero
-                    </p>
-                    <p className="text-xs text-indigo-700 font-medium">
-                      País:{" "}
-                      {nacions.find(
-                        (n) => String(n.id) === String(domicilio.nacion_id),
-                      )?.nombre || "—"}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-secondary-50/70 border border-secondary-200 rounded-2xl p-6 space-y-3 shadow-sm">
-                  <ResumenFila
-                    label="País"
-                    valor={
-                      nacions.find(
-                        (n) => String(n.id) === String(domicilio.nacion_id),
-                      )?.nombre
-                    }
-                  />
-                  <ResumenFila
-                    label="Provincia"
-                    valor={
-                      nomPorId(provincias, domicilio.provincia_id) ||
-                      ubicacionSeleccion.provincia
-                    }
-                  />
-                  <ResumenFila
-                    label="Departamento"
-                    valor={
-                      nomPorId(departamentos, domicilio.departamento_id) ||
-                      ubicacionSeleccion.departamento
-                    }
-                  />
-                  <ResumenFila
-                    label="Localidad"
-                    valor={
-                      nomPorId(localidades, domicilio.localidad_id) ||
-                      ubicacionSeleccion.localidad
-                    }
-                  />
-                  <ResumenFila
-                    label="Calle"
-                    valor={
-                      domicilio.calle_nombre || q ? (
-                        <div className="flex items-center gap-2">
-                          <span>{domicilio.calle_nombre || q}</span>
-                          {domicilio.calle_id ? (
-                            <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                              OFICIAL ✓
-                            </span>
-                          ) : (
-                            <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                              TEXTO LIBRE 📝
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        "—"
-                      )
-                    }
-                  />
-                  <ResumenFila label="Número" valor={domicilio.numero} />
-                  <ResumenFila
-                    label="Piso / Dpto / Torre"
-                    valor={[domicilio.piso, domicilio.unidad, domicilio.torre]
-                      .filter(Boolean)
-                      .join(" / ")}
-                  />
-                  <ResumenFila
-                    label="Entrecalles"
-                    valor={[
-                      domicilio.calle_entre_1_nombre || qEntre1,
-                      domicilio.calle_entre_2_nombre || qEntre2,
-                    ]
-                      .filter(Boolean)
-                      .join(" y ")}
-                  />
-                  <ResumenFila
-                    label="Código Postal"
-                    valor={domicilio.codigo_postal}
-                  />
-                </div>
-              )}
-
-              {/* Observaciones */}
-              <div className="bg-white border border-secondary-200 rounded-2xl p-5">
-                <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1.5">
-                  Observaciones del Domicilio
-                </p>
-                <p className="text-xs font-semibold text-secondary-700 whitespace-pre-wrap">
-                  {domicilio.observaciones || (
-                    <span className="italic text-secondary-400">
-                      Sin observaciones registradas.
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
+            <DomicilioLecturaView
+              domicilio={domicilio}
+              nacions={nacions}
+              provincias={provincias}
+              departamentos={departamentos}
+              localidades={localidades}
+              ubicacionSeleccion={ubicacionSeleccion}
+              q={q}
+              qEntre1={qEntre1}
+              qEntre2={qEntre2}
+              domicilioDesconocido={domicilioDesconocido}
+              esExtranjero={esExtranjero}
+              onEditar={entrarModoEdicion}
+            />
           ) : (
-            /* ========================================================
-             * VISTA EN MODO EDICIÓN
-            /* Contenedor con transición fadeIn que SOLO se dispara al cambiar de 'step' */
             <div key={step} className="animate-fadeIn">
-              {/* PASO 1 */}
               {step === 1 && (
-                <section className="space-y-4">
-                  <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-2 flex items-center gap-2">
-                    <MapPin className="w-4 h-4" /> Localidad / Ubicación
-                  </h3>
-
-                  {/* Domicilio Desconocido */}
-                  <label className="flex items-center gap-3 rounded-2xl border border-secondary-200 bg-secondary-50 px-4 py-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="sr-only peer"
-                      checked={domicilioDesconocido}
-                      onChange={(e) => {
-                        setDomicilioDesconocido(e.target.checked);
-                        if (e.target.checked) setStep(3);
-                      }}
-                    />
-                    <div className="w-11 h-6 bg-secondary-300 rounded-full relative peer peer-checked:after:translate-x-full after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500" />
-                    <div>
-                      <p className="text-sm font-black text-secondary-800">
-                        Declarar Domicilio Desconocido
-                      </p>
-                      <p className="text-[10px] text-secondary-500 font-medium">
-                        Salta al Paso 3 y podés justificarlo en Observaciones
-                      </p>
-                    </div>
-                  </label>
-
-                  <div>
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      País
-                    </label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        disabled={domicilioDesconocido}
-                        onClick={() => onPaisTipoChange("argentina")}
-                        className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${
-                          paisTipo === "argentina"
-                            ? "bg-primary-600 border-primary-600 text-white shadow"
-                            : "bg-white border-secondary-200 text-secondary-500 hover:border-primary-300"
-                        }`}
-                      >
-                        🇦🇷 Argentina
-                      </button>
-                      <button
-                        type="button"
-                        disabled={domicilioDesconocido}
-                        onClick={() => onPaisTipoChange("extranjero")}
-                        className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 border-2 transition-all ${
-                          paisTipo === "extranjero"
-                            ? "bg-indigo-600 border-indigo-600 text-white shadow"
-                            : "bg-white border-secondary-200 text-secondary-500 hover:border-primary-300"
-                        }`}
-                      >
-                        🌐 Extranjero
-                      </button>
-                    </div>
-
-                    {paisTipo === "extranjero" && (
-                      <div className="mt-2">
-                        <SearchableSelect
-                          label="Seleccionar país extranjero"
-                          options={nacionsSinArgentina}
-                          value={domicilio.nacion_id}
-                          placeholder="Buscar país..."
-                          disabled={domicilioDesconocido}
-                          onChange={(e) => onNacionChange(e.target.value)}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {paisTipo === "argentina" && (
-                    <>
-                      <div>{renderBreadcrumbUbicacion()}</div>
-
-                      <div>
-                        {modoUbicacion === "omnibox" && (
-                          <div ref={omniboxRef} className="relative">
-                            <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                              Localidad / Ubicación
-                            </label>
-                            <div className="rounded-2xl border-2 border-primary-300 bg-white overflow-hidden transition-all focus-within:border-primary-500">
-                              <div className="flex items-center gap-2 px-4 py-3">
-                                <Search className="w-4 h-4 text-primary-500 flex-shrink-0" />
-                                <input
-                                  type="text"
-                                  value={qLocalidad}
-                                  disabled={domicilioDesconocido}
-                                  onFocus={() => {
-                                    if (localidadesSearch.length > 0)
-                                      setDropdownAbierto(true);
-                                  }}
-                                  onChange={(e) => {
-                                    setQLocalidad(e.target.value);
-                                    setDropdownAbierto(true);
-                                    if (domicilio.localidad_id) {
-                                      setDomicilio((p) => ({
-                                        ...p,
-                                        localidad_id: "",
-                                        provincia_id: "",
-                                        departamento_id: "",
-                                      }));
-                                      setUbicacionSeleccion({
-                                        provincia: "",
-                                        departamento: "",
-                                        localidad: "",
-                                      });
-                                    }
-                                  }}
-                                  placeholder="Escribí tu localidad (ej. Tandil, Quilmes, San Martín)..."
-                                  className="w-full bg-transparent outline-none text-sm font-bold"
-                                />
-                                {buscandoLocalidades && (
-                                  <Loader2 className="w-4 h-4 text-primary-500 animate-spin flex-shrink-0" />
-                                )}
-                              </div>
-
-                              {dropdownAbierto &&
-                                localidadesSearch.length > 0 && (
-                                  <ul className="border-t border-secondary-100 max-h-56 overflow-y-auto">
-                                    {localidadesSearch.map((loc) => (
-                                      <li
-                                        key={loc.id}
-                                        onClick={() => onSelectOmnibox(loc)}
-                                        className="px-4 py-2.5 cursor-pointer hover:bg-primary-50 transition-colors"
-                                      >
-                                        <p className="text-sm font-black text-secondary-800">
-                                          📍 {loc.nombre}
-                                        </p>
-                                        <p className="text-[11px] font-medium text-secondary-500">
-                                          {loc.departamento?.nombre} —{" "}
-                                          {loc.departamento?.provincia?.nombre}
-                                        </p>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
-
-                              {dropdownAbierto &&
-                                !domicilio.localidad_id &&
-                                (qLocalidad || "").trim().length >= 2 &&
-                                localidadesSearch.length === 0 &&
-                                !buscandoLocalidades && (
-                                  <p className="px-4 py-3 text-[11px] italic text-secondary-400 border-t border-secondary-100">
-                                    Sin coincidencias. Probá con otro término o
-                                    usá la cascada clásica.
-                                  </p>
-                                )}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="text-right mt-1.5">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setModoUbicacion((m) =>
-                                m === "omnibox" ? "cascada" : "omnibox",
-                              )
-                            }
-                            className="text-[11px] font-black text-primary-600 hover:text-primary-700 underline"
-                          >
-                            {modoUbicacion === "omnibox"
-                              ? "¿No encontrás tu localidad? Usá la cascada clásica →"
-                              : "← Volver al buscador rápido"}
-                          </button>
-                        </div>
-
-                        {modoUbicacion === "cascada" && (
-                          <div className="mt-2 rounded-2xl border border-secondary-200 bg-secondary-50 p-4 space-y-4">
-                            <SearchableSelect
-                              label="Provincia"
-                              options={conActual(
-                                provincias,
-                                domicilio.provincia_id,
-                                ubicacionSeleccion.provincia,
-                              )}
-                              value={domicilio.provincia_id}
-                              placeholder="Seleccionar provincia"
-                              disabled={domicilioDesconocido}
-                              onChange={(e) =>
-                                onProvinciaChange(e.target.value)
-                              }
-                            />
-                            <SearchableSelect
-                              label="Departamento"
-                              options={conActual(
-                                departamentos,
-                                domicilio.departamento_id,
-                                ubicacionSeleccion.departamento,
-                              )}
-                              value={domicilio.departamento_id}
-                              placeholder="Seleccionar departamento"
-                              disabled={
-                                !domicilio.provincia_id || domicilioDesconocido
-                              }
-                              onChange={(e) =>
-                                onDepartamentoChange(e.target.value)
-                              }
-                            />
-                            <SearchableSelect
-                              label="Localidad"
-                              options={conActual(
-                                localidades,
-                                domicilio.localidad_id,
-                                ubicacionSeleccion.localidad,
-                              )}
-                              value={domicilio.localidad_id}
-                              placeholder="Seleccionar localidad"
-                              disabled={
-                                !domicilio.departamento_id ||
-                                domicilioDesconocido
-                              }
-                              onChange={(e) =>
-                                onLocalidadChange(e.target.value)
-                              }
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </section>
+                <DomicilioPasoUbicacion
+                  domicilio={domicilio}
+                  domicilioDesconocido={domicilioDesconocido}
+                  onDomicilioDesconocidoChange={
+                    handleDomicilioDesconocidoChange
+                  }
+                  paisTipo={paisTipo}
+                  onPaisTipoChange={onPaisTipoChange}
+                  nacionsSinArgentina={nacionsSinArgentina}
+                  onNacionChange={onNacionChange}
+                  modoUbicacion={modoUbicacion}
+                  setModoUbicacion={setModoUbicacion}
+                  omniboxRef={omniboxRef}
+                  qLocalidad={qLocalidad}
+                  onQLocalidadChange={handleQLocalidadChange}
+                  buscandoLocalidades={buscandoLocalidades}
+                  dropdownAbierto={dropdownAbierto}
+                  setDropdownAbierto={setDropdownAbierto}
+                  localidadesSearch={localidadesSearch}
+                  onSelectOmnibox={onSelectOmnibox}
+                  provincias={provincias}
+                  departamentos={departamentos}
+                  localidades={localidades}
+                  ubicacionSeleccion={ubicacionSeleccion}
+                  onProvinciaChange={onProvinciaChange}
+                  onDepartamentoChange={onDepartamentoChange}
+                  onLocalidadChange={onLocalidadChange}
+                  renderBreadcrumbUbicacion={renderBreadcrumbUbicacion}
+                />
               )}
 
-              {/* PASO 2 */}
               {step === 2 && (
-                <section className="space-y-4">
-                  <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-2 flex items-center gap-2">
-                    <Building2 className="w-4 h-4" /> Calles y Vivienda
-                  </h3>
-
-                  {/* Breadcrumb presente en Paso 2 */}
-                  {!domicilioDesconocido && (
-                    <div className="flex flex-wrap mb-2">
-                      {renderBreadcrumbUbicacion()}
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <CalleCombo
-                      label="Calle principal"
-                      valueText={q}
-                      selectedId={domicilio.calle_id}
-                      calles={searchPrincipal.calles}
-                      loading={searchPrincipal.loading}
-                      disabled={!domicilio.localidad_id || domicilioDesconocido}
-                      placeholder="Ej: Av. Rivadavia, San Martín..."
-                      onSearchChange={(val) => {
-                        setQ(val);
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_id: "",
-                          calle_nombre: val,
-                        }));
-                      }}
-                      onSelectCalle={(calle) => {
-                        setQ(calle.nombre);
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_id: calle.id,
-                          calle_nombre: calle.nombre,
-                        }));
-                      }}
-                      onSelectCustom={(nombreLibre) => {
-                        setQ(nombreLibre);
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_id: "",
-                          calle_nombre: nombreLibre,
-                        }));
-                      }}
-                      onClearCalle={() => {
-                        setQ("");
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_id: "",
-                          calle_nombre: "",
-                        }));
-                      }}
-                    />
-
-                    <CalleCombo
-                      label="Entrecalle 1"
-                      valueText={qEntre1}
-                      selectedId={domicilio.calle_entre_1_id}
-                      calles={searchEntre1.calles}
-                      loading={searchEntre1.loading}
-                      disabled={!domicilio.localidad_id || domicilioDesconocido}
-                      placeholder="Ej: Mitre..."
-                      onSearchChange={(val) => {
-                        setQEntre1(val);
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_entre_1_id: "",
-                          calle_entre_1_nombre: val,
-                        }));
-                      }}
-                      onSelectCalle={(calle) => {
-                        setQEntre1(calle.nombre);
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_entre_1_id: calle.id,
-                          calle_entre_1_nombre: calle.nombre,
-                        }));
-                      }}
-                      onSelectCustom={(nombreLibre) => {
-                        setQEntre1(nombreLibre);
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_entre_1_id: "",
-                          calle_entre_1_nombre: nombreLibre,
-                        }));
-                      }}
-                      onClearCalle={() => {
-                        setQEntre1("");
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_entre_1_id: "",
-                          calle_entre_1_nombre: "",
-                        }));
-                      }}
-                    />
-
-                    <CalleCombo
-                      label="Entrecalle 2"
-                      valueText={qEntre2}
-                      selectedId={domicilio.calle_entre_2_id}
-                      calles={searchEntre2.calles}
-                      loading={searchEntre2.loading}
-                      disabled={!domicilio.localidad_id || domicilioDesconocido}
-                      placeholder="Ej: Belgrano..."
-                      onSearchChange={(val) => {
-                        setQEntre2(val);
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_entre_2_id: "",
-                          calle_entre_2_nombre: val,
-                        }));
-                      }}
-                      onSelectCalle={(calle) => {
-                        setQEntre2(calle.nombre);
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_entre_2_id: calle.id,
-                          calle_entre_2_nombre: calle.nombre,
-                        }));
-                      }}
-                      onSelectCustom={(nombreLibre) => {
-                        setQEntre2(nombreLibre);
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_entre_2_id: "",
-                          calle_entre_2_nombre: nombreLibre,
-                        }));
-                      }}
-                      onClearCalle={() => {
-                        setQEntre2("");
-                        setDomicilio((p) => ({
-                          ...p,
-                          calle_entre_2_id: "",
-                          calle_entre_2_nombre: "",
-                        }));
-                      }}
-                    />
-
-                    {/* Campos de vivienda */}
-                    {CAMPOS_VIVIENDA.map(({ key, label, numeric, max }) => (
-                      <div key={key}>
-                        <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                          {label}
-                        </label>
-                        <input
-                          type="text"
-                          maxLength={max}
-                          value={domicilio[key] || ""}
-                          onChange={(e) => {
-                            const val = numeric
-                              ? e.target.value.replace(/\D/g, "")
-                              : e.target.value;
-                            setDomicilio((p) => ({ ...p, [key]: val }));
-                          }}
-                          className="w-full px-4 py-2.5 bg-white border border-secondary-300 rounded-xl text-sm font-bold text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </section>
+                <DomicilioPasoCalles
+                  domicilio={domicilio}
+                  domicilioDesconocido={domicilioDesconocido}
+                  textos={{ principal: q, entre1: qEntre1, entre2: qEntre2 }}
+                  busquedas={{
+                    principal: searchPrincipal,
+                    entre1: searchEntre1,
+                    entre2: searchEntre2,
+                  }}
+                  onCalleTextoChange={handleCalleTextoChange}
+                  onCalleSelect={handleCalleSelect}
+                  onCalleClear={handleCalleClear}
+                  onFieldChange={handleFieldChange}
+                  renderBreadcrumbUbicacion={renderBreadcrumbUbicacion}
+                />
               )}
 
-              {/* PASO 3 */}
               {step === 3 && (
-                <section className="space-y-4">
-                  <h3 className="text-sm font-black text-secondary-400 uppercase tracking-widest border-b border-secondary-100 pb-2 mb-2 flex items-center gap-2">
-                    <ClipboardCheck className="w-4 h-4" /> Resumen y
-                    Confirmación
-                  </h3>
-
-                  {!domicilioDesconocido && esGeoParcial && (
-                    <div className="bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-sky-600 flex-shrink-0" />
-                      <p className="text-xs text-sky-800 font-medium">
-                        <span className="font-black uppercase tracking-wide">
-                          Geografía parcial:{" "}
-                        </span>
-                        {domicilio.provincia_id
-                          ? domicilio.departamento_id
-                            ? "se registrarán país, provincia y departamento; las calles y vivienda quedarán vacías."
-                            : "se registrarán país y provincia; el departamento, calles y vivienda quedarán vacíos."
-                          : "solo se registrará el país."}
-                      </p>
-                    </div>
-                  )}
-
-                  {domicilioDesconocido ? (
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
-                      <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0" />
-                      <div>
-                        <p className="font-black text-amber-800 uppercase text-sm">
-                          Domicilio Desconocido
-                        </p>
-                        <p className="text-xs text-amber-700 font-medium">
-                          El domicilio geográfico quedará en blanco. Solo se
-                          persistirá la observación.
-                        </p>
-                      </div>
-                    </div>
-                  ) : esExtranjero ? (
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex items-start gap-3">
-                      <AlertTriangle className="w-6 h-6 text-indigo-600 flex-shrink-0" />
-                      <div>
-                        <p className="font-black text-indigo-800 uppercase text-sm">
-                          Domicilio en el extranjero
-                        </p>
-                        <p className="text-xs text-indigo-700 font-medium">
-                          Solo se guardará el país. Los campos de calles y
-                          vivienda quedarán vacíos.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-secondary-50 border border-secondary-200 rounded-2xl p-5 space-y-3 shadow-sm">
-                      <ResumenFila
-                        label="País"
-                        valor={
-                          nacions.find(
-                            (n) => String(n.id) === String(domicilio.nacion_id),
-                          )?.nombre
-                        }
-                      />
-                      <ResumenFila
-                        label="Provincia"
-                        valor={
-                          nomPorId(provincias, domicilio.provincia_id) ||
-                          ubicacionSeleccion.provincia
-                        }
-                      />
-                      <ResumenFila
-                        label="Departamento"
-                        valor={
-                          nomPorId(departamentos, domicilio.departamento_id) ||
-                          ubicacionSeleccion.departamento
-                        }
-                      />
-                      <ResumenFila
-                        label="Localidad"
-                        valor={
-                          nomPorId(localidades, domicilio.localidad_id) ||
-                          ubicacionSeleccion.localidad
-                        }
-                      />
-                      <ResumenFila
-                        label="Calle"
-                        valor={
-                          domicilio.calle_nombre || q ? (
-                            <div className="flex items-center gap-2">
-                              <span>{domicilio.calle_nombre || q}</span>
-                              {domicilio.calle_id ? (
-                                <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                                  OFICIAL ✓
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                                  TEXTO LIBRE 📝
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            "—"
-                          )
-                        }
-                      />
-                      <ResumenFila label="Número" valor={domicilio.numero} />
-                      <ResumenFila
-                        label="Piso / Dpto / Torre"
-                        valor={[
-                          domicilio.piso,
-                          domicilio.unidad,
-                          domicilio.torre,
-                        ]
-                          .filter(Boolean)
-                          .join(" / ")}
-                      />
-                      <ResumenFila
-                        label="Entrecalles"
-                        valor={[qEntre1, qEntre2].filter(Boolean).join(" y ")}
-                      />
-                      <ResumenFila
-                        label="Código Postal"
-                        valor={domicilio.codigo_postal}
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-                      Observaciones del Domicilio (Opcional)
-                    </label>
-                    <textarea
-                      rows={3}
-                      maxLength={1000}
-                      placeholder="Ej: Se desconoce el domicilio actual, vive transitoriamente en..."
-                      className="w-full px-4 py-2 bg-white border border-secondary-300 rounded-xl text-xs font-medium text-secondary-900 focus:ring-2 focus:ring-primary-500 outline-none resize-none"
-                      value={domicilio.observaciones || ""}
-                      onChange={(e) =>
-                        setDomicilio((p) => ({
-                          ...p,
-                          observaciones: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </section>
+                <DomicilioPasoResumen
+                  domicilio={domicilio}
+                  onObservacionesChange={handleObservacionesChange}
+                  nacions={nacions}
+                  provincias={provincias}
+                  departamentos={departamentos}
+                  localidades={localidades}
+                  ubicacionSeleccion={ubicacionSeleccion}
+                  q={q}
+                  qEntre1={qEntre1}
+                  qEntre2={qEntre2}
+                  domicilioDesconocido={domicilioDesconocido}
+                  esExtranjero={esExtranjero}
+                  esGeoParcial={esGeoParcial}
+                />
               )}
             </div>
           )}
