@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import PersonaDomicilioModal from "../PersonaManagement/components/PersonaDomicilioModal";
 import personaService from "../../../services/personaService";
@@ -390,5 +390,105 @@ describe("PersonaDomicilioModal · modo lectura / edición", () => {
       await screen.findByPlaceholderText(/Escribí tu localidad/i),
     ).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Seleccionar provincia")).toBeNull();
+  });
+});
+describe("PersonaDomicilioModal · errores y accesibilidad", () => {
+  let errorSpy;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // El modal loguea el error además de mostrarlo: se captura para que la
+    // salida del test quede limpia y para poder asertar que se logueó.
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  it("Escape cierra el modal", async () => {
+    personaService.getDomicilio.mockResolvedValue({
+      data: DOMICILIO_EXISTENTE,
+    });
+    const onClose = vi.fn();
+    renderModal({ onClose });
+
+    // Espera a que termine la carga (si no, el listener está pero el modal
+    // todavía muestra el loader)
+    await screen.findByText(/Datos del Domicilio Registrado/i);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("muestra un banner de error si falla la carga del domicilio", async () => {
+    personaService.getDomicilio.mockRejectedValue(new Error("boom"));
+    renderModal();
+
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveTextContent(/No se pudieron cargar/i);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Error al cargar domicilio:", // ← el catch de getDomicilio
+      expect.any(Error),
+    );
+    // El loader se apaga igual (el finally marca la persona como cargada)
+    expect(screen.queryByText(/Cargando datos del domicilio/i)).toBeNull();
+  });
+
+  it("descarta el banner al hacer click en la X", async () => {
+    personaService.getDomicilio.mockRejectedValue(new Error("boom"));
+    renderModal();
+
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: /Descartar error/i }));
+
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("muestra un banner de error si falla el guardado", async () => {
+    personaService.getDomicilio.mockResolvedValue({ data: null });
+    personaService.saveDomicilio.mockRejectedValue(new Error("boom"));
+    renderModal();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /Ir al paso 3: Resumen y Observaciones/i,
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Guardar Domicilio/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /No se pudo guardar/i,
+    );
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Error al guardar domicilio:", // ← el catch de handleSave
+      expect.any(Error),
+    );
+    // El botón vuelve a estar disponible (saving = false en el finally)
+    expect(
+      screen.getByRole("button", { name: /Guardar Domicilio/i }),
+    ).not.toBeDisabled();
+  });
+
+  it("el Paso 3 muestra las entrecalles hidratadas de la ficha", async () => {
+    personaService.getDomicilio.mockResolvedValue({
+      data: {
+        ...DOMICILIO_EXISTENTE,
+        calle_entre_1_nombre: "Mitre",
+        calle_entre_2_nombre: "Belgrano",
+      },
+    });
+    renderModal();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Modificar Domicilio/i }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Ir al paso 3: Resumen y Observaciones/i,
+      }),
+    );
+
+    expect(await screen.findByText("Mitre y Belgrano")).toBeInTheDocument();
   });
 });
